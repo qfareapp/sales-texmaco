@@ -66,6 +66,7 @@ const authRoutes = require("./routes/auth.routes");
 const equipmentMaintenanceRoutes = require('./routes/equipmentMaintenance.routes');
 const equipmentMasterRoutes = require("./routes/equipmentMaster.routes.js");
 const dashboardUploadRoutes = require('./routes/dashboardUploads');
+const incidentRoutes = require('./routes/incidents');
 
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/enquiries', enquiryRoutes);   // ⚡ includes milestones & project-summary
@@ -80,6 +81,7 @@ app.use('/api/maintenance', equipmentMaintenanceRoutes);
 app.use('/api/maintenance/equipment-master', equipmentMasterRoutes);
 app.use("/api/inventory", require("./routes/equipmentInventory.routes.js"));
 app.use('/api/dashboard-uploads', dashboardUploadRoutes);
+app.use('/api/incidents', incidentRoutes);
 
 
 
