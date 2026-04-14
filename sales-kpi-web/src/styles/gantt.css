@@ -1,0 +1,5 @@
+/* src/styles/gantt.css */
+.bar-plan { fill: #3498db !important; }     /* Blue for Plan */
+.bar-wip { fill: #27ae60 !important; }      /* Green for WIP */
+.bar-delay { fill: #f39c12 !important; }    /* Orange for Delay in WIP */
+.bar-shifted { fill: #e74c3c !important; }  /* Red for Plan Shifted */

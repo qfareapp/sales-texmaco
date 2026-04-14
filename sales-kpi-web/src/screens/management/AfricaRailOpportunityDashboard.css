@@ -1,0 +1,348 @@
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+.africa-dpr {
+  --ink: #101113;
+  --muted: #5d6672;
+  --accent: #d45d2e;
+  --accent-2: #1b7c6b;
+  --paper: #ffffff;
+  --shadow: 0 18px 40px rgba(18, 21, 26, 0.12);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top left, #fff2e3 0%, #f2f6fb 45%, #e9eef4 100%);
+  color: var(--ink);
+  padding: 36px 28px 80px;
+  min-height: 100vh;
+}
+
+.africa-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.africa-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.africa-hero h1 {
+  font-family: "Playfair Display", "Times New Roman", serif;
+  font-size: clamp(28px, 3vw, 40px);
+  margin: 6px 0 8px;
+}
+
+.africa-subtitle {
+  color: var(--muted);
+  max-width: 520px;
+  font-size: 15px;
+}
+
+.africa-hero-card {
+  background: var(--paper);
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+
+.africa-hero-card h4 {
+  margin-top: 0;
+}
+
+.africa-hero-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.africa-export-button {
+  margin-top: 14px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(27, 124, 107, 0.25);
+}
+
+.africa-export-top {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.africa-export-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.africa-export-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.africa-dpr.is-exporting .africa-export-button {
+  visibility: hidden;
+}
+
+.africa-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.africa-kpis-outlook {
+  margin-top: -6px;
+}
+
+.africa-section-highlight {
+  background: linear-gradient(120deg, rgba(240, 227, 214, 0.7), rgba(255, 255, 255, 0.9));
+  border-radius: 22px;
+  padding: 18px 18px 6px;
+  box-shadow: var(--shadow);
+  margin-bottom: 26px;
+  position: relative;
+  overflow: hidden;
+}
+
+.africa-section-highlight::after {
+  content: "";
+  position: absolute;
+  right: -120px;
+  top: -80px;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(212, 93, 46, 0.15), rgba(212, 93, 46, 0));
+}
+
+.africa-section-outlook {
+  border-left: 6px solid var(--accent);
+}
+
+.africa-section-enquiry {
+  border-left: 6px solid var(--accent-2);
+}
+
+.africa-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.africa-section-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.africa-section-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.africa-section-tag {
+  background: #1e2027;
+  color: #f7efe7;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.africa-kpi-card {
+  background: var(--paper);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+.africa-kpi-card p {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.africa-kpi-card h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.africa-kpi-card span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.africa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.africa-card {
+  background: var(--paper);
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+
+.africa-card h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.africa-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.africa-table th,
+.africa-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #e1e4ea;
+}
+
+.africa-table thead th {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.africa-table tfoot td {
+  font-weight: 600;
+}
+
+.africa-mix {
+  display: grid;
+  gap: 12px;
+}
+
+.africa-meter-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.africa-meter-track {
+  height: 8px;
+  background: #e7eaf0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.africa-meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.africa-region-row {
+  display: grid;
+  gap: 6px;
+}
+
+.africa-region-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.africa-strength {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.africa-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d8dbe2;
+}
+
+.africa-dot.active {
+  background: var(--accent);
+}
+
+.africa-image {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #e4e7ed;
+}
+
+.africa-list {
+  padding-left: 18px;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.africa-muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.africa-stats {
+  display: grid;
+  gap: 12px;
+}
+
+.africa-stats h4 {
+  margin: 0 0 4px;
+  color: var(--accent);
+}
+
+.africa-timeline {
+  display: grid;
+  gap: 12px;
+}
+
+.africa-timeline h4 {
+  margin: 0 0 4px;
+}
+
+.africa-footer {
+  margin-top: 28px;
+  padding: 16px 18px;
+  background: #1e2027;
+  color: #f6f0ea;
+  border-radius: 14px;
+}
+
+@media (max-width: 900px) {
+  .africa-dpr {
+    padding: 24px 18px 60px;
+  }
+}
+
+
+.africa-subhead {
+  margin: 14px 0 8px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-2);
+}
+
+.africa-quote {
+  background: #f7efe7;
+  border-left: 4px solid var(--accent);
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}

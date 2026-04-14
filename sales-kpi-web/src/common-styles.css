@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Roboto&display=swap');
+body {
+  margin: 0;
+    font-family: 'Poppins', sans-serif;
+}
+.fixedNav{
+    width: 200px;
+    position: fixed;
+    left: 0;
+    top: 80px;
+    height:100%
+}
+.topMenu{
+    padding: 15px 40px;
+}
+.topMenu h1,.topMenu h1 img{
+    margin: 0;
+    display: block;
+}
+.topMenu h1 img{
+    margin: 0;
+    display: inline-block;
+    width: 180px;}
+/* ===========================
+   LOW STOCK BOUNCING TICKER
+   =========================== */
+
+.low-stock-ticker {
+  width: 100%;
+  overflow: hidden;
+  background: #fff0e6;
+  border-left: 4px solid #ff5722;
+  border-right: 4px solid #ff5722;
+  padding: 8px 0;
+  margin-bottom: 10px;
+  position: relative;
+  height: 28px;
+}
+
+.ticker-content {
+  position: absolute;
+  white-space: nowrap;
+  left: 0;
+
+  /* Slower + perfect bouncing movement */
+  animation: bounceLeftRight 12s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.ticker-item {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 15px;
+  color: #d32f2f;
+  padding-right: 40px;
+}
+
+/* TRUE BOUNCING ANIMATION: LEFT → RIGHT → LEFT */
+@keyframes bounceLeftRight {
+  0% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(calc(100vw - 100%)); 
+    /* reaches right edge */
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
