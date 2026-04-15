@@ -139,8 +139,7 @@ export default function MyReportsScreen() {
                   <DetailRow label="Date" value={selectedReport.incidentDate ? new Date(selectedReport.incidentDate).toLocaleDateString() : "--"} />
                   <DetailRow label="Time" value={selectedReport.incidentTime} />
                   <DetailRow label="Location" value={selectedReport.location} />
-                  <DetailRow label="Victim Name" value={selectedReport.victimName} />
-                  <DetailRow label="Victim Department" value={selectedReport.victimDepartment} />
+                  <VictimRows report={selectedReport} />
                   <DetailRow label="Observation" value={selectedReport.observation} />
                   <DetailRow label="Responsible Department" value={selectedReport.responsibleDepartment} />
                   <DetailRow label="Description" value={selectedReport.description} />
@@ -165,6 +164,24 @@ function DetailRow({ label, value }) {
       <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
+}
+
+function VictimRows({ report }) {
+  const victims = Array.isArray(report.victims) && report.victims.length
+    ? report.victims
+    : (report.victimName || report.victimDepartment)
+      ? [{ name: report.victimName, department: report.victimDepartment }]
+      : [];
+
+  if (!victims.length) return null;
+
+  return victims.map((victim, index) => (
+    <DetailRow
+      key={`victim-${index}`}
+      label={`Victim ${index + 1}`}
+      value={`${victim.name}${victim.department ? ` (${victim.department})` : ""}`}
+    />
+  ));
 }
 
 const styles = StyleSheet.create({

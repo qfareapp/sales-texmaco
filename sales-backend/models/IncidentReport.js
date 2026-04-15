@@ -4,8 +4,17 @@ const AttachmentSchema = new mongoose.Schema(
   {
     originalName: { type: String, required: true },
     mimeType: { type: String, required: true },
-    size: { type: Number, required: true },
-    data: { type: Buffer, required: true },
+    size: { type: Number },
+    url: { type: String, required: true },
+    publicId: { type: String, required: true },
+  },
+  { _id: true }
+);
+
+const VictimSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    department: { type: String, required: true, trim: true },
   },
   { _id: true }
 );
@@ -32,6 +41,7 @@ const IncidentReportSchema = new mongoose.Schema(
     incidentDate: { type: Date },
     incidentTime: { type: String, trim: true },
     location: { type: String, required: true, trim: true },
+    victims: [VictimSchema],
     victimName: { type: String, trim: true },
     victimDepartment: { type: String, trim: true },
     description: { type: String, trim: true },

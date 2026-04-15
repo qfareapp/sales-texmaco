@@ -1,4 +1,4 @@
-const LIVE_API_BASE_URL = "https://sales-backend-covv.onrender.com/api";
+const LIVE_API_BASE_URL = "https://sales-texmaco.onrender.com/api";
 const DEV_API_BASE_URL = "http://192.168.16.21:5000/api";
 const EAS_PROJECT_ID = "ab51ed3f-57bd-45b3-a05b-c78dfb18f4fe";
 
@@ -8,15 +8,20 @@ module.exports = () => {
 
   return {
     expo: {
-      name: "TexEhs",
+      name: "TexHSE",
       slug: "tex-ehs",
       version: "1.0.0",
       orientation: "portrait",
       userInterfaceStyle: "light",
+      icon: "./assets/texhse-icon.png",
       assetBundlePatterns: ["**/*"],
       android: {
         package: "com.texmaco.incidentreport",
         softwareKeyboardLayoutMode: "resize",
+        adaptiveIcon: {
+          foregroundImage: "./assets/texhse-icon.png",
+          backgroundColor: "#ffffff",
+        },
       },
       plugins: ["expo-document-picker", "expo-image-picker"],
       extra: {

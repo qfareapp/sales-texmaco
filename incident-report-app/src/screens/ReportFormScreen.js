@@ -38,8 +38,7 @@ const initialState = {
   incidentDate: "",
   incidentTime: "",
   location: "",
-  victimName: "",
-  victimDepartment: "",
+  victims: [{ name: "", department: "" }],
   description: "",
   attachments: [],
 };
@@ -148,6 +147,32 @@ export default function ReportFormScreen({ navigation, route }) {
 
   function updateField(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateVictim(index, key, value) {
+    setForm((current) => ({
+      ...current,
+      victims: current.victims.map((victim, victimIndex) =>
+        victimIndex === index ? { ...victim, [key]: value } : victim
+      ),
+    }));
+  }
+
+  function addVictim() {
+    setForm((current) => ({
+      ...current,
+      victims: [...current.victims, { name: "", department: "" }],
+    }));
+  }
+
+  function removeVictim(index) {
+    setForm((current) => ({
+      ...current,
+      victims:
+        current.victims.length > 1
+          ? current.victims.filter((_, victimIndex) => victimIndex !== index)
+          : current.victims,
+    }));
   }
 
   async function compressImage(asset, fallbackName) {
@@ -264,7 +289,21 @@ export default function ReportFormScreen({ navigation, route }) {
   async function handleSubmit() {
     try {
       setSubmitting(true);
-      const payload = { reportCategory, reportType, ...form };
+      const normalizedVictims = form.victims
+        .map((victim) => ({
+          name: victim.name.trim(),
+          department: victim.department.trim(),
+        }))
+        .filter((victim) => victim.name || victim.department);
+
+      const payload = {
+        reportCategory,
+        reportType,
+        ...form,
+        victims: normalizedVictims,
+        victimName: normalizedVictims[0]?.name || "",
+        victimDepartment: normalizedVictims[0]?.department || "",
+      };
       const response = await submitIncidentReport(payload);
       await saveReporterProfile({
         name: form.reportedByName,
@@ -444,20 +483,41 @@ export default function ReportFormScreen({ navigation, route }) {
               value={form.location}
               onChange={(v) => updateField("location", v)}
             />
-            <FormField
-              label="Name of Victim"
-              value={form.victimName}
-              onChangeText={(v) => updateField("victimName", v)}
-              icon="person-outline"
-              placeholder="Victim's full name"
-            />
-            <SelectListField
-              label="Department of Victim"
-              value={form.victimDepartment}
-              options={DEPARTMENT_OPTIONS}
-              placeholder="Select department"
-              onSelect={(v) => updateField("victimDepartment", v)}
-            />
+            <View style={styles.victimsHeader}>
+              <Text style={styles.victimsTitle}>Victims</Text>
+              <Pressable style={styles.addVictimBtn} onPress={addVictim}>
+                <Ionicons name="add-circle-outline" size={16} color="#1f6f5f" />
+                <Text style={styles.addVictimText}>Add More</Text>
+              </Pressable>
+            </View>
+            <View style={styles.victimList}>
+              {form.victims.map((victim, index) => (
+                <View key={`victim-${index}`} style={styles.victimCard}>
+                  <View style={styles.victimCardHeader}>
+                    <Text style={styles.victimCardTitle}>Victim {index + 1}</Text>
+                    {form.victims.length > 1 ? (
+                      <Pressable style={styles.removeVictimBtn} onPress={() => removeVictim(index)}>
+                        <Ionicons name="trash-outline" size={14} color="#a24343" />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  <FormField
+                    label="Name of Victim"
+                    value={victim.name}
+                    onChangeText={(v) => updateVictim(index, "name", v)}
+                    icon="person-outline"
+                    placeholder="Victim's full name"
+                  />
+                  <SelectListField
+                    label="Department of Victim"
+                    value={victim.department}
+                    options={DEPARTMENT_OPTIONS}
+                    placeholder="Select department"
+                    onSelect={(v) => updateVictim(index, "department", v)}
+                  />
+                </View>
+              ))}
+            </View>
             <FormField
               label="Description of Incident"
               value={form.description}
@@ -667,6 +727,61 @@ const styles = StyleSheet.create({
   },
   rowItem: {
     flex: 1,
+  },
+  victimsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  victimsTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#4a5568",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  addVictimBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#e8f5f2",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  addVictimText: {
+    color: "#1f6f5f",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  victimList: {
+    gap: 10,
+  },
+  victimCard: {
+    backgroundColor: "#f7f3ea",
+    borderRadius: 18,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#ece4d4",
+  },
+  victimCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  victimCardTitle: {
+    color: "#273440",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  removeVictimBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: "#fde8e8",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   /* SelectListField */

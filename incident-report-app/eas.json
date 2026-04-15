@@ -18,7 +18,7 @@
       },
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_API_BASE_URL": "https://sales-backend-covv.onrender.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://sales-texmaco.onrender.com/api"
       }
     },
     "production": {
@@ -27,7 +27,7 @@
       },
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_API_BASE_URL": "https://sales-backend-covv.onrender.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://sales-texmaco.onrender.com/api"
       }
     }
   }

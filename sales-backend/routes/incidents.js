@@ -1,9 +1,37 @@
 const express = require('express');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const IncidentReport = require('../models/IncidentReport');
 
 const router = express.Router();
 
+/* ── Cloudinary config ── */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+/* ── Multer → Cloudinary storage ── */
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: async (_req, file) => {
+    const isImage = file.mimetype.startsWith('image/');
+    return {
+      folder: 'texmaco-incidents',
+      resource_type: isImage ? 'image' : 'raw',
+      public_id: `${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`,
+    };
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 8 * 1024 * 1024, files: 5 },
+});
+
+/* ── Constants ── */
 const LEARNING_TYPES = ['Unsafe Condition', 'Unsafe Act', 'Near Miss'];
 const INCIDENT_TYPES = [
   'Fire Incident',
@@ -17,11 +45,7 @@ const INCIDENT_TYPES = [
   'Environment Issue',
 ];
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 5 },
-});
-
+/* ── Helpers ── */
 async function generateNextReferenceNo() {
   const latestReport = await IncidentReport.findOne(
     { referenceNo: /^TEX-\d+$/ },
@@ -43,6 +67,30 @@ function parseDate(value) {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
+function parseVictims(rawVictims, fallbackName, fallbackDepartment) {
+  let parsedVictims = [];
+
+  if (rawVictims) {
+    try {
+      const normalized = typeof rawVictims === 'string' ? JSON.parse(rawVictims) : rawVictims;
+      if (Array.isArray(normalized)) {
+        parsedVictims = normalized
+          .map((victim) => ({
+            name: String(victim?.name || '').trim(),
+            department: String(victim?.department || '').trim(),
+          }))
+          .filter((victim) => victim.name && victim.department);
+      }
+    } catch (_) {}
+  }
+
+  if (!parsedVictims.length && fallbackName && fallbackDepartment) {
+    parsedVictims = [{ name: String(fallbackName).trim(), department: String(fallbackDepartment).trim() }];
+  }
+
+  return parsedVictims;
+}
+
 function validatePayload(body) {
   const errors = [];
   const category = body.reportCategory;
@@ -60,7 +108,7 @@ function validatePayload(body) {
     errors.push('Invalid reportType for Incident');
   }
 
-  const requiredReportedBy = [
+  const requiredFields = [
     ['reportedByName', 'Reported by name is required'],
     ['departmentContractor', 'Department / Contractor is required'],
     ['empId', 'Emp ID is required'],
@@ -69,7 +117,7 @@ function validatePayload(body) {
     ['location', 'Location is required'],
   ];
 
-  requiredReportedBy.forEach(([field, message]) => {
+  requiredFields.forEach(([field, message]) => {
     if (!body[field]) errors.push(message);
   });
 
@@ -79,24 +127,47 @@ function validatePayload(body) {
   }
 
   if (category === 'Incident') {
+    const victims = parseVictims(body.victims, body.victimName, body.victimDepartment);
     if (!body.incidentDate) errors.push('Date is required for Incident');
     if (!body.incidentTime) errors.push('Time is required for Incident');
-    if (!body.victimName) errors.push('Name of Victim is required for Incident');
-    if (!body.victimDepartment) errors.push('Department of Victim is required for Incident');
+    if (!victims.length) errors.push('At least one victim is required for Incident');
     if (!body.description) errors.push('Description of Incident is required for Incident');
   }
 
   return errors;
 }
 
+/* ── Format attachment for API response ── */
+function formatAttachment(attachment) {
+  return {
+    _id: attachment._id,
+    originalName: attachment.originalName,
+    mimeType: attachment.mimeType,
+    size: attachment.size,
+    url: attachment.url,
+  };
+}
+
+/* ────────────────────────────────────────
+   POST /api/incidents
+───────────────────────────────────────── */
 router.post('/', upload.array('attachments', 5), async (req, res, next) => {
   try {
     const errors = validatePayload(req.body);
     if (errors.length) {
+      // Clean up any files already uploaded to Cloudinary if validation fails
+      await Promise.allSettled(
+        (req.files || []).map((file) =>
+          cloudinary.uploader.destroy(file.filename, {
+            resource_type: file.mimetype?.startsWith('image/') ? 'image' : 'raw',
+          })
+        )
+      );
       return res.status(400).json({ success: false, errors });
     }
 
     const referenceNo = await generateNextReferenceNo();
+    const victims = parseVictims(req.body.victims, req.body.victimName, req.body.victimDepartment);
 
     const report = await IncidentReport.create({
       referenceNo,
@@ -114,14 +185,16 @@ router.post('/', upload.array('attachments', 5), async (req, res, next) => {
       incidentDate: parseDate(req.body.incidentDate),
       incidentTime: req.body.incidentTime,
       location: req.body.location,
-      victimName: req.body.victimName,
-      victimDepartment: req.body.victimDepartment,
+      victims,
+      victimName: victims[0]?.name || req.body.victimName,
+      victimDepartment: victims[0]?.department || req.body.victimDepartment,
       description: req.body.description,
       attachments: (req.files || []).map((file) => ({
         originalName: file.originalname,
         mimeType: file.mimetype,
         size: file.size,
-        data: file.buffer,
+        url: file.path,          // Cloudinary secure_url
+        publicId: file.filename, // Cloudinary public_id
       })),
     });
 
@@ -140,6 +213,9 @@ router.post('/', upload.array('attachments', 5), async (req, res, next) => {
   }
 });
 
+/* ────────────────────────────────────────
+   GET /api/incidents
+───────────────────────────────────────── */
 router.get('/', async (req, res, next) => {
   try {
     const query = {};
@@ -148,13 +224,13 @@ router.get('/', async (req, res, next) => {
 
     const reports = await IncidentReport.find(query)
       .sort({ createdAt: -1 })
-      .select('-attachments.data')
       .lean();
 
     return res.json({
       success: true,
       reports: reports.map((report) => ({
         ...report,
+        attachments: (report.attachments || []).map(formatAttachment),
         attachmentCount: report.attachments?.length || 0,
       })),
     });
@@ -163,34 +239,24 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+/* ────────────────────────────────────────
+   GET /api/incidents/:id
+───────────────────────────────────────── */
 router.get('/:id', async (req, res, next) => {
   try {
-    const report = await IncidentReport.findById(req.params.id).select('-attachments.data').lean();
+    const report = await IncidentReport.findById(req.params.id).lean();
     if (!report) {
       return res.status(404).json({ success: false, message: 'Incident report not found' });
     }
 
-    return res.json({ success: true, report });
-  } catch (err) {
-    return next(err);
-  }
-});
-
-router.get('/:id/attachments/:attachmentId', async (req, res, next) => {
-  try {
-    const report = await IncidentReport.findById(req.params.id).select('attachments');
-    if (!report) {
-      return res.status(404).json({ success: false, message: 'Incident report not found' });
-    }
-
-    const attachment = report.attachments.id(req.params.attachmentId);
-    if (!attachment) {
-      return res.status(404).json({ success: false, message: 'Attachment not found' });
-    }
-
-    res.setHeader('Content-Type', attachment.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${attachment.originalName}"`);
-    return res.send(attachment.data);
+    return res.json({
+      success: true,
+      report: {
+        ...report,
+        attachments: (report.attachments || []).map(formatAttachment),
+        attachmentCount: report.attachments?.length || 0,
+      },
+    });
   } catch (err) {
     return next(err);
   }
