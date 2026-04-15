@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
@@ -583,6 +584,7 @@ function EmptyState({ text }) {
 ───────────────────────────────────────── */
 function ReportDetailSheet({ report, onClose }) {
   const [viewingAttachment, setViewingAttachment] = useState(null);
+  const insets      = useSafeAreaInsets();
   const isHigh      = HIGH_SEVERITY_TYPES.has(report.reportType);
   const accentColor = CATEGORY_COLOR[report.reportCategory] ?? "#1f6f5f";
   const accentBg    = CATEGORY_BG[report.reportCategory] ?? "#e8f5f2";
@@ -629,7 +631,7 @@ function ReportDetailSheet({ report, onClose }) {
           <Text style={[styles.sheetChipText, { color: "#1f6f5f" }]}>{report.currentStatus || "Submitted"}</Text>
         </View>
       </View>
-      <ScrollView contentContainerStyle={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.sheetScroll, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
         <DetailSection icon="person-circle-outline" title="Reporter">
           <DetailRow label="Name"       value={report.reportedBy?.name} />
           <DetailRow label="Emp ID"     value={report.reportedBy?.empId} />
