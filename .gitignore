@@ -6,3 +6,5 @@ node_modules/
 **/git-backup-*/
 **/uploads/
 **/uploads/**
+"incident-report-app/.expo/" 
+"incident-report-app/android/" 
