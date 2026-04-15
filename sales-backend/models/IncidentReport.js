@@ -31,10 +31,11 @@ const IncidentReportSchema = new mongoose.Schema(
     reportType: { type: String, required: true, index: true },
     reportedBy: {
       name: { type: String, required: true, trim: true },
-      departmentContractor: { type: String, required: true, trim: true },
-      empId: { type: String, required: true, trim: true, index: true },
-      mobileNumber: { type: String, required: true, trim: true },
-      department: { type: String, required: true, trim: true },
+      reporterType: { type: String, required: true, trim: true },
+      empId: { type: String, trim: true, index: true },
+      contractorName: { type: String, trim: true },
+      mobileNumber: { type: String, trim: true },
+      department: { type: String, trim: true },
     },
     observation: { type: String, trim: true },
     responsibleDepartment: { type: String, trim: true },
@@ -49,5 +50,7 @@ const IncidentReportSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+IncidentReportSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('IncidentReport', IncidentReportSchema);

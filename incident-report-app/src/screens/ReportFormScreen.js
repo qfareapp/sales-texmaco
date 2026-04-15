@@ -20,17 +20,18 @@ import { Ionicons } from "@expo/vector-icons";
 import ChoiceField from "../components/ChoiceField";
 import FormField from "../components/FormField";
 import {
-  DEPARTMENT_CONTRACTOR_OPTIONS,
+  REPORTER_TYPE_OPTIONS,
   DEPARTMENT_OPTIONS,
   LOCATION_OPTIONS,
 } from "../constants/reportOptions";
-import { submitIncidentReport } from "../services/incidents";
+import { submitIncidentReport, invalidateReportsCache } from "../services/incidents";
 import { saveReporterProfile } from "../storage/reporterProfile";
 
 const initialState = {
   reportedByName: "",
   departmentContractor: "",
   empId: "",
+  contractorName: "",
   mobileNumber: "",
   department: "",
   observation: "",
@@ -147,6 +148,16 @@ export default function ReportFormScreen({ navigation, route }) {
 
   function updateField(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function handleReporterTypeChange(type) {
+    setForm((current) => ({
+      ...current,
+      departmentContractor: type,
+      empId: type === "Employee" ? current.empId : "",
+      department: type === "Employee" ? current.department : "",
+      contractorName: type === "Contractor" ? current.contractorName : "",
+    }));
   }
 
   function updateVictim(index, key, value) {
@@ -305,12 +316,14 @@ export default function ReportFormScreen({ navigation, route }) {
         victimDepartment: normalizedVictims[0]?.department || "",
       };
       const response = await submitIncidentReport(payload);
+      invalidateReportsCache();
       await saveReporterProfile({
         name: form.reportedByName,
-        empId: form.empId,
-        mobileNumber: form.mobileNumber,
         departmentContractor: form.departmentContractor,
-        department: form.department,
+        empId: form.empId || undefined,
+        contractorName: form.contractorName || undefined,
+        mobileNumber: form.mobileNumber || undefined,
+        department: form.department || undefined,
       });
       navigation.replace("Success", {
         reportCategory,
@@ -361,6 +374,7 @@ export default function ReportFormScreen({ navigation, route }) {
         {/* Reported By */}
         <View style={styles.section}>
           <SectionHeader icon="person-outline" title="Reported By" />
+
           <FormField
             label="Full Name"
             value={form.reportedByName}
@@ -368,40 +382,51 @@ export default function ReportFormScreen({ navigation, route }) {
             icon="person-outline"
             placeholder="Your full name"
           />
-          <ChoiceField
-            label="Department / Contractor"
-            options={DEPARTMENT_CONTRACTOR_OPTIONS}
-            value={form.departmentContractor}
-            onChange={(v) => updateField("departmentContractor", v)}
+
+          <FormField
+            label="Mobile Number"
+            value={form.mobileNumber}
+            onChangeText={(v) => updateField("mobileNumber", v)}
+            keyboardType="phone-pad"
+            icon="call-outline"
+            placeholder="Contact number"
           />
-          <View style={styles.row}>
-            <View style={styles.rowItem}>
+
+          <ChoiceField
+            label="Reporter Type"
+            options={REPORTER_TYPE_OPTIONS}
+            value={form.departmentContractor}
+            onChange={handleReporterTypeChange}
+          />
+
+          {/* Employee fields */}
+          {form.departmentContractor === "Employee" ? (
+            <>
               <FormField
-                label="Emp ID"
+                label="Employee ID"
                 value={form.empId}
                 onChangeText={(v) => updateField("empId", v)}
                 icon="card-outline"
                 placeholder="Employee ID"
               />
-            </View>
-            <View style={styles.rowItem}>
-              <FormField
-                label="Mobile Number"
-                value={form.mobileNumber}
-                onChangeText={(v) => updateField("mobileNumber", v)}
-                keyboardType="phone-pad"
-                icon="call-outline"
-                placeholder="Contact number"
+              <SelectListField
+                label="Department"
+                value={form.department}
+                options={DEPARTMENT_OPTIONS}
+                placeholder="Select your department"
+                onSelect={(v) => updateField("department", v)}
               />
-            </View>
-          </View>
-          {form.departmentContractor === "Department" ? (
-            <SelectListField
-              label="Department"
-              value={form.department}
-              options={DEPARTMENT_OPTIONS}
-              placeholder="Select your department"
-              onSelect={(v) => updateField("department", v)}
+            </>
+          ) : null}
+
+          {/* Contractor fields */}
+          {form.departmentContractor === "Contractor" ? (
+            <FormField
+              label="Contractor Name"
+              value={form.contractorName}
+              onChangeText={(v) => updateField("contractorName", v)}
+              icon="business-outline"
+              placeholder="Company or contractor name"
             />
           ) : null}
         </View>

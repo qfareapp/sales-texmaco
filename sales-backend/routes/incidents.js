@@ -108,18 +108,19 @@ function validatePayload(body) {
     errors.push('Invalid reportType for Incident');
   }
 
-  const requiredFields = [
-    ['reportedByName', 'Reported by name is required'],
-    ['departmentContractor', 'Department / Contractor is required'],
-    ['empId', 'Emp ID is required'],
-    ['mobileNumber', 'Mobile number is required'],
-    ['department', 'Department is required'],
-    ['location', 'Location is required'],
-  ];
+  if (!body.reportedByName) errors.push('Reported by name is required');
+  if (!body.mobileNumber) errors.push('Mobile number is required');
+  if (!body.location) errors.push('Location is required');
 
-  requiredFields.forEach(([field, message]) => {
-    if (!body[field]) errors.push(message);
-  });
+  const reporterType = body.departmentContractor;
+  if (!['Employee', 'Contractor', 'Visitor'].includes(reporterType)) {
+    errors.push('Reporter type must be Employee, Contractor, or Visitor');
+  } else if (reporterType === 'Employee') {
+    if (!body.empId) errors.push('Employee ID is required');
+    if (!body.department) errors.push('Department is required');
+  } else if (reporterType === 'Contractor') {
+    if (!body.contractorName) errors.push('Contractor name is required');
+  }
 
   if (category === 'Learning Event') {
     if (!body.observation) errors.push('Observation is required for Learning Event');
@@ -175,10 +176,11 @@ router.post('/', upload.array('attachments', 5), async (req, res, next) => {
       reportType: req.body.reportType,
       reportedBy: {
         name: req.body.reportedByName,
-        departmentContractor: req.body.departmentContractor,
-        empId: req.body.empId,
-        mobileNumber: req.body.mobileNumber,
-        department: req.body.department,
+        reporterType: req.body.departmentContractor,
+        empId: req.body.empId || undefined,
+        contractorName: req.body.contractorName || undefined,
+        mobileNumber: req.body.mobileNumber || undefined,
+        department: req.body.department || undefined,
       },
       observation: req.body.observation,
       responsibleDepartment: req.body.responsibleDepartment,
@@ -224,6 +226,7 @@ router.get('/', async (req, res, next) => {
 
     const reports = await IncidentReport.find(query)
       .sort({ createdAt: -1 })
+      .select('-__v')
       .lean();
 
     return res.json({

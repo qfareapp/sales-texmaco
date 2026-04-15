@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Modal,
   Pressable,
@@ -10,17 +10,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function HomeScreen({ navigation, isAdmin, onAdminLogin }) {
+export default function HomeScreen({ navigation, onAdminLogin }) {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (isAdmin) {
-      navigation.navigate("AdminScreen");
-    }
-  }, [isAdmin, navigation]);
 
   function handleAdminLogin() {
     if (username === "admin" && password === "PassWord") {
@@ -29,7 +23,6 @@ export default function HomeScreen({ navigation, isAdmin, onAdminLogin }) {
       setPassword("");
       setError("");
       onAdminLogin?.();
-      navigation.navigate("AdminScreen");
       return;
     }
     setError("Invalid admin username or password.");

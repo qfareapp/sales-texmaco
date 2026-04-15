@@ -13,8 +13,8 @@ export const REPORT_OPTIONS = {
   ],
 };
 
-export const DEPARTMENT_CONTRACTOR_OPTIONS = [
-  "Department",
+export const REPORTER_TYPE_OPTIONS = [
+  "Employee",
   "Contractor",
   "Visitor",
 ];

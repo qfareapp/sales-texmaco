@@ -69,9 +69,26 @@ export async function getMyIncidentReports({ empId, mobileNumber }) {
   return data.reports || [];
 }
 
-export async function getAllIncidentReports() {
+/* ── Simple in-memory cache for the full report list ── */
+let _cache = null;
+let _cacheAt = 0;
+const CACHE_TTL_MS = 30_000; // 30 seconds
+
+export async function getAllIncidentReports({ forceRefresh = false } = {}) {
+  const now = Date.now();
+  if (!forceRefresh && _cache && now - _cacheAt < CACHE_TTL_MS) {
+    return _cache;
+  }
+
   const response = await fetch(`${API_BASE_URL}/incidents`);
   const data = await parseApiResponse(response, "Unable to load dashboard reports");
 
-  return data.reports || [];
+  _cache = data.reports || [];
+  _cacheAt = Date.now();
+  return _cache;
+}
+
+export function invalidateReportsCache() {
+  _cache = null;
+  _cacheAt = 0;
 }
