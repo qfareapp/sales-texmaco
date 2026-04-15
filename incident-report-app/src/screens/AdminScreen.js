@@ -75,6 +75,7 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing]     = useState(false);
   const [error, setError]               = useState("");
   const [selectedReport, setSelectedReport] = useState(null);
+  const insets = useSafeAreaInsets();
   const [filterMode, setFilterMode]     = useState("thisMonth");
   const [customMonth, setCustomMonth]   = useState(new Date().getMonth());
   const [customYear, setCustomYear]     = useState(new Date().getFullYear());
@@ -352,7 +353,7 @@ export default function AdminScreen() {
       >
         <View style={styles.modalBackdrop}>
           <Pressable style={styles.modalDismiss} onPress={() => setSelectedReport(null)} />
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { marginBottom: insets.bottom }]}>
             {selectedReport && (
               <ReportDetailSheet report={selectedReport} onClose={() => setSelectedReport(null)} />
             )}

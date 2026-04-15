@@ -80,6 +80,7 @@ export default function DashboardScreen() {
   const [error, setError]                   = useState("");
   const [selectedReport, setSelectedReport] = useState(null);
   const [visibleCount, setVisibleCount]     = useState(10);
+  const insets = useSafeAreaInsets();
   const [filterMode, setFilterMode]         = useState("thisMonth");
   const [customMonth, setCustomMonth]       = useState(new Date().getMonth());
   const [customYear, setCustomYear]         = useState(new Date().getFullYear());
@@ -267,7 +268,7 @@ export default function DashboardScreen() {
       >
         <View style={styles.modalBackdrop}>
           <Pressable style={styles.modalDismiss} onPress={() => setSelectedReport(null)} />
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { marginBottom: insets.bottom }]}>
             {selectedReport && (
               <ReportDetailSheet
                 report={selectedReport}
