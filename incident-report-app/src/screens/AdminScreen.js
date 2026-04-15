@@ -4,6 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
   Image,
   Modal,
   Pressable,
@@ -13,6 +14,8 @@ import {
   Text,
   View,
 } from "react-native";
+
+const SCREEN_H = Dimensions.get("window").height;
 import { Ionicons } from "@expo/vector-icons";
 import { getAllIncidentReports } from "../services/incidents";
 import AttachmentViewerModal from "../components/AttachmentViewerModal";
@@ -598,7 +601,7 @@ function ReportDetailSheet({ report, onClose }) {
       : [];
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <View style={styles.dragHandle} />
       <View style={styles.sheetHeader}>
         <View style={[styles.sheetIconWrap, { backgroundColor: accentBg }]}>
@@ -632,7 +635,7 @@ function ReportDetailSheet({ report, onClose }) {
           <Text style={[styles.sheetChipText, { color: "#1f6f5f" }]}>{report.currentStatus || "Submitted"}</Text>
         </View>
       </View>
-      <ScrollView contentContainerStyle={[styles.sheetScroll, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.sheetScroll, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
         <DetailSection icon="person-circle-outline" title="Reporter">
           <DetailRow label="Name"       value={report.reportedBy?.name} />
           <DetailRow label="Emp ID"     value={report.reportedBy?.empId} />
@@ -704,7 +707,7 @@ function ReportDetailSheet({ report, onClose }) {
           <DetailRow label="Submitted On" value={new Date(report.createdAt).toLocaleString()} last />
         </DetailSection>
       </ScrollView>
-    </>
+    </View>
   );
 }
 
@@ -938,7 +941,7 @@ const styles = StyleSheet.create({
   /* Modal */
   modalBackdrop: { flex: 1, backgroundColor: "rgba(17,24,39,0.55)", justifyContent: "flex-end" },
   modalDismiss: { flex: 1 },
-  modalCard: { maxHeight: "88%", backgroundColor: "#fffdf8", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 32 },
+  modalCard: { height: SCREEN_H * 0.88, backgroundColor: "#fffdf8", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 14, overflow: "hidden" },
 
   /* Detail sheet */
   dragHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#d9d2c3", alignSelf: "center", marginBottom: 18 },

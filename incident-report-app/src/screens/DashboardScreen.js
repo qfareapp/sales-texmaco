@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Modal,
   Pressable,
@@ -12,6 +13,8 @@ import {
   Text,
   View,
 } from "react-native";
+
+const SCREEN_H = Dimensions.get("window").height;
 import { Ionicons } from "@expo/vector-icons";
 import { getAllIncidentReports } from "../services/incidents";
 import AttachmentViewerModal from "../components/AttachmentViewerModal";
@@ -368,7 +371,7 @@ function ReportDetailSheet({ report, onClose }) {
       : [];
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <View style={styles.dragHandle} />
       <View style={styles.sheetHeader}>
         <View style={[styles.sheetIconWrap, { backgroundColor: accentBg }]}>
@@ -402,7 +405,7 @@ function ReportDetailSheet({ report, onClose }) {
           <Text style={[styles.sheetChipText, { color: "#1f6f5f" }]}>{report.currentStatus || "Submitted"}</Text>
         </View>
       </View>
-      <ScrollView contentContainerStyle={[styles.sheetScroll, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.sheetScroll, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
         <DetailSection icon="person-circle-outline" title="Reporter">
           <DetailRow label="Name"       value={report.reportedBy?.name} />
           <DetailRow label="Emp ID"     value={report.reportedBy?.empId} />
@@ -476,7 +479,7 @@ function ReportDetailSheet({ report, onClose }) {
           <DetailRow label="Submitted On" value={new Date(report.createdAt).toLocaleString()} last />
         </DetailSection>
       </ScrollView>
-    </>
+    </View>
   );
 }
 
@@ -636,7 +639,7 @@ const styles = StyleSheet.create({
   modalDismiss: { flex: 1 },
   modalCard: {
     backgroundColor: "#fffdf8", borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    maxHeight: "88%", overflow: "hidden",
+    height: SCREEN_H * 0.88, overflow: "hidden",
     borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: "#e8dfc9",
   },
 
