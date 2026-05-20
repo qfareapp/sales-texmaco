@@ -1,19 +1,16 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { API_ROOT } from "../config/apiBase";
 
 export default function TexmacoAccessPortal() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ Automatically switch between local and live backend
-  const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "https://sales-backend-covv.onrender.com";
-
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`${API_BASE}/api/auth/login`, {
+      const res = await axios.post(`${API_ROOT}/auth/login`, {
         username,
         password,
       });
@@ -22,7 +19,6 @@ export default function TexmacoAccessPortal() {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("role", res.data.role);
 
-        // Redirect based on module access
         if (res.data.role === "admin") window.location.href = "/";
         else if (res.data.role === "sales") window.location.href = "/";
         else if (res.data.role === "production") window.location.href = "/production";
