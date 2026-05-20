@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"d:/temaco final copy/Final Stage 5\\(development\\)/sales-backend/\"*.js)",
+      "Bash(Get-ChildItem -Path \"D:\\\\temaco final copy\\\\Final Stage 5\\(development\\)\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(xargs grep -l \"quality\\\\|Quality\")",
+      "Bash(python -c \"import pptx; print\\('pptx available'\\)\")",
+      "Bash(pip install *)",
+      "Bash(python generate_quality_ppt.py)",
+      "Bash(Select-Object Name, Length, LastWriteTime)",
+      "PowerShell(Get-Item \"d:\\\\temaco final copy\\\\Final Stage 5\\(development\\)\\\\Quality_Module_Presentation.pptx\" | Select-Object Name, @{N='Size_KB';E={[math]::Round\\($_.Length/1KB,1\\)}}, LastWriteTime)",
+      "PowerShell($f = Get-Item \"d:\\\\temaco final copy\\\\Final Stage 5\\(development\\)\\\\Quality_Module_Presentation.pptx\"; Write-Output \"Name: $\\($f.Name\\)  Size: $\\([math]::Round\\($f.Length/1KB,1\\)\\) KB  Modified: $\\($f.LastWriteTime\\)\")"
+    ]
+  }
+}

@@ -28,10 +28,6 @@ import EquipmentMasterForm from './screens/maintenance/EquipmentMasterForm';
 import MaintenanceDashboard from "./screens/maintenance/MaintenanceDashboard.jsx";
 import EquipmentMasterList from "./screens/maintenance/EquipmentMasterList";
 import TexmacoAccessPortal from './screens/login';
-import ManagementDashboard from './screens/management/ManagementDashboard';
-import LocationDashboard from './screens/management/LocationDashboard';
-import ScaleGrowthDashboard from './screens/management/ScaleGrowthDashboard';
-import AfricaRailOpportunityDashboard from "./screens/management/AfricaRailOpportunityDashboard";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -132,24 +128,6 @@ const LayoutWrapper = ({ children }) => {
     <li>
       <Link to="/" className="nav-link text-white" onClick={handleLinkClick}>
         📋 Home
-      </Link>
-    </li>
-
-    <li>
-      <Link to="/management" className="nav-link text-white" onClick={handleLinkClick}>
-        Management Dashboard
-      </Link>
-    </li>
-
-    <li>
-      <Link to="/management/africa-rail-opportunity" className="nav-link text-white" onClick={handleLinkClick}>
-        Africa Rail Opportunity DPR
-      </Link>
-    </li>
-
-    <li>
-      <Link to="/management/scale-growth" className="nav-link text-white" onClick={handleLinkClick}>
-        Scale and Growth Dashboard
       </Link>
     </li>
 
@@ -507,12 +485,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          {/* Management Module */}
-          <Route path="/management" element={<ManagementDashboard />} />
-          <Route path="/management/africa-rail-opportunity" element={<AfricaRailOpportunityDashboard />} />
-          <Route path="/management/scale-growth" element={<ScaleGrowthDashboard />} />
-          <Route path="/management/:siteId" element={<LocationDashboard />} />
 
           {/* 🔒 Maintenance Module */}
 <Route
