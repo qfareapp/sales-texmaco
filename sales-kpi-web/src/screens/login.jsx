@@ -23,9 +23,10 @@ export default function TexmacoAccessPortal() {
         localStorage.setItem("role", res.data.role);
 
         // Redirect based on module access
-        if (res.data.role === "sales") window.location.href = "/sales";
+        if (res.data.role === "admin") window.location.href = "/";
+        else if (res.data.role === "sales") window.location.href = "/";
         else if (res.data.role === "production") window.location.href = "/production";
-        else if (res.data.role === "quality") window.location.href = "/quality";
+        else if (res.data.role === "quality") window.location.href = "/quality-dashboard";
       }
     } catch (err) {
       console.error("Login Error:", err);

@@ -44,7 +44,7 @@ function ProtectedRoute({ children, allowedRoles }) {
   }
 
   // ✅ Step 2: If logged in but wrong role, deny access
-  if (!allowedRoles.includes(role)) {
+  if (role !== "admin" && !allowedRoles.includes(role)) {
     return <Navigate to="/login" replace />;
   }
 

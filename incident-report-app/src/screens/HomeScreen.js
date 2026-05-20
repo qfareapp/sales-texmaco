@@ -17,7 +17,7 @@ export default function HomeScreen({ navigation, onAdminLogin }) {
   const [error, setError] = useState("");
 
   function handleAdminLogin() {
-    if (username === "admin" && password === "PassWord") {
+    if (username === "admin" && password === "123456") {
       setShowAdminLogin(false);
       setUsername("");
       setPassword("");
