@@ -18,6 +18,26 @@ const WagonConfigSchema = new mongoose.Schema({
         }
       ]
     }
+  ],
+  dmItems: [
+    {
+      sapCode: String,
+      sectionGroup: String,
+      description: String,
+      qtyPerWagon: Number,
+      uom: String,
+      requiredNos: Number
+    }
+  ],
+  nonDmItems: [
+    {
+      sapCode: String,
+      sectionGroup: String,
+      description: String,
+      qtyPerWagon: Number,
+      uom: String,
+      requiredNos: Number
+    }
   ]
 }, { timestamps: true });
 

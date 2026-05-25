@@ -8,6 +8,43 @@ const WagonConfig = require('../models/WagonConfig');
 const DailyWagonLog = require('../models/DailyWagonLog'); // ✅ Log model
 const DailyUpdate = require('../models/DailyUpdate');
 
+const getItemInventoryName = (item = {}) => {
+  const sapCode = String(item?.sapCode || '').trim();
+  const description = String(item?.description || '').trim();
+  if (sapCode && description) return `${sapCode} - ${description}`;
+  return sapCode || description;
+};
+
+const normalizeStageKey = (value = '') =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+const derivePartsFromItems = (doc = {}) => {
+  const allItems = [...(doc.dmItems || []), ...(doc.nonDmItems || [])];
+  if (!allItems.length) {
+    return (doc.parts || []).map(part => ({
+      name: String(part?.name || '').trim(),
+      total: Number(part?.total || 0)
+    })).filter(part => part.name);
+  }
+  const merged = new Map();
+
+  allItems.forEach(item => {
+    const name = getItemInventoryName(item);
+    const total = Number(item?.qtyPerWagon || 0);
+    if (!name) return;
+
+    merged.set(name, {
+      name,
+      total: (merged.get(name)?.total || 0) + total
+    });
+  });
+
+  return Array.from(merged.values());
+};
+
 // ----------------------
 // ✅ Monthly Planning
 // ----------------------
@@ -136,46 +173,43 @@ router.post('/daily-wagon-update', async (req, res) => {
       );
     }
 
-    // 2. 📦 Get BOM
-    const bom = await WagonConfig.findOne({ wagonType }).lean();
-    if (!bom) {
-      return res.status(400).json({
-        status: 'Error',
-        message: `No BOM found for wagonType ${wagonType}`
-      });
-    }
-
-    // 3. 🧮 Parts consumption
+    // 2. Item consumption is no longer mapped to stages.
     const totalPartsToConsume = {};
-    const stageMap = new Map((bom.stages || []).map(s => [String(s?.name || ''), s]));
 
-    for (const [stageName, doneRaw] of Object.entries(stagesCompleted || {})) {
-      const done = Math.max(0, parseInt(doneRaw, 10) || 0);
-      if (!done) continue;
+    // 3. 📝 Log entry
+    const airBrakeTestingCount = Object.entries(stagesCompleted || {}).reduce((count, [stageName, rawQty]) => {
+      if (normalizeStageKey(stageName) !== normalizeStageKey('Air Brake Testing')) {
+        return count;
+      }
+      return Math.max(0, parseInt(rawQty, 10) || 0);
+    }, 0);
 
-      const stageDef = stageMap.get(String(stageName));
-      const usageList = Array.isArray(stageDef?.partUsage) ? stageDef.partUsage : [];
+    if (airBrakeTestingCount > 0) {
+      const bom = await WagonConfig.findOne({ wagonType }).lean();
 
-      usageList.forEach(u => {
-        const part = String(u?.name || '');
-        const perWagon = Number(u?.used || 0);
-        if (!part || perWagon <= 0) return;
-        totalPartsToConsume[part] =
-          (totalPartsToConsume[part] || 0) + perWagon * done;
+      if (!bom) {
+        return res.status(400).json({
+          status: 'Error',
+          message: `No wagon configuration found for wagonType ${wagonType}`
+        });
+      }
+
+      derivePartsFromItems(bom).forEach((part) => {
+        const name = String(part?.name || '').trim();
+        const perWagonQty = Number(part?.total || 0);
+        if (!name || perWagonQty <= 0) return;
+        totalPartsToConsume[name] = perWagonQty * airBrakeTestingCount;
       });
+
+      for (const [part, qtyToDeduct] of Object.entries(totalPartsToConsume)) {
+        await Inventory.updateOne(
+          { projectId, part },
+          { $inc: { quantity: -qtyToDeduct } },
+          { upsert: true }
+        );
+      }
     }
 
-    // 4. 🔽 Deduct inventory (Stock Out)
-    for (const part in totalPartsToConsume) {
-      const qtyToDeduct = totalPartsToConsume[part];
-      await Inventory.updateOne(
-        { projectId, part },
-        { $inc: { quantity: -qtyToDeduct } },
-        { upsert: true }
-      );
-    }
-
-    // 5. 📝 Log entry
     const pdiCount = Number(stagesCompleted?.PDI || 0);
 
     await DailyWagonLog.create({
@@ -291,22 +325,30 @@ router.get('/bom/:wagonType', async (req, res) => {
       });
     }
 
-    const parts = (doc.parts || []).map(p => ({
-      name: String(p?.name || ''),
-      total: Number(p?.total || 0)
-    }));
+    const parts = derivePartsFromItems(doc);
 
     const stages = (doc.stages || []).map(s => ({
-      name: String(s?.name || ''),
-      partUsage: Array.isArray(s?.partUsage)
-        ? s.partUsage.map(u => ({
-            name: String(u?.name || ''),
-            used: Number(u?.used || 0)
-          }))
-        : []
+      name: String(s?.name || '')
     }));
 
-    res.json({ wagonType: doc.wagonType, parts, stages });
+    const dmItems = (doc.dmItems || []).map(item => ({
+      sapCode: String(item?.sapCode || ''),
+      sectionGroup: String(item?.sectionGroup || ''),
+      description: String(item?.description || ''),
+      qtyPerWagon: Number(item?.qtyPerWagon || 0),
+      uom: String(item?.uom || ''),
+      requiredNos: Number(item?.requiredNos || 0)
+    }));
+    const nonDmItems = (doc.nonDmItems || []).map(item => ({
+      sapCode: String(item?.sapCode || ''),
+      sectionGroup: String(item?.sectionGroup || ''),
+      description: String(item?.description || ''),
+      qtyPerWagon: Number(item?.qtyPerWagon || 0),
+      uom: String(item?.uom || ''),
+      requiredNos: Number(item?.requiredNos || 0)
+    }));
+
+    res.json({ wagonType: doc.wagonType, parts, stages, dmItems, nonDmItems });
   } catch (err) {
     console.error('❌ Error fetching BOM:', err);
     res.status(500).json({ status: 'Error', message: err.message });
@@ -432,18 +474,21 @@ router.get('/stages/:projectId', async (req, res) => {
       (bom?.stages || []).map(s => [String(s?.name || ''), Number(s?.target || 0)])
     );
 
-    // 4) Canonical order
+    // 4) Use wagon-config stage order first, then append any logged stages not in config
+    const configuredStageRows = (bom?.stages || [])
+      .map(s => String(s?.name || '').trim())
+      .filter(Boolean);
+    const loggedStageRows = Object.keys(stageTotals);
     const STAGE_ROWS = [
-      'Boxing', 'BMP', 'Wheeling & Visual Clearence',
-      'Shot Blasting & Primer', 'Final Painting & Lettering',
-      'Air Brake Testing', 'APD', 'PDI'
+      ...configuredStageRows,
+      ...loggedStageRows.filter(name => !configuredStageRows.includes(name))
     ];
 
     // 5) Build rows
-    const rows = STAGE_ROWS.map(name => {
+    const rows = STAGE_ROWS.map((name, index) => {
       const completed = stageTotals[name]?.completed || 0;
       const total = bomStageMap.get(name) || plan?.monthlyTarget || 0; // 🔑 monthly target per month
-      return { stage: name, completed, total };
+      return { stageNo: index + 1, stage: name, completed, total };
     });
 
     res.json(rows);

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import "../App.css";
 import api from '../api';
 
@@ -25,6 +26,93 @@ const MILESTONE_ORDER = [
 ];
 
 const human0 = (n) => (Number.isFinite(+n) ? +n : 0);
+const formatInventoryMetric = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 0;
+  return Number.isInteger(num) ? num : Number(num.toFixed(3));
+};
+const inventoryUploadColumnMap = {
+  sapcode: 'sapCode',
+  sap: 'sapCode',
+  itemdescription: 'description',
+  description: 'description',
+  newentry: 'newEntry',
+  newstock: 'newEntry',
+  quantity: 'newEntry',
+  qty: 'newEntry',
+  unit: 'unit'
+};
+
+const createInventoryEntry = () => ({
+  sapCode: '',
+  description: '',
+  newEntry: '',
+  unit: 'nos'
+});
+
+const inventoryUnitOptions = ['nos', 'set', 'Lts', 'Kgs'];
+
+const normalizeInventoryHeader = (value = '') =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+const isFilledInventoryEntry = (entry = {}) =>
+  Boolean(
+    entry.sapCode ||
+    entry.description ||
+    entry.newEntry !== '' ||
+    entry.unit
+  );
+
+const buildConfiguredPartName = ({ sapCode, description }) => {
+  const code = String(sapCode || '').trim();
+  const desc = String(description || '').trim();
+  if (code && desc) return `${code} - ${desc}`;
+  return code || desc;
+};
+
+const splitInventoryPartLabel = (part = '', info = {}) => {
+  const sapCode = String(info?.sapCode || '').trim();
+  const description = String(info?.description || '').trim();
+
+  if (sapCode || description) {
+    return {
+      sapCode: sapCode || '-',
+      description: description || part || '-',
+    };
+  }
+
+  const [maybeSapCode, ...rest] = String(part || '').split(' - ');
+  if (rest.length) {
+    return {
+      sapCode: maybeSapCode || '-',
+      description: rest.join(' - ') || '-',
+    };
+  }
+
+  return {
+    sapCode: '-',
+    description: part || '-',
+  };
+};
+
+const getConfiguredInventoryGroups = (wagonConfig) => {
+  const makeItems = (items = []) =>
+    items
+      .map((item) => ({
+        key: buildConfiguredPartName(item),
+        sapCode: String(item?.sapCode || '').trim(),
+        description: String(item?.description || '').trim(),
+      }))
+      .filter((item) => item.key);
+
+  return [
+    { label: 'DM Items', items: makeItems(wagonConfig?.dmItems || []) },
+    { label: 'Non DM Items', items: makeItems(wagonConfig?.nonDmItems || []) },
+  ];
+};
 
 // ----- 5-day bucket helpers (use 1-5..26-30 like your sheet) -----
 // ----- 5-day bucket helpers (auto adjust for 30/31) -----
@@ -128,6 +216,17 @@ export default function ProductionDetailsScreen() {
   const [daily, setDaily] = useState([]);           // raw daily logs for the month
   const [milestones, setMilestones] = useState({});
   const [wagonConfig, setWagonConfig] = useState(null);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [collapsedInventoryGroups, setCollapsedInventoryGroups] = useState({
+    'DM Items': true,
+    'Non DM Items': true,
+  });
+  const [activeInventoryTab, setActiveInventoryTab] = useState('dm');
+  const [dmInventoryEntries, setDmInventoryEntries] = useState([createInventoryEntry()]);
+  const [nonDmInventoryEntries, setNonDmInventoryEntries] = useState([createInventoryEntry()]);
+  const [dmInventoryUploadError, setDmInventoryUploadError] = useState('');
+  const [nonDmInventoryUploadError, setNonDmInventoryUploadError] = useState('');
+  const [inventorySaving, setInventorySaving] = useState(false);
 
 
 
@@ -227,15 +326,216 @@ const milestoneList = useMemo(() => {
 }, [milestones]);
 
 
-  // Your canonical row orders (match the sheet)
-    // Dynamically derive Parts & Stages from wagon configuration
-  const PART_ROWS = useMemo(() => {
-    return wagonConfig?.parts?.map(p => p.name) || [];
-  }, [wagonConfig]);
+  const PART_ROWS = useMemo(() => [], []);
 
   const STAGE_ROWS = useMemo(() => {
-    return wagonConfig?.stages?.map(s => s.name) || [];
+    const configuredStages = wagonConfig?.stages?.map((s) => s.name).filter(Boolean) || [];
+    const loggedStages = Object.keys(stagesMatrix || {});
+    return [
+      ...configuredStages,
+      ...loggedStages.filter((name) => !configuredStages.includes(name)),
+    ];
+  }, [wagonConfig, stagesMatrix]);
+
+  const inventoryRequirementMap = useMemo(() => {
+    const map = new Map();
+    const allItems = [
+      ...(wagonConfig?.dmItems || []),
+      ...(wagonConfig?.nonDmItems || []),
+    ];
+
+    allItems.forEach((item) => {
+      const partName = buildConfiguredPartName(item);
+      if (!partName) return;
+
+      const qtyPerWagon = Number(item?.qtyPerWagon || 0);
+      const requiredNos = Number(item?.requiredNos || 0);
+      map.set(partName, {
+        requiredQty: qtyPerWagon,
+        requiredNos,
+        qtyPerWagon,
+        uom: String(item?.uom || '').trim(),
+      });
+    });
+
+    return map;
   }, [wagonConfig]);
+
+  const inventoryGroups = useMemo(
+    () => getConfiguredInventoryGroups(wagonConfig),
+    [wagonConfig]
+  );
+
+  const toggleInventoryGroup = (label) => {
+    setCollapsedInventoryGroups((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  };
+
+  const filterInventoryByConfig = (rawInventory, config = wagonConfig) => {
+    if (!config?.parts?.length) return rawInventory || {};
+    const validParts = config.parts.map((p) => p.name.toLowerCase());
+    return Object.fromEntries(
+      Object.entries(rawInventory || {}).filter(([part]) =>
+        validParts.includes(part.toLowerCase())
+      )
+    );
+  };
+
+  const resetInventoryModal = () => {
+    setActiveInventoryTab('dm');
+    setDmInventoryEntries([createInventoryEntry()]);
+    setNonDmInventoryEntries([createInventoryEntry()]);
+    setDmInventoryUploadError('');
+    setNonDmInventoryUploadError('');
+    setInventorySaving(false);
+  };
+
+  const openInventoryModal = () => {
+    resetInventoryModal();
+    setShowInventoryModal(true);
+  };
+
+  const closeInventoryModal = () => {
+    setShowInventoryModal(false);
+    resetInventoryModal();
+  };
+
+  const getInventoryStateForTab = (tab) => {
+    if (tab === 'nonDm') {
+      return {
+        entries: nonDmInventoryEntries,
+        setEntries: setNonDmInventoryEntries,
+        uploadError: nonDmInventoryUploadError,
+        setUploadError: setNonDmInventoryUploadError,
+        configuredItems: wagonConfig?.nonDmItems || [],
+      };
+    }
+
+    return {
+      entries: dmInventoryEntries,
+      setEntries: setDmInventoryEntries,
+      uploadError: dmInventoryUploadError,
+      setUploadError: setDmInventoryUploadError,
+      configuredItems: wagonConfig?.dmItems || [],
+    };
+  };
+
+  const handleInventoryEntryChange = (tab, index, key, value) => {
+    const { setEntries } = getInventoryStateForTab(tab);
+    setEntries((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  };
+
+  const addInventoryEntry = (tab) => {
+    const { setEntries } = getInventoryStateForTab(tab);
+    setEntries((prev) => [...prev, createInventoryEntry()]);
+  };
+
+  const removeInventoryEntry = (tab, index) => {
+    const { setEntries } = getInventoryStateForTab(tab);
+    setEntries((prev) => {
+      const next = prev.filter((_, currentIndex) => currentIndex !== index);
+      return next.length ? next : [createInventoryEntry()];
+    });
+  };
+
+  const handleInventoryUpload = async (tab, event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const { setEntries, setUploadError } = getInventoryStateForTab(tab);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+      if (!rows.length) {
+        setUploadError('The uploaded sheet is empty.');
+        return;
+      }
+
+      const parsedEntries = rows
+        .map((row) => {
+          const mapped = createInventoryEntry();
+          Object.entries(row).forEach(([header, value]) => {
+            const normalized = normalizeInventoryHeader(header);
+            const targetKey = inventoryUploadColumnMap[normalized];
+            if (!targetKey) return;
+            mapped[targetKey] =
+              targetKey === 'newEntry'
+                ? value === '' || value === null || value === undefined
+                  ? ''
+                  : Number(value)
+                : String(value || '').trim();
+          });
+          return mapped;
+        })
+        .filter((entry) => isFilledInventoryEntry(entry) && Number(entry.newEntry || 0) !== 0);
+
+      if (!parsedEntries.length) {
+        setUploadError('No valid rows found. Expected columns: SAP code, Item Description, New entry, Unit.');
+        return;
+      }
+
+      setEntries(parsedEntries);
+      setUploadError('');
+    } catch (err) {
+      console.error('Failed to parse inventory upload', err);
+      setUploadError('Failed to read the Excel file. Please upload a valid .xlsx or .xls sheet.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const submitInventoryUpdate = async () => {
+    const partEntries = [...dmInventoryEntries, ...nonDmInventoryEntries]
+      .map((entry) => ({
+        sapCode: String(entry.sapCode || '').trim(),
+        description: String(entry.description || '').trim(),
+        newEntry: Number(entry.newEntry || 0),
+        unit: String(entry.unit || '').trim()
+      }))
+      .filter((entry) => (entry.sapCode || entry.description) && entry.newEntry !== 0);
+
+    if (!projectId || !project?.wagonType) {
+      alert('Project and wagon type are required to update inventory.');
+      return;
+    }
+
+    if (!partEntries.length) {
+      alert('Add at least one valid inventory row.');
+      return;
+    }
+
+    setInventorySaving(true);
+    setDmInventoryUploadError('');
+    setNonDmInventoryUploadError('');
+
+    try {
+      await api.post('/inventory/add', {
+        date: new Date().toISOString().split('T')[0],
+        projectId,
+        wagonType: project.wagonType,
+        partEntries
+      });
+
+      const invRes = await api.get(`/inventory/available/${encodeURIComponent(projectId)}`);
+      setInventory(filterInventoryByConfig(invRes.data));
+      closeInventoryModal();
+    } catch (err) {
+      console.error('Failed to update inventory', err);
+      alert(err?.response?.data?.message || 'Failed to update inventory');
+    } finally {
+      setInventorySaving(false);
+    }
+  };
 
 
   useEffect(() => {
@@ -319,16 +619,7 @@ const milestoneList = useMemo(() => {
         let filteredInventory = rawInventory;
         let filteredStages = rawStages;
 
-        if (matchedConfig?.parts?.length) {
-          const validParts = matchedConfig.parts.map((p) =>
-            p.name.toLowerCase()
-          );
-          filteredInventory = Object.fromEntries(
-            Object.entries(rawInventory).filter(([part]) =>
-              validParts.includes(part.toLowerCase())
-            )
-          );
-        }
+        filteredInventory = filterInventoryByConfig(rawInventory, matchedConfig);
 
         if (matchedConfig?.stages?.length) {
           const validStages = matchedConfig.stages.map((s) =>
@@ -635,64 +926,282 @@ const milestoneList = useMemo(() => {
 
 
           {/* ===== Inventory ===== */}
-          <h5 className="fw-semibold border-bottom pb-2 mb-3">📦 Live Inventory</h5>
+          <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+            <h5 className="fw-semibold m-0">📦 Live Inventory</h5>
+            <button
+              className="btn btn-sm btn-outline-primary"
+              onClick={openInventoryModal}
+            >
+              Update Inventory
+            </button>
+          </div>
           <div className="table-responsive mb-4">
             <table className="table table-bordered table-hover align-middle text-center">
               <thead className="table-light">
                 <tr>
+                  <th>SAP Code</th>
                   <th>Part / Component</th>
                   <th>Available</th>
-                  <th>Reserved</th>
-                  <th>Min Level</th>
-                  <th>Max Level</th>
+                  <th>No. of Wagon Sets Possible</th>
+                  <th>Component Shortage</th>
+                  <th>Wagon Set Shortage</th>
                 </tr>
               </thead>
               <tbody>
   {!inventory || Object.keys(inventory).length === 0 ? (
-    <tr><td colSpan="5">No inventory data</td></tr>
+    <tr><td colSpan="6">No inventory data</td></tr>
   ) : (
-    Object.entries(inventory).map(([part, info], i) => (
-      <tr key={i}>
-        <td className="text-start">{part}</td>
-        <td>{human0(info?.available)}</td>
-        <td>{human0(info?.reserved)}</td>
-        <td>{human0(info?.minLevel)}</td>
-        <td>{human0(info?.maxLevel)}</td>
-      </tr>
-    ))
+    inventoryGroups.flatMap((group, groupIndex) => {
+      if (!group.items.length) return [];
+      const isCollapsed = Boolean(collapsedInventoryGroups[group.label]);
+
+      const groupRows = [
+        <tr key={`group-${groupIndex}`}>
+          <td
+            colSpan="6"
+            className="fw-bold text-start table-light"
+            style={{ cursor: 'pointer' }}
+            onClick={() => toggleInventoryGroup(group.label)}
+          >
+            <div className="d-flex justify-content-between align-items-center">
+              <span>{group.label}</span>
+              <span>{isCollapsed ? 'Show' : 'Hide'}</span>
+            </div>
+          </td>
+        </tr>
+      ];
+
+      if (isCollapsed) {
+        return groupRows;
+      }
+
+      group.items.forEach((item, itemIndex) => {
+        const info = inventory?.[item.key] || {};
+        const available = human0(info?.available);
+        const requirement = inventoryRequirementMap.get(item.key);
+        const perWagonQty = human0(requirement?.qtyPerWagon);
+        const requiredNos = human0(requirement?.requiredNos);
+        const { sapCode, description } = splitInventoryPartLabel(item.key, {
+          ...info,
+          sapCode: item.sapCode || info?.sapCode,
+          description: item.description || info?.description,
+        });
+        const wagonSetsPossible =
+          perWagonQty > 0 ? available / perWagonQty : 0;
+        const componentShortage =
+          requiredNos > 0 ? Math.max(requiredNos - available, 0) : 0;
+        const wagonSetShortage =
+          perWagonQty > 0 ? componentShortage / perWagonQty : 0;
+
+        groupRows.push(
+          <tr key={`group-${groupIndex}-item-${itemIndex}`}>
+            <td>{sapCode}</td>
+            <td className="text-start">{description}</td>
+            <td>{available}</td>
+            <td>{formatInventoryMetric(wagonSetsPossible)}</td>
+            <td>{componentShortage}</td>
+            <td>{formatInventoryMetric(wagonSetShortage)}</td>
+          </tr>
+        );
+      });
+
+      return groupRows;
+    })
   )}
 </tbody>
             </table>
           </div>
 
+          {showInventoryModal && (
+            <div className="modal d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
+              <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Update Inventory</h5>
+                    <button className="btn-close" onClick={closeInventoryModal}></button>
+                  </div>
+                  <div className="modal-body">
+                    {(() => {
+                      const {
+                        entries: activeEntries,
+                        uploadError: activeUploadError,
+                        configuredItems: activeConfiguredItems,
+                      } = getInventoryStateForTab(activeInventoryTab);
+
+                      return (
+                        <>
+                          <div className="d-flex gap-2 mb-3">
+                            <button
+                              className={`btn btn-sm ${activeInventoryTab === 'dm' ? 'btn-primary' : 'btn-outline-primary'}`}
+                              onClick={() => setActiveInventoryTab('dm')}
+                            >
+                              DM Items
+                            </button>
+                            <button
+                              className={`btn btn-sm ${activeInventoryTab === 'nonDm' ? 'btn-primary' : 'btn-outline-primary'}`}
+                              onClick={() => setActiveInventoryTab('nonDm')}
+                            >
+                              Non DM Items
+                            </button>
+                          </div>
+
+                          <div className="mb-2 text-muted small">
+                            {activeInventoryTab === 'dm' ? 'Update DM item stock separately.' : 'Update Non DM item stock separately.'}
+                          </div>
+
+                          <div className="mb-3">
+                            <input
+                              type="file"
+                              className="form-control"
+                              accept=".xlsx,.xls"
+                              onChange={(event) => handleInventoryUpload(activeInventoryTab, event)}
+                            />
+                            <div className="form-text">
+                              Upload Excel columns: SAP code, Item Description, New entry, Unit
+                            </div>
+                            {activeUploadError && (
+                              <div className="text-danger mt-2">{activeUploadError}</div>
+                            )}
+                          </div>
+
+                          {!!activeConfiguredItems.length && (
+                            <div className="alert alert-light border mb-3">
+                              <div className="fw-semibold mb-1">Configured {activeInventoryTab === 'dm' ? 'DM' : 'Non DM'} items</div>
+                              <div className="small text-muted">
+                                {activeConfiguredItems
+                                  .map((item) => buildConfiguredPartName(item))
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="table-responsive">
+                            <table className="table table-bordered align-middle">
+                              <thead className="table-light">
+                                <tr>
+                                  <th>SAP Code</th>
+                                  <th>Item Description</th>
+                                  <th>New Entry</th>
+                                  <th>Unit</th>
+                                  <th>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {activeEntries.map((entry, index) => (
+                                  <tr key={`${activeInventoryTab}-${index}`}>
+                                    <td>
+                                      <input
+                                        type="text"
+                                        className="form-control"
+                                        value={entry.sapCode}
+                                        onChange={(e) => handleInventoryEntryChange(activeInventoryTab, index, 'sapCode', e.target.value)}
+                                        placeholder="SAP code"
+                                      />
+                                    </td>
+                                    <td>
+                                      <input
+                                        type="text"
+                                        className="form-control"
+                                        value={entry.description}
+                                        onChange={(e) => handleInventoryEntryChange(activeInventoryTab, index, 'description', e.target.value)}
+                                        placeholder="Item description"
+                                      />
+                                    </td>
+                                    <td>
+                                      <input
+                                        type="number"
+                                        className="form-control"
+                                        min="0"
+                                        value={entry.newEntry}
+                                        onChange={(e) => handleInventoryEntryChange(activeInventoryTab, index, 'newEntry', e.target.value)}
+                                        placeholder="0"
+                                      />
+                                    </td>
+                                    <td>
+                                      <select
+                                        className="form-select"
+                                        value={entry.unit}
+                                        onChange={(e) => handleInventoryEntryChange(activeInventoryTab, index, 'unit', e.target.value)}
+                                      >
+                                        {inventoryUnitOptions.map((unit) => (
+                                          <option key={unit} value={unit}>
+                                            {unit}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td className="text-center">
+                                      <button
+                                        className="btn btn-sm btn-outline-danger"
+                                        onClick={() => removeInventoryEntry(activeInventoryTab, index)}
+                                      >
+                                        Remove
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <button
+                            className="btn btn-sm btn-outline-secondary"
+                            onClick={() => addInventoryEntry(activeInventoryTab)}
+                          >
+                            Add Row
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="modal-footer">
+                    <button className="btn btn-secondary" onClick={closeInventoryModal}>
+                      Cancel
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={submitInventoryUpdate}
+                      disabled={inventorySaving}
+                    >
+                      {inventorySaving ? 'Saving...' : 'Save Inventory'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ===== Stage-wise overall progress ===== */}
           <h5 className="fw-semibold border-bottom pb-2 mb-3">🛠️ Stage-wise Progress</h5>
           <div className="table-responsive mb-4">
-            <table className="table table-bordered table-hover align-middle">
-              <thead className="table-light">
-                <tr>
-                  <th>Stage</th>
-                  <th className="text-end">Completed</th>
-                  <th className="text-end">Total</th>
-                  <th className="text-end">Left</th>
-                  <th style={{ width: 220 }}>Progress</th>
+	            <table className="table table-bordered table-hover align-middle">
+	              <thead className="table-light">
+	                <tr>
+	                  <th>Stage No.</th>
+	                  <th>Stage</th>
+	                  <th className="text-end">Completed</th>
+	                  <th className="text-end">Total</th>
+	                  <th className="text-end">Left</th>
+	                  <th style={{ width: 220 }}>Progress</th>
                 </tr>
               </thead>
               <tbody>
-                {(!stages || stages.length === 0) ? (
-                  <tr><td colSpan="5" className="text-center">No stage data</td></tr>
-                ) : (
-                  stages.map((s, i) => {
-                    const done = human0(s.completed);
-                    const tot = human0(s.total);
-                    const left = Math.max(0, tot - done);
-                    const pct = tot > 0 ? (100 * done) / tot : 0;
-                    return (
-                      <tr key={i}>
-                        <td className="text-start">{s.stage || s.name || `Stage ${i+1}`}</td>
-                        <td className="text-end">{done}</td>
-                        <td className="text-end">{tot}</td>
-                        <td className="text-end">{left}</td>
+	                {(!stages || stages.length === 0) ? (
+	                  <tr><td colSpan="6" className="text-center">No stage data</td></tr>
+	                ) : (
+	                  stages.map((s, i) => {
+	                    const done = human0(s.completed);
+	                    const tot = human0(s.total);
+	                    const left = Math.max(0, tot - done);
+	                    const pct = tot > 0 ? (100 * done) / tot : 0;
+	                    return (
+	                      <tr key={i}>
+	                        <td className="text-center">{s.stageNo || i + 1}</td>
+	                        <td className="text-start">{s.stage || s.name || `Stage ${i+1}`}</td>
+	                        <td className="text-end">{done}</td>
+	                        <td className="text-end">{tot}</td>
+	                        <td className="text-end">{left}</td>
                         <td><ProgressBar value={pct} /></td>
                       </tr>
                     );
@@ -759,7 +1268,7 @@ const milestoneList = useMemo(() => {
   <table className="table table-bordered table-hover align-middle text-center">
     <thead className="table-dark">
       <tr>
-        <th>Date</th>
+        <th>Stage</th>
         {dayLabels.map(range => (
           <th key={range}>{range}</th>
         ))}

@@ -27,6 +27,7 @@ import EquipmentMaintenanceScreen from './screens/maintenance/EquipmentMaintenan
 import EquipmentMasterForm from './screens/maintenance/EquipmentMasterForm';
 import MaintenanceDashboard from "./screens/maintenance/MaintenanceDashboard.jsx";
 import EquipmentMasterList from "./screens/maintenance/EquipmentMasterList";
+import ProjectShortageDashboard from "./screens/shortage/ProjectShortageDashboard.jsx";
 import TexmacoAccessPortal from './screens/login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
@@ -63,6 +64,7 @@ const LayoutWrapper = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false); // ✅ for hamburger menu
   const [qualityOpen, setQualityOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
+  const [shortageOpen, setShortageOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false); // allow hiding the sidebar entirely
 
 
@@ -332,6 +334,30 @@ const LayoutWrapper = ({ children }) => {
   )}
 </li>
 
+<li className="nav-item mt-3">
+  <span
+    onClick={() => setShortageOpen(!shortageOpen)}
+    className="nav-link text-white fw-bold"
+    style={{ cursor: 'pointer' }}
+  >
+    📦 Project Shortage {shortageOpen ? '▲' : '▼'}
+  </span>
+
+  {shortageOpen && (
+    <ul className="nav flex-column ms-3">
+      <li>
+        <Link
+          to="/shortage/dashboard"
+          className="nav-link text-white"
+          onClick={handleLinkClick}
+        >
+          📊 Shortage Dashboard
+        </Link>
+      </li>
+    </ul>
+  )}
+</li>
+
 
   </ul>
 </div>
@@ -522,6 +548,14 @@ function App() {
 
 
           {/* 🚫 Redirect any unknown URL */}
+<Route
+  path="/shortage/dashboard"
+  element={
+    <ProtectedRoute allowedRoles={["production", "maintenance"]}>
+      <ProjectShortageDashboard />
+    </ProtectedRoute>
+  }
+/>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </LayoutWrapper>
