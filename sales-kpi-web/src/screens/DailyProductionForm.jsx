@@ -32,7 +32,7 @@ const StageCard = ({ name, index, value, onChange }) => {
   const count = value ?? 0;
   return (
     <div
-      className="d-flex align-items-center justify-content-between gap-3 px-3 py-3 rounded-3"
+      className="d-flex align-items-center justify-content-between gap-3 px-3 py-3 rounded-3 flex-wrap"
       style={{
         background: count > 0 ? '#f0fdf4' : '#fff',
         border: `1px solid ${count > 0 ? '#86efac' : '#e2e8f0'}`,
@@ -51,7 +51,7 @@ const StageCard = ({ name, index, value, onChange }) => {
         <span className="fw-semibold text-truncate" style={{ fontSize: 14, color: '#1e293b' }}>{name}</span>
       </div>
 
-      <div className="d-flex align-items-center gap-1 flex-shrink-0">
+      <div className="d-flex align-items-center gap-1 flex-shrink-0 ms-auto">
         <button
           type="button"
           onClick={() => onChange(name, Math.max(0, count - 1))}
@@ -106,7 +106,7 @@ const InventorySection = ({ label, rows, accentColor }) => {
       </button>
       {open && (
         <div className="table-responsive">
-          <table className="table table-sm table-hover mb-0" style={{ fontSize: 13 }}>
+          <table className="table table-sm table-hover mb-0 daily-inventory-table" style={{ fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f1f5f9' }}>
                 <th className="ps-3" style={{ color: '#475569', fontWeight: 600 }}>Part / Item</th>
@@ -261,7 +261,48 @@ const DailyProductionForm = () => {
   const filledStageCount = Object.values(stagesCompleted).filter((v) => v > 0).length;
 
   return (
-    <div style={{ fontFamily: "'Poppins', sans-serif", maxWidth: 760, margin: '0 auto' }}>
+    <div className="daily-production-form" style={{ fontFamily: "'Poppins', sans-serif", maxWidth: 960, margin: '0 auto', padding: '0 12px' }}>
+      <style>{`
+        .daily-production-form .daily-card {
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+        }
+        .daily-production-form .daily-card-body {
+          padding: 1.5rem;
+        }
+        .daily-production-form .daily-card-header {
+          padding: 0.9rem 1.5rem;
+        }
+        .daily-production-form .daily-stage-grid {
+          display: grid;
+          gap: 8px;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+        @media (max-width: 767.98px) {
+          .daily-production-form {
+            padding: 0 8px;
+          }
+          .daily-production-form .daily-card-body {
+            padding: 1rem;
+          }
+          .daily-production-form .daily-card-header {
+            padding: 0.85rem 1rem;
+          }
+          .daily-production-form .daily-inventory-table {
+            min-width: 520px;
+          }
+          .daily-production-form .react-datepicker-wrapper,
+          .daily-production-form .react-datepicker__input-container,
+          .daily-production-form .react-datepicker__input-container input {
+            width: 100%;
+          }
+        }
+        @media (max-width: 575.98px) {
+          .daily-production-form .daily-stage-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
 
       {/* ── Page header ── */}
       <div className="mb-4">
@@ -286,28 +327,28 @@ const DailyProductionForm = () => {
       <form onSubmit={handleSubmit}>
 
         {/* ── Date + Project card ── */}
-        <div className="card shadow-sm mb-4" style={{ borderRadius: 12, border: '1px solid #e2e8f0' }}>
-          <div className="card-body px-4 py-4">
+        <div className="card shadow-sm mb-4 daily-card">
+          <div className="card-body daily-card-body">
 
             {/* Date */}
-            <div className="mb-4">
+            <div className="mb-4 row g-3">
+              <div className="col-12 col-md-4">
               <label className="form-label fw-semibold mb-1" style={{ fontSize: 13, color: '#374151' }}>
                 Date
               </label>
-              <div>
+              <div className="w-100">
                 <DatePicker
                   selected={date}
                   onChange={setDate}
                   dateFormat="dd MMM yyyy"
                   className="form-control"
                   wrapperClassName="w-100"
-                  style={{ maxWidth: 200 }}
                 />
               </div>
-            </div>
+              </div>
 
             {/* Project */}
-            <div>
+            <div className="col-12 col-md-8">
               <label className="form-label fw-semibold mb-1" style={{ fontSize: 13, color: '#374151' }}>
                 Select Project
               </label>
@@ -324,6 +365,7 @@ const DailyProductionForm = () => {
                   </option>
                 ))}
               </select>
+            </div>
             </div>
 
             {/* Selected project info chips */}
@@ -346,8 +388,8 @@ const DailyProductionForm = () => {
         </div>
 
         {/* ── Stages card ── */}
-        <div className="card shadow-sm mb-4" style={{ borderRadius: 12, border: '1px solid #e2e8f0' }}>
-          <div className="card-header px-4 py-3 d-flex align-items-center justify-content-between flex-wrap gap-2"
+        <div className="card shadow-sm mb-4 daily-card">
+          <div className="card-header daily-card-header d-flex align-items-center justify-content-between flex-wrap gap-2"
             style={{ background: '#f8fafc', border: 'none', borderBottom: '1px solid #e2e8f0', borderRadius: '12px 12px 0 0' }}>
             <div className="d-flex align-items-center gap-2">
               <div style={{ width: 4, height: 20, borderRadius: 2, background: '#6366f1' }} />
@@ -368,7 +410,7 @@ const DailyProductionForm = () => {
             )}
           </div>
 
-          <div className="card-body px-4 py-3">
+          <div className="card-body daily-card-body py-3">
             {loading && (
               <div className="text-center py-4 text-muted" style={{ fontSize: 13 }}>
                 Loading stages…
@@ -390,7 +432,7 @@ const DailyProductionForm = () => {
                     </span>
                   </div>
                 )}
-                <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+                <div className="daily-stage-grid">
                   {wagonConfig.stages.map((stage, idx) => (
                     <StageCard
                       key={stage.name}
@@ -407,11 +449,11 @@ const DailyProductionForm = () => {
         </div>
 
         {/* ── Live Inventory card ── */}
-        <div className="card shadow-sm mb-4" style={{ borderRadius: 12, border: '1px solid #e2e8f0' }}>
+        <div className="card shadow-sm mb-4 daily-card">
           <button
             type="button"
             onClick={() => setIsLiveInventoryOpen((v) => !v)}
-            className="d-flex align-items-center justify-content-between w-100 px-4 py-3 border-0"
+            className="d-flex align-items-center justify-content-between w-100 daily-card-header border-0"
             style={{ background: '#f8fafc', cursor: 'pointer', borderRadius: isLiveInventoryOpen ? '12px 12px 0 0' : 12 }}
           >
             <div className="d-flex align-items-center gap-2">
@@ -422,7 +464,7 @@ const DailyProductionForm = () => {
           </button>
 
           {isLiveInventoryOpen && (
-            <div className="card-body px-4 py-3">
+            <div className="card-body daily-card-body py-3">
               {!liveInventorySections.length ? (
                 <p className="text-muted mb-0" style={{ fontSize: 13 }}>
                   {selectedProject ? 'No inventory items available for this project.' : 'Select a project to preview inventory.'}
