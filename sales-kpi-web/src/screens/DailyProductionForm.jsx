@@ -30,34 +30,51 @@ const getInventoryItemName = (item = {}) => {
 /* ── Stepper control for stage count ── */
 const StageCard = ({ name, index, value, onChange }) => {
   const count = value ?? 0;
+  const btnBase = {
+    width: 36, height: 36, padding: 0, borderRadius: 8,
+    flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 20, lineHeight: 1, border: 'none', cursor: 'pointer',
+  };
   return (
     <div
-      className="d-flex align-items-center justify-content-between gap-3 px-3 py-3 rounded-3 flex-wrap"
       style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 12px', borderRadius: 12,
         background: count > 0 ? '#f0fdf4' : '#fff',
         border: `1px solid ${count > 0 ? '#86efac' : '#e2e8f0'}`,
-        transition: 'all 0.15s'
+        transition: 'all 0.15s', overflow: 'hidden',
       }}
     >
-      <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ minWidth: 0 }}>
-        <span
-          className="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
-          style={{ width: 28, height: 28, fontSize: 12, fontWeight: 700,
-            background: count > 0 ? '#16a34a' : '#e2e8f0',
-            color: count > 0 ? '#fff' : '#64748b' }}
-        >
-          {index + 1}
-        </span>
-        <span className="fw-semibold text-truncate" style={{ fontSize: 14, color: '#1e293b' }}>{name}</span>
-      </div>
+      {/* Badge */}
+      <span
+        style={{
+          width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 700,
+          background: count > 0 ? '#16a34a' : '#e2e8f0',
+          color: count > 0 ? '#fff' : '#64748b',
+        }}
+      >
+        {index + 1}
+      </span>
 
-      <div className="d-flex align-items-center gap-1 flex-shrink-0 ms-auto">
+      {/* Stage name — takes all remaining space, truncates */}
+      <span
+        style={{
+          flex: 1, minWidth: 0, overflow: 'hidden',
+          textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          fontSize: 13, fontWeight: 600, color: '#1e293b',
+        }}
+      >
+        {name}
+      </span>
+
+      {/* Stepper — fixed width, never wraps */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
         <button
           type="button"
           onClick={() => onChange(name, Math.max(0, count - 1))}
-          className="btn btn-sm d-flex align-items-center justify-content-center"
-          style={{ width: 32, height: 32, padding: 0, borderRadius: 8,
-            background: '#f1f5f9', border: '1px solid #cbd5e1', color: '#475569', fontSize: 18, lineHeight: 1 }}
+          style={{ ...btnBase, background: '#f1f5f9', color: '#475569' }}
         >
           −
         </button>
@@ -67,17 +84,20 @@ const StageCard = ({ name, index, value, onChange }) => {
           value={count === 0 ? '' : count}
           placeholder="0"
           onChange={(e) => onChange(name, Math.max(0, parseInt(e.target.value, 10) || 0))}
-          className="form-control form-control-sm text-center fw-bold"
-          style={{ width: 56, height: 32, borderRadius: 8, fontSize: 15,
-            borderColor: count > 0 ? '#86efac' : '#cbd5e1',
-            background: count > 0 ? '#f0fdf4' : '#fff' }}
+          style={{
+            width: 46, height: 36, textAlign: 'center', fontWeight: 700,
+            fontSize: 14, borderRadius: 8, border: `1px solid ${count > 0 ? '#86efac' : '#cbd5e1'}`,
+            background: count > 0 ? '#f0fdf4' : '#fff',
+            padding: 0, outline: 'none',
+            /* hide number spinners */
+            MozAppearance: 'textfield',
+          }}
+          onWheel={(e) => e.target.blur()}
         />
         <button
           type="button"
           onClick={() => onChange(name, count + 1)}
-          className="btn btn-sm d-flex align-items-center justify-content-center"
-          style={{ width: 32, height: 32, padding: 0, borderRadius: 8,
-            background: '#0ea5e9', border: '1px solid #0ea5e9', color: '#fff', fontSize: 18, lineHeight: 1 }}
+          style={{ ...btnBase, background: '#0ea5e9', color: '#fff' }}
         >
           +
         </button>
