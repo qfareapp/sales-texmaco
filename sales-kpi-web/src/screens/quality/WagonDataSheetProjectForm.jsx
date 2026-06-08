@@ -181,6 +181,7 @@ export default function WagonDataSheetProjectForm() {
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={4}>
                   <TextField
+                    id="project-name"
                     label="Project Name *"
                     value={form.projectName}
                     onChange={handleChange("projectName")}
@@ -192,6 +193,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={4}>
                   <TextField
+                    id="contract-po-number"
                     label="Contract / P.O. No. *"
                     value={form.contractPoNumber}
                     onChange={handleChange("contractPoNumber")}
@@ -203,6 +205,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={6} sm={3} md={2}>
                   <TextField
+                    id="contract-po-date"
                     label="P.O. Date"
                     type="date"
                     value={form.contractPoDate}
@@ -215,6 +218,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={6} sm={3} md={2}>
                   <TextField
+                    id="delivery-period-upto"
                     label="D.P. Upto"
                     type="date"
                     value={form.deliveryPeriodUpto}
@@ -227,6 +231,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={12} sm={4} md={4}>
                   <TextField
+                    id="total-quantity"
                     label="Total Quantity in P.O."
                     value={form.totalQuantity}
                     onChange={handleChange("totalQuantity")}
@@ -237,6 +242,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={12} sm={4} md={4}>
                   <TextField
+                    id="contract-placed-by"
                     label="Contract / P.O. Placed By"
                     value={form.contractPlacedBy}
                     onChange={handleChange("contractPlacedBy")}
@@ -254,6 +260,7 @@ export default function WagonDataSheetProjectForm() {
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={3}>
                   <TextField
+                    id="wagon-type-in-po"
                     label="Type of Wagon in P.O."
                     value={form.wagonTypeInPo}
                     onChange={handleChange("wagonTypeInPo")}
@@ -264,6 +271,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <TextField
+                    id="wagon-manufacturer"
                     label="Wagon Manufacturer"
                     value={form.wagonManufacturer}
                     onChange={handleChange("wagonManufacturer")}
@@ -274,6 +282,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <TextField
+                    id="wagon-type-offered"
                     label="Type of Wagon Offered"
                     value={form.wagonTypeOffered}
                     onChange={handleChange("wagonTypeOffered")}
@@ -284,6 +293,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <TextField
+                    id="wagon-configuration"
                     select
                     label="Configuration"
                     value={form.wagonConfiguration}
@@ -306,6 +316,7 @@ export default function WagonDataSheetProjectForm() {
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={4}>
                   <TextField
+                    id="wagons-offered-for-inspection"
                     label="No. of Wagons Offered for Inspection"
                     value={form.wagonsOfferedForInspection}
                     onChange={handleChange("wagonsOfferedForInspection")}
@@ -316,6 +327,7 @@ export default function WagonDataSheetProjectForm() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={4}>
                   <TextField
+                    id="inspection-offer-date"
                     label="Inspection Offer Date"
                     type="date"
                     value={form.inspectionOfferDate}
@@ -333,6 +345,7 @@ export default function WagonDataSheetProjectForm() {
               {/* Notes */}
               <SectionHeader label="Notes" />
               <TextField
+                id="project-notes"
                 label="Notes"
                 value={form.notes}
                 onChange={handleChange("notes")}

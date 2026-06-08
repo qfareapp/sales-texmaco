@@ -187,6 +187,7 @@ export default function WagonDataSheetSecondZoneForm() {
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <TextField
+                id="second-zone-project"
                 select
                 label="Select Project"
                 value={form.projectId}
@@ -204,6 +205,7 @@ export default function WagonDataSheetSecondZoneForm() {
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
+                id="second-zone-wheel-data-link"
                 select
                 label="Wheel Data Link *"
                 value={form.rowId}

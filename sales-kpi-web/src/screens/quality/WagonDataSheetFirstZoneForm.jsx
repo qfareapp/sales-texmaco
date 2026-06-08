@@ -215,6 +215,7 @@ export default function WagonDataSheetFirstZoneForm() {
           <Grid container spacing={2} alignItems="stretch">
             <Grid item xs={12} md={8}>
               <TextField
+                id="first-zone-project"
                 select
                 label="Select Project"
                 value={form.projectId}
@@ -309,6 +310,7 @@ export default function WagonDataSheetFirstZoneForm() {
             <Grid container spacing={2} sx={{ mb: 3 }}>
               <Grid item xs={6} sm={4} md={2}>
                 <TextField
+                  id="first-zone-slno"
                   label="SL. No."
                   value={form.slNo}
                   onChange={handleChange("slNo")}
@@ -319,6 +321,7 @@ export default function WagonDataSheetFirstZoneForm() {
               </Grid>
               <Grid item xs={6} sm={4} md={5}>
                 <TextField
+                  id="first-zone-texno"
                   label="TEX No."
                   value={form.texNo}
                   onChange={handleChange("texNo")}
@@ -329,6 +332,7 @@ export default function WagonDataSheetFirstZoneForm() {
               </Grid>
               <Grid item xs={12} sm={4} md={5}>
                 <TextField
+                  id="first-zone-wagonno"
                   label="Wagon No."
                   value={form.wagonNo}
                   onChange={handleChange("wagonNo")}
@@ -356,6 +360,7 @@ export default function WagonDataSheetFirstZoneForm() {
                 </Typography>
               </Box>
               <TextField
+                id="first-zone-wheel-data-key"
                 label="Wheel Data Key *"
                 value={form.wheelDataKey}
                 onChange={handleChange("wheelDataKey")}

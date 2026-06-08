@@ -165,6 +165,7 @@ export default function WagonDataSheetFinalDetailsForm() {
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <TextField
+                id="final-details-project"
                 select
                 label="Project"
                 value={form.projectId}
@@ -182,6 +183,7 @@ export default function WagonDataSheetFinalDetailsForm() {
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
+                id="final-details-wheel-data-link"
                 select
                 label="Wheel Data Link"
                 value={form.rowId}
@@ -229,16 +231,16 @@ export default function WagonDataSheetFinalDetailsForm() {
                 <TextField label="Tare Weight (Tonne)" value={form.tareWeight} onChange={handleChange("tareWeight")} fullWidth size="small" sx={{ bgcolor: "white", borderRadius: 1 }} />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField label="TXR Fit Date" type="date" value={form.txrFitDate} onChange={handleChange("txrFitDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField id="final-details-txr-fit-date" label="TXR Fit Date" type="date" value={form.txrFitDate} onChange={handleChange("txrFitDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField label="Mfg. Date" type="date" value={form.manufactureDate} onChange={handleChange("manufactureDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField id="final-details-mfg-date" label="Mfg. Date" type="date" value={form.manufactureDate} onChange={handleChange("manufactureDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField label="ROH Date" type="date" value={form.rohDate} onChange={handleChange("rohDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField id="final-details-roh-date" label="ROH Date" type="date" value={form.rohDate} onChange={handleChange("rohDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField label="Return / POH Date" type="date" value={form.returnOrPohDate} onChange={handleChange("returnOrPohDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField id="final-details-return-poh-date" label="Return / POH Date" type="date" value={form.returnOrPohDate} onChange={handleChange("returnOrPohDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
               </Grid>
             </Grid>
 
