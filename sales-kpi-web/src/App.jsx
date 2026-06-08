@@ -23,6 +23,11 @@ import SalesProdEntryForm from "./screens/sales/SalesProdEntryForm";
 import SalesProdDashboard from "./screens/sales/SalesProdDashboard";
 import TradeExportDashboard from "./screens/sales/TradeExportDashboard";
 import BogiePostWheelInspectionForm from './screens/quality/BogiePostWheelInspectionForm';
+import WagonDataSheetProjectForm from './screens/quality/WagonDataSheetProjectForm';
+import WagonDataSheetFirstZoneForm from './screens/quality/WagonDataSheetFirstZoneForm';
+import WagonDataSheetSecondZoneForm from './screens/quality/WagonDataSheetSecondZoneForm';
+import WagonDataSheetFinalDetailsForm from './screens/quality/WagonDataSheetFinalDetailsForm';
+import WagonDataSheetProjectDetail from './screens/quality/WagonDataSheetProjectDetail';
 import EquipmentMaintenanceScreen from './screens/maintenance/EquipmentMaintenanceScreen';
 import EquipmentMasterForm from './screens/maintenance/EquipmentMasterForm';
 import MaintenanceDashboard from "./screens/maintenance/MaintenanceDashboard.jsx";
@@ -63,6 +68,7 @@ const LayoutWrapper = ({ children }) => {
   const [productionOpen, setProductionOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // ✅ for hamburger menu
   const [qualityOpen, setQualityOpen] = useState(false);
+  const [wagonDataSheetOpen, setWagonDataSheetOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [shortageOpen, setShortageOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false); // allow hiding the sidebar entirely
@@ -276,6 +282,55 @@ const LayoutWrapper = ({ children }) => {
   </Link>
 </li>
 
+<li>
+  <span
+    onClick={() => setWagonDataSheetOpen(!wagonDataSheetOpen)}
+    className="nav-link text-white"
+    style={{ cursor: 'pointer' }}
+  >
+    📄 Wagon Data Sheet {wagonDataSheetOpen ? '▲' : '▼'}
+  </span>
+  {wagonDataSheetOpen && (
+    <ul className="nav flex-column ms-3">
+      <li>
+        <Link
+          to="/quality/wagon-data-sheet/projects"
+          className="nav-link text-white"
+          onClick={handleLinkClick}
+        >
+          Projects
+        </Link>
+      </li>
+      <li>
+        <Link
+          to="/quality/wagon-data-sheet/first-zone"
+          className="nav-link text-white"
+          onClick={handleLinkClick}
+        >
+          First Zone
+        </Link>
+      </li>
+      <li>
+        <Link
+          to="/quality/wagon-data-sheet/second-zone"
+          className="nav-link text-white"
+          onClick={handleLinkClick}
+        >
+          Second Zone
+        </Link>
+      </li>
+      <li>
+        <Link
+          to="/quality/wagon-data-sheet/final-details"
+          className="nav-link text-white"
+          onClick={handleLinkClick}
+        >
+          Final Details
+        </Link>
+      </li>
+    </ul>
+  )}
+</li>
 <li>
   <Link
     to="/quality-dashboard"
@@ -508,6 +563,46 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["quality"]}>
                 <BogiePostWheelInspectionForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/projects"
+            element={
+              <ProtectedRoute allowedRoles={["quality"]}>
+                <WagonDataSheetProjectForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/projects/:projectId"
+            element={
+              <ProtectedRoute allowedRoles={["quality"]}>
+                <WagonDataSheetProjectDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/first-zone"
+            element={
+              <ProtectedRoute allowedRoles={["quality"]}>
+                <WagonDataSheetFirstZoneForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/second-zone"
+            element={
+              <ProtectedRoute allowedRoles={["quality"]}>
+                <WagonDataSheetSecondZoneForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/final-details"
+            element={
+              <ProtectedRoute allowedRoles={["quality"]}>
+                <WagonDataSheetFinalDetailsForm />
               </ProtectedRoute>
             }
           />

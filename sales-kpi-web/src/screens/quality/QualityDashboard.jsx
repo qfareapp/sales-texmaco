@@ -37,6 +37,15 @@ export default function QualityDashboard() {
   🚆 Bogie Inspection
 </Button>
 
+        <Button
+          variant="contained"
+          color="success"
+          onClick={() => navigate("/quality/wagon-data-sheet/projects")}
+          sx={{ textTransform: "none", fontWeight: 600 }}
+        >
+          📄 Wagon Data Sheet
+        </Button>
+
         <Button variant="outlined" disabled sx={{ textTransform: "none" }}>
           ⚙️ Coupler Inspection (Coming Soon)
         </Button>

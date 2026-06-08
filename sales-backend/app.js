@@ -68,6 +68,7 @@ const equipmentMasterRoutes = require("./routes/equipmentMaster.routes.js");
 const dashboardUploadRoutes = require('./routes/dashboardUploads');
 const incidentRoutes = require('./routes/incidents');
 const projectShortageRoutes = require("./routes/projectShortage.routes");
+const wagonDataSheetRoutes = require("./routes/wagonDataSheet.routes");
 
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/enquiries', enquiryRoutes);   // ⚡ includes milestones & project-summary
@@ -84,6 +85,7 @@ app.use("/api/inventory", require("./routes/equipmentInventory.routes.js"));
 app.use('/api/dashboard-uploads', dashboardUploadRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/project-shortages', projectShortageRoutes);
+app.use('/api/wagon-data-sheet', wagonDataSheetRoutes);
 
 
 
