@@ -3,10 +3,6 @@ export const wagonConfigurationOptions = [
   "A CAR",
   "B CAR",
   "C CAR",
-  "A & B CAR",
-  "A & C CAR",
-  "B & C CAR",
-  "A, B, C CAR",
 ];
 
 export const buildProjectLabel = (project) =>

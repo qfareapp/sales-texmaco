@@ -6,6 +6,11 @@ const WagonDataSheetRow = require("../models/WagonDataSheetRow");
 const router = express.Router();
 
 const asText = (value) => String(value || "").trim();
+const normalizeWheelDataKey = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
 const asSerialNumbers = (value) => {
   const source = Array.isArray(value) ? value : String(value || "").split(/\r?\n|,/);
   return source
@@ -14,11 +19,19 @@ const asSerialNumbers = (value) => {
     .slice(0, 8);
 };
 
+const getNextSlNo = async (projectId) => {
+  const existingRows = await WagonDataSheetRow.find({ projectId }).select("slNo").lean();
+  const maxSlNo = existingRows.reduce((maxValue, row) => {
+    const numericValue = Number.parseInt(String(row?.slNo || ""), 10);
+    return Number.isFinite(numericValue) ? Math.max(maxValue, numericValue) : maxValue;
+  }, 0);
+
+  return String(maxSlNo + 1);
+};
+
 router.get("/projects", async (_req, res) => {
   try {
-    const projects = await WagonDataSheetProject.find()
-      .sort({ createdAt: -1 })
-      .lean();
+    const projects = await WagonDataSheetProject.find().sort({ createdAt: -1 }).lean();
 
     const ids = projects.map((project) => project._id);
     const rowSummary = await WagonDataSheetRow.aggregate([
@@ -55,9 +68,7 @@ router.get("/projects", async (_req, res) => {
       },
     ]);
 
-    const summaryMap = new Map(
-      rowSummary.map((item) => [String(item._id), item])
-    );
+    const summaryMap = new Map(rowSummary.map((item) => [String(item._id), item]));
 
     res.json({
       success: true,
@@ -74,7 +85,7 @@ router.get("/projects", async (_req, res) => {
       }),
     });
   } catch (error) {
-    console.error("❌ Error fetching wagon data sheet projects:", error);
+    console.error("Error fetching wagon data sheet projects:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -91,7 +102,6 @@ router.post("/projects", async (req, res) => {
       contractPlacedBy: asText(req.body.contractPlacedBy),
       wagonManufacturer: asText(req.body.wagonManufacturer),
       wagonTypeOffered: asText(req.body.wagonTypeOffered),
-      wagonConfiguration: asText(req.body.wagonConfiguration),
       wagonsOfferedForInspection: asText(req.body.wagonsOfferedForInspection),
       inspectionOfferDate: asText(req.body.inspectionOfferDate),
       notes: asText(req.body.notes),
@@ -100,7 +110,7 @@ router.post("/projects", async (req, res) => {
     const project = await WagonDataSheetProject.create(payload);
     res.status(201).json({ success: true, data: project });
   } catch (error) {
-    console.error("❌ Error creating wagon data sheet project:", error);
+    console.error("Error creating wagon data sheet project:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -123,7 +133,7 @@ router.get("/projects/:projectId/detail", async (req, res) => {
 
     res.json({ success: true, data: { project, rows } });
   } catch (error) {
-    console.error("❌ Error fetching wagon data sheet project detail:", error);
+    console.error("Error fetching wagon data sheet project detail:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -135,13 +145,10 @@ router.get("/rows", async (req, res) => {
       return res.status(400).json({ success: false, message: "Valid projectId is required." });
     }
 
-    const rows = await WagonDataSheetRow.find({ projectId })
-      .sort({ createdAt: -1 })
-      .lean();
-
+    const rows = await WagonDataSheetRow.find({ projectId }).sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: rows });
   } catch (error) {
-    console.error("❌ Error fetching wagon data sheet rows:", error);
+    console.error("Error fetching wagon data sheet rows:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -162,7 +169,7 @@ router.get("/rows/pending-second-zone", async (req, res) => {
 
     res.json({ success: true, data: rows });
   } catch (error) {
-    console.error("❌ Error fetching pending second zone rows:", error);
+    console.error("Error fetching pending second zone rows:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -183,7 +190,7 @@ router.get("/rows/final-details-options", async (req, res) => {
 
     res.json({ success: true, data: rows });
   } catch (error) {
-    console.error("❌ Error fetching final details options:", error);
+    console.error("Error fetching final details options:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -191,69 +198,83 @@ router.get("/rows/final-details-options", async (req, res) => {
 router.post("/rows/first-zone", async (req, res) => {
   try {
     const { projectId } = req.body;
+    const wheelDataKey = normalizeWheelDataKey(req.body.wheelDataKey);
+
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
       return res.status(400).json({ success: false, message: "Valid projectId is required." });
     }
+    if (!wheelDataKey) {
+      return res.status(400).json({ success: false, message: "Wheel data key is required." });
+    }
 
-    const row = await WagonDataSheetRow.create({
-      projectId,
-      slNo: asText(req.body.slNo),
-      texNo: asText(req.body.texNo),
-      wagonNo: asText(req.body.wagonNo),
-      wheelDataKey: asText(req.body.wheelDataKey),
-      firstZone: {
-        bogie: {
-          make: asText(req.body.bogieMake),
-          serialNumbers: asSerialNumbers(req.body.bogieSerialNumbers),
+    const existingRow = await WagonDataSheetRow.findOne({ projectId, wheelDataKey })
+      .select("_id slNo")
+      .lean();
+
+    const row = await WagonDataSheetRow.findOneAndUpdate(
+      { projectId, wheelDataKey },
+      {
+        $setOnInsert: {
+          projectId,
+          wheelDataKey,
+          slNo: existingRow?.slNo || await getNextSlNo(projectId),
         },
-        coupler: {
-          make: asText(req.body.couplerMake),
-          serialNumbers: asSerialNumbers(req.body.couplerSerialNumbers),
+        $set: {
+          texNo: asText(req.body.texNo),
+          wagonNo: asText(req.body.wagonNo),
+          wagonConfiguration: asText(req.body.wagonConfiguration),
+          "firstZone.bogie.make": asText(req.body.bogieMake),
+          "firstZone.bogie.serialNumbers": asSerialNumbers(req.body.bogieSerialNumbers),
+          "firstZone.coupler.make": asText(req.body.couplerMake),
+          "firstZone.coupler.serialNumbers": asSerialNumbers(req.body.couplerSerialNumbers),
+          "firstZone.draftGear.make": asText(req.body.draftGearMake),
+          "firstZone.draftGear.serialNumbers": asSerialNumbers(req.body.draftGearSerialNumbers),
+          "firstZone.dv.make": asText(req.body.dvMake),
+          "firstZone.dv.serialNumbers": asSerialNumbers(req.body.dvSerialNumbers),
+          "firstZone.bc.make": asText(req.body.bcMake),
+          "firstZone.bc.serialNumbers": asSerialNumbers(req.body.bcSerialNumbers),
+          "firstZone.ar.make": asText(req.body.arMake),
+          "firstZone.ar.serialNumbers": asSerialNumbers(req.body.arSerialNumbers),
+          "firstZone.sabMake": asText(req.body.sabMake),
+          "firstZone.atlMake": asText(req.body.atlMake),
+          "firstZone.crfMake": asText(req.body.crfMake),
+          "firstZone.submittedAt": new Date(),
         },
-        draftGear: {
-          make: asText(req.body.draftGearMake),
-          serialNumbers: asSerialNumbers(req.body.draftGearSerialNumbers),
-        },
-        dv: {
-          make: asText(req.body.dvMake),
-          serialNumbers: asSerialNumbers(req.body.dvSerialNumbers),
-        },
-        bc: {
-          make: asText(req.body.bcMake),
-          serialNumbers: asSerialNumbers(req.body.bcSerialNumbers),
-        },
-        ar: {
-          make: asText(req.body.arMake),
-          serialNumbers: asSerialNumbers(req.body.arSerialNumbers),
-        },
-        sabMake: asText(req.body.sabMake),
-        atlMake: asText(req.body.atlMake),
-        crfMake: asText(req.body.crfMake),
       },
-    });
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+    );
 
-    res.status(201).json({ success: true, data: row });
+    res.status(existingRow ? 200 : 201).json({ success: true, data: row });
   } catch (error) {
-    console.error("❌ Error saving first zone row:", error);
-    const status = error?.code === 11000 ? 409 : 400;
-    const message =
-      error?.code === 11000
-        ? "Wheel data key already exists for this project."
-        : error.message;
-    res.status(status).json({ success: false, message });
+    console.error("Error saving first zone row:", error);
+    res.status(400).json({ success: false, message: error.message });
   }
 });
 
 router.post("/rows/second-zone", async (req, res) => {
   try {
-    const { rowId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(rowId)) {
-      return res.status(400).json({ success: false, message: "Valid rowId is required." });
+    const { projectId } = req.body;
+    const wheelDataKey = normalizeWheelDataKey(req.body.wheelDataKey);
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ success: false, message: "Valid projectId is required." });
+    }
+    if (!wheelDataKey) {
+      return res.status(400).json({ success: false, message: "Wheel data key is required." });
     }
 
-    const row = await WagonDataSheetRow.findByIdAndUpdate(
-      rowId,
+    const existingRow = await WagonDataSheetRow.findOne({ projectId, wheelDataKey })
+      .select("_id slNo")
+      .lean();
+
+    const row = await WagonDataSheetRow.findOneAndUpdate(
+      { projectId, wheelDataKey },
       {
+        $setOnInsert: {
+          projectId,
+          wheelDataKey,
+          slNo: existingRow?.slNo || await getNextSlNo(projectId),
+        },
         $set: {
           "secondZone.axle.make": asText(req.body.axleMake),
           "secondZone.axle.serialNumbers": asSerialNumbers(req.body.axleSerialNumbers),
@@ -264,16 +285,12 @@ router.post("/rows/second-zone", async (req, res) => {
           "secondZone.submittedAt": new Date(),
         },
       },
-      { new: true, runValidators: true }
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
     );
 
-    if (!row) {
-      return res.status(404).json({ success: false, message: "Wagon row not found." });
-    }
-
-    res.json({ success: true, data: row });
+    res.status(existingRow ? 200 : 201).json({ success: true, data: row });
   } catch (error) {
-    console.error("❌ Error saving second zone row:", error);
+    console.error("Error saving second zone row:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -308,7 +325,7 @@ router.post("/rows/final-details", async (req, res) => {
 
     res.json({ success: true, data: row });
   } catch (error) {
-    console.error("❌ Error saving final assembly details:", error);
+    console.error("Error saving final assembly details:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 });

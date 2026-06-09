@@ -8,7 +8,6 @@ import {
   Grid,
   MenuItem,
   Paper,
-  Stack,
   TextField,
   Typography,
 } from "@mui/material";
@@ -32,7 +31,12 @@ function SectionHeader({ label, color = "#374151" }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
       <Box sx={{ width: 4, height: 20, borderRadius: 1, bgcolor: color }} />
-      <Typography variant="subtitle2" fontWeight={700} color={color} sx={{ textTransform: "uppercase", letterSpacing: 0.6 }}>
+      <Typography
+        variant="subtitle2"
+        fontWeight={700}
+        color={color}
+        sx={{ textTransform: "uppercase", letterSpacing: 0.6 }}
+      >
         {label}
       </Typography>
       <Box sx={{ flex: 1, height: "1px", bgcolor: `${color}30`, ml: 1 }} />
@@ -136,14 +140,28 @@ export default function WagonDataSheetFinalDetailsForm() {
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, mx: "auto" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5 }}>
-        <Box sx={{ bgcolor: "#374151", borderRadius: 2, p: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Typography sx={{ color: "white", fontSize: 20, lineHeight: 1 }}>🧾</Typography>
+        <Box
+          sx={{
+            bgcolor: "#374151",
+            borderRadius: 2,
+            p: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Typography sx={{ color: "white", fontSize: 20, lineHeight: 1 }}>W</Typography>
         </Box>
         <Box>
           <Typography variant="h5" fontWeight={800} sx={{ lineHeight: 1.1, letterSpacing: -0.5 }}>
             Wagon Data Sheet
           </Typography>
-          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={600}
+            sx={{ textTransform: "uppercase", letterSpacing: 1 }}
+          >
             Final Details Entry
           </Typography>
         </Box>
@@ -152,10 +170,21 @@ export default function WagonDataSheetFinalDetailsForm() {
         Use this third stage after first zone and second zone are complete.
       </Typography>
 
-      {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+          {success}
+        </Alert>
+      )}
 
-      <Paper elevation={0} sx={{ mb: 3, borderRadius: 3, border: "1.5px solid #cbd5e1", overflow: "hidden" }}>
+      <Paper
+        elevation={0}
+        sx={{ mb: 3, borderRadius: 3, border: "1.5px solid #cbd5e1", overflow: "hidden" }}
+      >
         <Box sx={{ px: 3, py: 1.5, bgcolor: "#f8fafc", borderBottom: "1px solid #cbd5e1" }}>
           <Typography variant="subtitle2" fontWeight={700} color="#374151">
             Select Completed Row
@@ -183,19 +212,23 @@ export default function WagonDataSheetFinalDetailsForm() {
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
-                id="final-details-wheel-data-link"
+                id="final-details-tex-no-link"
                 select
-                label="Wheel Data Link"
+                label="TEX No. Link"
                 value={form.rowId}
                 onChange={handleRowChange}
                 fullWidth
                 required
                 disabled={!form.projectId}
-                helperText={!form.projectId ? "Select a project first" : "Rows shown here have second zone completed"}
+                helperText={
+                  !form.projectId
+                    ? "Select a project first"
+                    : "Rows shown here have first and second zone completed"
+                }
               >
                 {rows.map((row) => (
                   <MenuItem key={row._id} value={row._id}>
-                    🔑 {row.wheelDataKey} · {row.texNo || "—"} · {row.wagonNo || "—"}
+                    {`TEX: ${row.texNo || "-"} · Wagon: ${row.wagonNo || "-"}`}
                   </MenuItem>
                 ))}
               </TextField>
@@ -203,18 +236,46 @@ export default function WagonDataSheetFinalDetailsForm() {
           </Grid>
 
           {selectedRow && (
-            <Box sx={{ mt: 2, pt: 2, borderTop: "1px dashed #94a3b8", display: "flex", flexWrap: "wrap", gap: 2 }}>
-              <Chip size="small" label={`🔑 ${selectedRow.wheelDataKey}`} sx={{ bgcolor: "#e2e8f0", fontWeight: 700 }} />
-              <Chip size="small" label={`TEX: ${selectedRow.texNo || "—"}`} variant="outlined" />
-              <Chip size="small" label={`Wagon: ${selectedRow.wagonNo || "—"}`} variant="outlined" />
-              <Chip size="small" label={selectedRow.finalAssembly?.submittedAt ? "Final Details Saved" : "Final Details Pending"} color={selectedRow.finalAssembly?.submittedAt ? "success" : "warning"} />
+            <Box
+              sx={{
+                mt: 2,
+                pt: 2,
+                borderTop: "1px dashed #94a3b8",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 2,
+              }}
+            >
+              <Chip
+                size="small"
+                label={`TEX: ${selectedRow.texNo || "-"}`}
+                sx={{ bgcolor: "#e2e8f0", fontWeight: 700 }}
+              />
+              <Chip size="small" label={`Wagon: ${selectedRow.wagonNo || "-"}`} variant="outlined" />
+              <Chip
+                size="small"
+                label={`Wheel Key: ${selectedRow.wheelDataKey || "-"}`}
+                variant="outlined"
+              />
+              <Chip
+                size="small"
+                label={
+                  selectedRow.finalAssembly?.submittedAt
+                    ? "Final Details Saved"
+                    : "Final Details Pending"
+                }
+                color={selectedRow.finalAssembly?.submittedAt ? "success" : "warning"}
+              />
             </Box>
           )}
         </Box>
       </Paper>
 
       <form onSubmit={handleSubmit}>
-        <Paper elevation={0} sx={{ mb: 3, borderRadius: 3, border: "1.5px solid #cbd5e1", overflow: "hidden" }}>
+        <Paper
+          elevation={0}
+          sx={{ mb: 3, borderRadius: 3, border: "1.5px solid #cbd5e1", overflow: "hidden" }}
+        >
           <Box sx={{ px: 3, py: 1.5, bgcolor: "#f8fafc", borderBottom: "1px solid #cbd5e1" }}>
             <Typography variant="subtitle2" fontWeight={700} color="#374151">
               Final Details - Entered After Full Assembly
@@ -222,25 +283,73 @@ export default function WagonDataSheetFinalDetailsForm() {
           </Box>
           <Box sx={{ p: { xs: 2, md: 3 } }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              This section is intentionally separate from wheel assembly entry and should be filled only after full assembly is complete.
+              This section is intentionally separate from wheel assembly entry and should be filled
+              only after full assembly is complete.
             </Typography>
 
             <SectionHeader label="Weights & Dates" />
             <Grid container spacing={2} sx={{ mb: 3 }}>
               <Grid item xs={12} sm={4}>
-                <TextField label="Tare Weight (Tonne)" value={form.tareWeight} onChange={handleChange("tareWeight")} fullWidth size="small" sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField
+                  label="Tare Weight (Tonne)"
+                  value={form.tareWeight}
+                  onChange={handleChange("tareWeight")}
+                  fullWidth
+                  size="small"
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField id="final-details-txr-fit-date" label="TXR Fit Date" type="date" value={form.txrFitDate} onChange={handleChange("txrFitDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField
+                  id="final-details-txr-fit-date"
+                  label="TXR Fit Date"
+                  type="date"
+                  value={form.txrFitDate}
+                  onChange={handleChange("txrFitDate")}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField id="final-details-mfg-date" label="Mfg. Date" type="date" value={form.manufactureDate} onChange={handleChange("manufactureDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField
+                  id="final-details-mfg-date"
+                  label="Mfg. Date"
+                  type="date"
+                  value={form.manufactureDate}
+                  onChange={handleChange("manufactureDate")}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField id="final-details-roh-date" label="ROH Date" type="date" value={form.rohDate} onChange={handleChange("rohDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField
+                  id="final-details-roh-date"
+                  label="ROH Date"
+                  type="date"
+                  value={form.rohDate}
+                  onChange={handleChange("rohDate")}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField id="final-details-return-poh-date" label="Return / POH Date" type="date" value={form.returnOrPohDate} onChange={handleChange("returnOrPohDate")} fullWidth size="small" InputLabelProps={{ shrink: true }} sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField
+                  id="final-details-return-poh-date"
+                  label="Return / POH Date"
+                  type="date"
+                  value={form.returnOrPohDate}
+                  onChange={handleChange("returnOrPohDate")}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
               </Grid>
             </Grid>
 
@@ -249,10 +358,24 @@ export default function WagonDataSheetFinalDetailsForm() {
             <SectionHeader label="Reference Numbers" />
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
-                <TextField label="RFID No." value={form.rfidNo} onChange={handleChange("rfidNo")} fullWidth size="small" sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField
+                  label="RFID No."
+                  value={form.rfidNo}
+                  onChange={handleChange("rfidNo")}
+                  fullWidth
+                  size="small"
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField label="DM No. & Date" value={form.dmNoAndDate} onChange={handleChange("dmNoAndDate")} fullWidth size="small" sx={{ bgcolor: "white", borderRadius: 1 }} />
+                <TextField
+                  label="DM No. & Date"
+                  value={form.dmNoAndDate}
+                  onChange={handleChange("dmNoAndDate")}
+                  fullWidth
+                  size="small"
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
               </Grid>
             </Grid>
           </Box>
@@ -276,7 +399,7 @@ export default function WagonDataSheetFinalDetailsForm() {
               "&:disabled": { bgcolor: "#ccc" },
             }}
           >
-            {saving ? "Saving…" : "Save Final Details"}
+            {saving ? "Saving..." : "Save Final Details"}
           </Button>
         </Box>
       </form>

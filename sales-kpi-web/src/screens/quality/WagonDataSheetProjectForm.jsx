@@ -16,7 +16,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
-import { buildProjectLabel, wagonConfigurationOptions } from "./wagonDataSheetConfig";
+import { buildProjectLabel } from "./wagonDataSheetConfig";
 
 const initialForm = {
   projectName: "",
@@ -28,7 +28,6 @@ const initialForm = {
   contractPlacedBy: "",
   wagonManufacturer: "",
   wagonTypeOffered: "",
-  wagonConfiguration: "",
   wagonsOfferedForInspection: "",
   inspectionOfferDate: "",
   notes: "",
@@ -290,22 +289,6 @@ export default function WagonDataSheetProjectForm() {
                     size="small"
                     sx={{ bgcolor: "white", borderRadius: 1 }}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    id="wagon-configuration"
-                    select
-                    label="Configuration"
-                    value={form.wagonConfiguration}
-                    onChange={handleChange("wagonConfiguration")}
-                    fullWidth
-                    size="small"
-                    sx={{ bgcolor: "white", borderRadius: 1 }}
-                  >
-                    {wagonConfigurationOptions.map((option) => (
-                      <MenuItem key={option} value={option}>{option}</MenuItem>
-                    ))}
-                  </TextField>
                 </Grid>
               </Grid>
 

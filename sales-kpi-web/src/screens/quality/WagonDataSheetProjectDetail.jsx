@@ -127,7 +127,7 @@ export default function WagonDataSheetProjectDetail() {
       ["P.O. Date", textOrDash(project.contractPoDate), "D.P. Upto", textOrDash(project.deliveryPeriodUpto)],
       ["Total Quantity", textOrDash(project.totalQuantity), "Contract Placed By", textOrDash(project.contractPlacedBy)],
       ["Wagon Manufacturer", textOrDash(project.wagonManufacturer), "Wagon Type in P.O.", textOrDash(project.wagonTypeInPo)],
-      ["Type Offered", textOrDash(project.wagonTypeOffered), "Configuration", textOrDash(project.wagonConfiguration)],
+      ["Type Offered", textOrDash(project.wagonTypeOffered), "Rows", rows.length],
       ["Offered For Inspection", textOrDash(project.wagonsOfferedForInspection), "Inspection Offer Date", textOrDash(project.inspectionOfferDate)],
       ["Notes", textOrDash(project.notes)],
       [],
@@ -137,6 +137,7 @@ export default function WagonDataSheetProjectDetail() {
       "SL.NO",
       "TEX NO.",
       "WAGON NO.",
+      "CONFIGURATION",
       "BOGIE MAKE",
       "BOGIE SL. NO.",
       "COUPLER MAKE",
@@ -172,6 +173,7 @@ export default function WagonDataSheetProjectDetail() {
       row.slNo || idx + 1,
       textOrDash(row.texNo),
       textOrDash(row.wagonNo),
+      textOrDash(row.wagonConfiguration),
       textOrDash(row.firstZone?.bogie?.make),
       joinSerials(row.firstZone?.bogie?.serialNumbers),
       textOrDash(row.firstZone?.coupler?.make),
@@ -204,23 +206,23 @@ export default function WagonDataSheetProjectDetail() {
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([...headerRows, ...tableHeader, ...tableRows]);
-    ws["!cols"] = new Array(32).fill({ wch: 18 });
+    ws["!cols"] = new Array(33).fill({ wch: 18 });
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
     ws["!rows"] = [{ hpt: 22 }];
 
     applyRangeStyle(ws, 0, 0, 0, 5, styles.title);
     applyRangeStyle(ws, 2, 8, 0, 3, styles.projectHeader);
 
-    applyRangeStyle(ws, 10, 10, 0, 2, styles.projectHeader);
-    applyRangeStyle(ws, 10, 10, 3, 17, styles.zone1Header);
-    applyRangeStyle(ws, 10, 10, 18, 18, styles.zone2LinkHeader);
-    applyRangeStyle(ws, 10, 10, 19, 24, styles.zone2Header);
-    applyRangeStyle(ws, 10, 10, 25, 31, styles.zone3Header);
-    applyRangeStyle(ws, 11, 11, 3, 24, styles.subHeader);
+    applyRangeStyle(ws, 10, 10, 0, 3, styles.projectHeader);
+    applyRangeStyle(ws, 10, 10, 4, 18, styles.zone1Header);
+    applyRangeStyle(ws, 10, 10, 19, 19, styles.zone2LinkHeader);
+    applyRangeStyle(ws, 10, 10, 20, 25, styles.zone2Header);
+    applyRangeStyle(ws, 10, 10, 26, 32, styles.zone3Header);
+    applyRangeStyle(ws, 11, 11, 4, 25, styles.subHeader);
 
     const dataStartRow = 12;
     const dataEndRow = dataStartRow + Math.max(tableRows.length - 1, 0);
-    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 31, styles.body);
+    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 32, styles.body);
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Wagon Data Sheet");
@@ -282,7 +284,6 @@ export default function WagonDataSheetProjectDetail() {
               <Typography variant="body2"><b>Wagon Manufacturer:</b> {textOrDash(project.wagonManufacturer)}</Typography>
               <Typography variant="body2"><b>Wagon Type in P.O.:</b> {textOrDash(project.wagonTypeInPo)}</Typography>
               <Typography variant="body2"><b>Type Offered:</b> {textOrDash(project.wagonTypeOffered)}</Typography>
-              <Typography variant="body2"><b>Configuration:</b> {textOrDash(project.wagonConfiguration)}</Typography>
               <Typography variant="body2"><b>Offered For Inspection:</b> {textOrDash(project.wagonsOfferedForInspection)}</Typography>
               <Typography variant="body2"><b>Inspection Offer Date:</b> {textOrDash(project.inspectionOfferDate)}</Typography>
               <Typography variant="body2"><b>Notes:</b> {textOrDash(project.notes)}</Typography>
@@ -296,6 +297,7 @@ export default function WagonDataSheetProjectDetail() {
                   <HeaderCell rowSpan={2}>SL.NO</HeaderCell>
                   <HeaderCell rowSpan={2}>TEX NO.</HeaderCell>
                   <HeaderCell rowSpan={2}>WAGON NO.</HeaderCell>
+                  <HeaderCell rowSpan={2}>CONFIGURATION</HeaderCell>
                   <HeaderCell colSpan={2} sx={{ background: "#d9f0c1", textAlign: "center" }}>BOGIE</HeaderCell>
                   <HeaderCell colSpan={2} sx={{ background: "#d9f0c1", textAlign: "center" }}>COUPLER</HeaderCell>
                   <HeaderCell colSpan={2} sx={{ background: "#d9f0c1", textAlign: "center" }}>DRAFT GEAR</HeaderCell>
@@ -330,6 +332,7 @@ export default function WagonDataSheetProjectDetail() {
                     <TableCell>{row.slNo || idx + 1}</TableCell>
                     <TableCell>{textOrDash(row.texNo)}</TableCell>
                     <TableCell>{textOrDash(row.wagonNo)}</TableCell>
+                    <TableCell>{textOrDash(row.wagonConfiguration)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.bogie?.make)}</TableCell>
                     <TableCell>{joinSerials(row.firstZone?.bogie?.serialNumbers)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.coupler?.make)}</TableCell>
@@ -363,7 +366,7 @@ export default function WagonDataSheetProjectDetail() {
                 ))}
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={32} align="center">
+                    <TableCell colSpan={33} align="center">
                       No wagon rows added yet for this project.
                     </TableCell>
                   </TableRow>

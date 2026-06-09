@@ -11,7 +11,6 @@ const WagonDataSheetProjectSchema = new mongoose.Schema(
     contractPlacedBy: { type: String, default: "", trim: true },
     wagonManufacturer: { type: String, default: "", trim: true },
     wagonTypeOffered: { type: String, default: "", trim: true },
-    wagonConfiguration: { type: String, default: "", trim: true },
     wagonsOfferedForInspection: { type: String, default: "", trim: true },
     inspectionOfferDate: { type: String, default: "", trim: true },
     notes: { type: String, default: "", trim: true },

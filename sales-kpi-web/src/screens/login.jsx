@@ -18,11 +18,14 @@ export default function TexmacoAccessPortal() {
       if (res.data.success) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("role", res.data.role);
+        localStorage.setItem("username", res.data.username || username);
 
         if (res.data.role === "admin") window.location.href = "/";
         else if (res.data.role === "sales") window.location.href = "/";
         else if (res.data.role === "production") window.location.href = "/production";
         else if (res.data.role === "quality") window.location.href = "/quality-dashboard";
+        else if (res.data.role === "ground-inspector") window.location.href = "/quality-dashboard";
+        else if (res.data.role === "maintenance") window.location.href = "/maintenance/dashboard";
       }
     } catch (err) {
       console.error("Login Error:", err);

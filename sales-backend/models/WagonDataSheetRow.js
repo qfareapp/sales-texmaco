@@ -26,6 +26,7 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
     slNo: { type: String, default: "", trim: true },
     texNo: { type: String, default: "", trim: true },
     wagonNo: { type: String, default: "", trim: true },
+    wagonConfiguration: { type: String, default: "", trim: true },
     wheelDataKey: { type: String, required: true, trim: true },
     firstZone: {
       bogie: { type: makeSerialSchema, default: () => ({}) },
@@ -37,7 +38,7 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
       sabMake: { type: String, default: "", trim: true },
       atlMake: { type: String, default: "", trim: true },
       crfMake: { type: String, default: "", trim: true },
-      submittedAt: { type: Date, default: Date.now },
+      submittedAt: { type: Date, default: null },
     },
     secondZone: {
       axle: { type: makeSerialSchema, default: () => ({}) },

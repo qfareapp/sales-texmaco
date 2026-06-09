@@ -24,6 +24,7 @@ import SalesProdDashboard from "./screens/sales/SalesProdDashboard";
 import TradeExportDashboard from "./screens/sales/TradeExportDashboard";
 import BogiePostWheelInspectionForm from './screens/quality/BogiePostWheelInspectionForm';
 import WagonDataSheetProjectForm from './screens/quality/WagonDataSheetProjectForm';
+import WagonDataSheetModule from './screens/quality/WagonDataSheetModule';
 import WagonDataSheetFirstZoneForm from './screens/quality/WagonDataSheetFirstZoneForm';
 import WagonDataSheetSecondZoneForm from './screens/quality/WagonDataSheetSecondZoneForm';
 import WagonDataSheetFinalDetailsForm from './screens/quality/WagonDataSheetFinalDetailsForm';
@@ -34,6 +35,8 @@ import MaintenanceDashboard from "./screens/maintenance/MaintenanceDashboard.jsx
 import EquipmentMasterList from "./screens/maintenance/EquipmentMasterList";
 import ProjectShortageDashboard from "./screens/shortage/ProjectShortageDashboard.jsx";
 import TexmacoAccessPortal from './screens/login';
+import DocumentControlFormScreen from "./screens/DocumentControlFormScreen.jsx";
+import DocumentControlDashboardScreen from "./screens/DocumentControlDashboardScreen.jsx";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -61,14 +64,18 @@ function ProtectedRoute({ children, allowedRoles }) {
 
 const LayoutWrapper = ({ children }) => {
   const location = useLocation();
+  const role = localStorage.getItem("role");
   const standalonePaths = ['/daily-update', '/daily-production'];
   const isStandalone = standalonePaths.includes(location.pathname);
+  const isGroundInspector = role === "ground-inspector";
+  const homePath = isGroundInspector ? "/quality-dashboard" : "/";
 
   const [salesOpen, setSalesOpen] = useState(false);
   const [productionOpen, setProductionOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // ✅ for hamburger menu
   const [qualityOpen, setQualityOpen] = useState(false);
   const [wagonDataSheetOpen, setWagonDataSheetOpen] = useState(false);
+  const [documentControlOpen, setDocumentControlOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [shortageOpen, setShortageOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false); // allow hiding the sidebar entirely
@@ -117,6 +124,7 @@ const LayoutWrapper = ({ children }) => {
   onClick={() => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
+    localStorage.removeItem("username");
     window.location.href = "/login";
   }}
 >
@@ -134,7 +142,7 @@ const LayoutWrapper = ({ children }) => {
 <div className={`sidebar bg-dark text-white ${sidebarOpen ? 'open' : ''}`}>
   <ul className="nav flex-column mt-3">
     <li>
-      <Link to="/" className="nav-link text-white" onClick={handleLinkClick}>
+      <Link to={homePath} className="nav-link text-white" onClick={handleLinkClick}>
         📋 Home
       </Link>
     </li>
@@ -145,6 +153,39 @@ const LayoutWrapper = ({ children }) => {
       </Link>
     </li>*/}
 
+    {!isGroundInspector && (
+    <>
+    <li className="nav-item mt-3">
+      <span
+        onClick={() => setDocumentControlOpen(!documentControlOpen)}
+        className="nav-link text-white fw-bold"
+        style={{ cursor: 'pointer' }}
+      >
+        Document Control {documentControlOpen ? '▲' : '▼'}
+      </span>
+      {documentControlOpen && (
+        <ul className="nav flex-column ms-3">
+          <li>
+            <Link
+              to="/document-control/form"
+              className="nav-link text-white"
+              onClick={handleLinkClick}
+            >
+              Form
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/document-control/dashboard"
+              className="nav-link text-white"
+              onClick={handleLinkClick}
+            >
+              Dashboard
+            </Link>
+          </li>
+        </ul>
+      )}
+    </li>
     {/* Sales Menu */}
     <li className="nav-item">
       <span
@@ -197,7 +238,11 @@ const LayoutWrapper = ({ children }) => {
         </ul>
       )}
     </li>
+    </>
+    )}
 
+    {!isGroundInspector && (
+    <>
     {/* Production Menu */}
     <li className="nav-item mt-3">
       <span
@@ -242,6 +287,8 @@ const LayoutWrapper = ({ children }) => {
         </ul>
       )}
     </li>
+    </>
+    )}
 
     {/* ✅ Quality Menu (Independent) */}
     <li className="nav-item mt-3">
@@ -254,7 +301,9 @@ const LayoutWrapper = ({ children }) => {
       </span>
       {qualityOpen && (
         <ul className="nav flex-column ms-3">
-          <li>
+          {!isGroundInspector && (
+          <>
+<li>
   <Link
     to="/bogie-inspection-report"
     className="nav-link text-white"
@@ -263,6 +312,8 @@ const LayoutWrapper = ({ children }) => {
     🧾 Bogie Inspection Report
   </Link>
 </li>
+          </>
+          )}
 <li>
   <Link
     to="/bogie-inspection-form"
@@ -292,6 +343,7 @@ const LayoutWrapper = ({ children }) => {
   </span>
   {wagonDataSheetOpen && (
     <ul className="nav flex-column ms-3">
+      {!isGroundInspector && (
       <li>
         <Link
           to="/quality/wagon-data-sheet/projects"
@@ -301,6 +353,7 @@ const LayoutWrapper = ({ children }) => {
           Projects
         </Link>
       </li>
+      )}
       <li>
         <Link
           to="/quality/wagon-data-sheet/first-zone"
@@ -331,6 +384,18 @@ const LayoutWrapper = ({ children }) => {
     </ul>
   )}
 </li>
+{false && !isGroundInspector && (
+<li>
+  <Link
+    to="/document-control"
+    className="nav-link text-white"
+    onClick={handleLinkClick}
+  >
+    ðŸ“ Document Control
+  </Link>
+</li>
+)}
+{!isGroundInspector && (
 <li>
   <Link
     to="/quality-dashboard"
@@ -340,11 +405,14 @@ const LayoutWrapper = ({ children }) => {
     📊 Quality Dashboard
   </Link>
 </li>
+)}
 
         </ul>
       )}
     </li>
 
+    {!isGroundInspector && (
+    <>
     {/* ✅ Maintenance Menu (Independent) */}
 <li className="nav-item mt-3">
   <span
@@ -388,7 +456,11 @@ const LayoutWrapper = ({ children }) => {
     </ul>
   )}
 </li>
+    </>
+    )}
 
+{!isGroundInspector && (
+<>
 <li className="nav-item mt-3">
   <span
     onClick={() => setShortageOpen(!shortageOpen)}
@@ -412,6 +484,8 @@ const LayoutWrapper = ({ children }) => {
     </ul>
   )}
 </li>
+ </>
+)}
 
 
   </ul>
@@ -535,9 +609,33 @@ function App() {
 
           {/* 🔒 Quality Module */}
           <Route
+            path="/document-control"
+            element={
+              <ProtectedRoute allowedRoles={["sales", "production", "quality", "maintenance"]}>
+                <Navigate to="/document-control/form" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/document-control/form"
+            element={
+              <ProtectedRoute allowedRoles={["sales", "production", "quality", "maintenance"]}>
+                <DocumentControlFormScreen />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/document-control/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["sales", "production", "quality", "maintenance"]}>
+                <DocumentControlDashboardScreen />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/quality-dashboard"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
                 <QualityDashboard />
               </ProtectedRoute>
             }
@@ -545,7 +643,7 @@ function App() {
           <Route
             path="/bogie-inspection-form"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
                 <BogieInspectionForm />
               </ProtectedRoute>
             }
@@ -561,8 +659,16 @@ function App() {
           <Route
             path="/bogie-after-wheel-inspection"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
                 <BogiePostWheelInspectionForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet"
+            element={
+              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+                <WagonDataSheetModule />
               </ProtectedRoute>
             }
           />
@@ -585,7 +691,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/first-zone"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
                 <WagonDataSheetFirstZoneForm />
               </ProtectedRoute>
             }
@@ -593,7 +699,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/second-zone"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
                 <WagonDataSheetSecondZoneForm />
               </ProtectedRoute>
             }
@@ -601,7 +707,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/final-details"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
                 <WagonDataSheetFinalDetailsForm />
               </ProtectedRoute>
             }

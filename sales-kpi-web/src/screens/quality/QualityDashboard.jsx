@@ -9,12 +9,14 @@ import { useNavigate } from "react-router-dom";
  */
 export default function QualityDashboard() {
   const navigate = useNavigate();
+  const role = localStorage.getItem("role");
+  const isGroundInspector = role === "ground-inspector";
 
   return (
     <Box sx={{ p: 3, background: "#eef2ff", minHeight: "100vh" }}>
       {/* Header */}
       <Typography variant="h5" fontWeight={700} mb={2}>
-        QUALITY DASHBOARD – AGARPARA WORKS
+        {isGroundInspector ? "GROUND INSPECTOR PORTAL – AGARPARA WORKS" : "QUALITY DASHBOARD – AGARPARA WORKS"}
       </Typography>
 
       {/* Button Panel */}
@@ -28,19 +30,39 @@ export default function QualityDashboard() {
           background: "#f8f9fa",
         }}
       >
+        {!isGroundInspector && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => navigate("/bogie-inspection-report")}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            🚆 Bogie Inspection Report
+          </Button>
+        )}
+
         <Button
-  variant="contained"
-  color="primary"
-  onClick={() => navigate("/bogie-inspection-report")}
-  sx={{ textTransform: "none", fontWeight: 600 }}
->
-  🚆 Bogie Inspection
-</Button>
+          variant="contained"
+          color="primary"
+          onClick={() => navigate("/bogie-inspection-form")}
+          sx={{ textTransform: "none", fontWeight: 600 }}
+        >
+          🧰 Bogie Inspection Form
+        </Button>
+
+        <Button
+          variant="contained"
+          color="warning"
+          onClick={() => navigate("/bogie-after-wheel-inspection")}
+          sx={{ textTransform: "none", fontWeight: 600, color: "#111" }}
+        >
+          ⚙️ After-Wheeling Inspection
+        </Button>
 
         <Button
           variant="contained"
           color="success"
-          onClick={() => navigate("/quality/wagon-data-sheet/projects")}
+          onClick={() => navigate("/quality/wagon-data-sheet")}
           sx={{ textTransform: "none", fontWeight: 600 }}
         >
           📄 Wagon Data Sheet
@@ -66,9 +88,9 @@ export default function QualityDashboard() {
         </Typography>
 
         <Typography variant="body2" color="text.secondary">
-          Click “Bogie Inspection” to open detailed inspection entry screen.
-          This dashboard will later show summary charts, compliance %,
-          inspection history, and daily quality logs.
+          {isGroundInspector
+            ? "Choose a quality module first. Opening Wagon Data Sheet will show the three form stages."
+            : "Use the buttons above to open inspection forms, reports, and wagon data sheet modules."}
         </Typography>
       </Paper>
     </Box>
