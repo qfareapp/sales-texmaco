@@ -21,7 +21,8 @@ const initialForm = {
   tareWeight: "",
   txrFitDate: "",
   manufactureDate: "",
-  rfidNo: "",
+  rfidNo1: "",
+  rfidNo2: "",
   dmNo: "",
   dmDate: "",
   rohDate: "",
@@ -58,6 +59,10 @@ export default function WagonDataSheetFinalDetailsForm() {
   const selectedRow = useMemo(
     () => rows.find((row) => row._id === form.rowId) || null,
     [rows, form.rowId]
+  );
+  const linkedWheelKeys = useMemo(
+    () => (selectedRow?.linkedWheelDataRows || []).map((row) => row.wheelDataKey).filter(Boolean),
+    [selectedRow]
   );
 
   useEffect(() => {
@@ -97,7 +102,8 @@ export default function WagonDataSheetFinalDetailsForm() {
       tareWeight: row?.finalAssembly?.tareWeight || "",
       txrFitDate: row?.finalAssembly?.txrFitDate || "",
       manufactureDate: row?.finalAssembly?.manufactureDate || "",
-      rfidNo: row?.finalAssembly?.rfidNo || "",
+      rfidNo1: row?.finalAssembly?.rfidNo1 || "",
+      rfidNo2: row?.finalAssembly?.rfidNo2 || "",
       dmNo: row?.finalAssembly?.dmNo || "",
       dmDate: row?.finalAssembly?.dmDate || "",
       rohDate: row?.finalAssembly?.rohDate || "",
@@ -126,7 +132,8 @@ export default function WagonDataSheetFinalDetailsForm() {
           tareWeight: current.finalAssembly?.tareWeight || "",
           txrFitDate: current.finalAssembly?.txrFitDate || "",
           manufactureDate: current.finalAssembly?.manufactureDate || "",
-          rfidNo: current.finalAssembly?.rfidNo || "",
+          rfidNo1: current.finalAssembly?.rfidNo1 || "",
+          rfidNo2: current.finalAssembly?.rfidNo2 || "",
           dmNo: current.finalAssembly?.dmNo || "",
           dmDate: current.finalAssembly?.dmDate || "",
           rohDate: current.finalAssembly?.rohDate || "",
@@ -226,7 +233,7 @@ export default function WagonDataSheetFinalDetailsForm() {
                 helperText={
                   !form.projectId
                     ? "Select a project first"
-                    : "Rows shown here have first and second zone completed"
+                    : "Rows shown here already have component details and linked wheel data"
                 }
               >
                 {rows.map((row) => (
@@ -257,7 +264,7 @@ export default function WagonDataSheetFinalDetailsForm() {
               <Chip size="small" label={`Wagon: ${selectedRow.wagonNo || "-"}`} variant="outlined" />
               <Chip
                 size="small"
-                label={`Wheel Key: ${selectedRow.wheelDataKey || "-"}`}
+                label={`Linked Wheel Data: ${linkedWheelKeys.length ? linkedWheelKeys.join(", ") : "-"}`}
                 variant="outlined"
               />
               <Chip
@@ -362,9 +369,19 @@ export default function WagonDataSheetFinalDetailsForm() {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="RFID No."
-                  value={form.rfidNo}
-                  onChange={handleChange("rfidNo")}
+                  label="RFID No. 1"
+                  value={form.rfidNo1}
+                  onChange={handleChange("rfidNo1")}
+                  fullWidth
+                  size="small"
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="RFID No. 2"
+                  value={form.rfidNo2}
+                  onChange={handleChange("rfidNo2")}
                   fullWidth
                   size="small"
                   sx={{ bgcolor: "white", borderRadius: 1 }}

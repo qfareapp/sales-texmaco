@@ -282,7 +282,7 @@ export default function WagonDataSheetProjectForm() {
                 <Grid item xs={12} sm={6} md={3}>
                   <TextField
                     id="wagon-type-offered"
-                    label="Type of Wagon Offered"
+                    label="Type of Wagon Offered (Optional)"
                     value={form.wagonTypeOffered}
                     onChange={handleChange("wagonTypeOffered")}
                     fullWidth
@@ -296,11 +296,14 @@ export default function WagonDataSheetProjectForm() {
 
               {/* Inspection Details */}
               <SectionHeader label="Inspection Details" />
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+                These fields are optional and can be added later if not available at project creation time.
+              </Typography>
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={4}>
                   <TextField
                     id="wagons-offered-for-inspection"
-                    label="No. of Wagons Offered for Inspection"
+                    label="No. of Wagons Offered for Inspection (Optional)"
                     value={form.wagonsOfferedForInspection}
                     onChange={handleChange("wagonsOfferedForInspection")}
                     fullWidth
@@ -311,7 +314,7 @@ export default function WagonDataSheetProjectForm() {
                 <Grid item xs={12} sm={6} md={4}>
                   <TextField
                     id="inspection-offer-date"
-                    label="Inspection Offer Date"
+                    label="Inspection Offer Date (Optional)"
                     type="date"
                     value={form.inspectionOfferDate}
                     onChange={handleChange("inspectionOfferDate")}

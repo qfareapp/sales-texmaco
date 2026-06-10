@@ -23,6 +23,18 @@ const joinSerials = (value) => (Array.isArray(value) && value.length ? value.joi
 const textOrDash = (value) => (value ? String(value) : "—");
 const finalValue = (row, key) => row?.finalAssembly?.[key] || row?.secondZone?.[key] || "";
 const fileSafe = (value) => String(value || "project").replace(/[\\/:*?"<>|]+/g, "_");
+const linkedWheelKeys = (row) =>
+  row?.linkedWheelDataRows?.length ? row.linkedWheelDataRows.map((item) => item.wheelDataKey).join(", ") : "—";
+const linkedWheelMakes = (row, key) => {
+  const values = [...new Set((row?.linkedWheelDataRows || []).map((item) => item?.secondZone?.[key]?.make).filter(Boolean))];
+  return values.length ? values.join(", ") : "—";
+};
+const linkedWheelSerials = (row, key) => {
+  const values = (row?.linkedWheelDataRows || []).flatMap((item) => item?.secondZone?.[key]?.serialNumbers || []).filter(Boolean);
+  return values.length ? values.join(", ") : "—";
+};
+const bogieSerialSummary = (row) =>
+  [row?.firstZone?.bogie1SerialNumber, row?.firstZone?.bogie2SerialNumber].filter(Boolean).join(", ") || "—";
 
 const applyCellStyle = (ws, ref, style) => {
   if (ws[ref]) ws[ref].s = style;
@@ -163,7 +175,8 @@ export default function WagonDataSheetProjectDetail() {
       "TARE WEIGHT",
       "TXR FIT DATE",
       "MFG. DATE",
-      "RFID NO.",
+      "RFID NO. 1",
+      "RFID NO. 2",
       "DM NO.",
       "DM DATE",
       "ROH DATE",
@@ -176,7 +189,7 @@ export default function WagonDataSheetProjectDetail() {
       textOrDash(row.wagonNo),
       textOrDash(row.wagonConfiguration),
       textOrDash(row.firstZone?.bogie?.make),
-      joinSerials(row.firstZone?.bogie?.serialNumbers),
+      bogieSerialSummary(row),
       textOrDash(row.firstZone?.coupler?.make),
       joinSerials(row.firstZone?.coupler?.serialNumbers),
       textOrDash(row.firstZone?.draftGear?.make),
@@ -190,17 +203,18 @@ export default function WagonDataSheetProjectDetail() {
       textOrDash(row.firstZone?.sabMake),
       textOrDash(row.firstZone?.atlMake),
       textOrDash(row.firstZone?.crfMake),
-      textOrDash(row.wheelDataKey),
-      textOrDash(row.secondZone?.axle?.make),
-      joinSerials(row.secondZone?.axle?.serialNumbers),
-      textOrDash(row.secondZone?.wheel?.make),
-      joinSerials(row.secondZone?.wheel?.serialNumbers),
-      textOrDash(row.secondZone?.bearing?.make),
-      joinSerials(row.secondZone?.bearing?.serialNumbers),
+      linkedWheelKeys(row),
+      linkedWheelMakes(row, "axle"),
+      linkedWheelSerials(row, "axle"),
+      linkedWheelMakes(row, "wheel"),
+      linkedWheelSerials(row, "wheel"),
+      linkedWheelMakes(row, "bearing"),
+      linkedWheelSerials(row, "bearing"),
       textOrDash(finalValue(row, "tareWeight")),
       textOrDash(finalValue(row, "txrFitDate")),
       textOrDash(finalValue(row, "manufactureDate")),
-      textOrDash(finalValue(row, "rfidNo")),
+      textOrDash(finalValue(row, "rfidNo1")),
+      textOrDash(finalValue(row, "rfidNo2")),
       textOrDash(finalValue(row, "dmNo")),
       textOrDash(finalValue(row, "dmDate")),
       textOrDash(finalValue(row, "rohDate")),
@@ -208,7 +222,7 @@ export default function WagonDataSheetProjectDetail() {
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([...headerRows, ...tableHeader, ...tableRows]);
-    ws["!cols"] = new Array(34).fill({ wch: 18 });
+    ws["!cols"] = new Array(35).fill({ wch: 18 });
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
     ws["!rows"] = [{ hpt: 22 }];
 
@@ -219,12 +233,12 @@ export default function WagonDataSheetProjectDetail() {
     applyRangeStyle(ws, 10, 10, 4, 18, styles.zone1Header);
     applyRangeStyle(ws, 10, 10, 19, 19, styles.zone2LinkHeader);
     applyRangeStyle(ws, 10, 10, 20, 25, styles.zone2Header);
-    applyRangeStyle(ws, 10, 10, 26, 33, styles.zone3Header);
+    applyRangeStyle(ws, 10, 10, 26, 34, styles.zone3Header);
     applyRangeStyle(ws, 11, 11, 4, 25, styles.subHeader);
 
     const dataStartRow = 12;
     const dataEndRow = dataStartRow + Math.max(tableRows.length - 1, 0);
-    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 33, styles.body);
+    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 34, styles.body);
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Wagon Data Sheet");
@@ -316,7 +330,8 @@ export default function WagonDataSheetProjectDetail() {
                   <HeaderCell rowSpan={2}>TARE WEIGHT</HeaderCell>
                   <HeaderCell rowSpan={2}>TXR FIT DATE</HeaderCell>
                   <HeaderCell rowSpan={2}>MFG. DATE</HeaderCell>
-                  <HeaderCell rowSpan={2}>RFID NO.</HeaderCell>
+                  <HeaderCell rowSpan={2}>RFID NO. 1</HeaderCell>
+                  <HeaderCell rowSpan={2}>RFID NO. 2</HeaderCell>
                   <HeaderCell rowSpan={2}>DM NO.</HeaderCell>
                   <HeaderCell rowSpan={2}>DM DATE</HeaderCell>
                   <HeaderCell rowSpan={2}>ROH DATE</HeaderCell>
@@ -337,7 +352,7 @@ export default function WagonDataSheetProjectDetail() {
                     <TableCell>{textOrDash(row.wagonNo)}</TableCell>
                     <TableCell>{textOrDash(row.wagonConfiguration)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.bogie?.make)}</TableCell>
-                    <TableCell>{joinSerials(row.firstZone?.bogie?.serialNumbers)}</TableCell>
+                    <TableCell>{bogieSerialSummary(row)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.coupler?.make)}</TableCell>
                     <TableCell>{joinSerials(row.firstZone?.coupler?.serialNumbers)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.draftGear?.make)}</TableCell>
@@ -351,17 +366,18 @@ export default function WagonDataSheetProjectDetail() {
                     <TableCell>{textOrDash(row.firstZone?.sabMake)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.atlMake)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.crfMake)}</TableCell>
-                    <TableCell>{textOrDash(row.wheelDataKey)}</TableCell>
-                    <TableCell>{textOrDash(row.secondZone?.axle?.make)}</TableCell>
-                    <TableCell>{joinSerials(row.secondZone?.axle?.serialNumbers)}</TableCell>
-                    <TableCell>{textOrDash(row.secondZone?.wheel?.make)}</TableCell>
-                    <TableCell>{joinSerials(row.secondZone?.wheel?.serialNumbers)}</TableCell>
-                    <TableCell>{textOrDash(row.secondZone?.bearing?.make)}</TableCell>
-                    <TableCell>{joinSerials(row.secondZone?.bearing?.serialNumbers)}</TableCell>
+                    <TableCell>{linkedWheelKeys(row)}</TableCell>
+                    <TableCell>{linkedWheelMakes(row, "axle")}</TableCell>
+                    <TableCell>{linkedWheelSerials(row, "axle")}</TableCell>
+                    <TableCell>{linkedWheelMakes(row, "wheel")}</TableCell>
+                    <TableCell>{linkedWheelSerials(row, "wheel")}</TableCell>
+                    <TableCell>{linkedWheelMakes(row, "bearing")}</TableCell>
+                    <TableCell>{linkedWheelSerials(row, "bearing")}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "tareWeight"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "txrFitDate"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "manufactureDate"))}</TableCell>
-                    <TableCell>{textOrDash(finalValue(row, "rfidNo"))}</TableCell>
+                    <TableCell>{textOrDash(finalValue(row, "rfidNo1"))}</TableCell>
+                    <TableCell>{textOrDash(finalValue(row, "rfidNo2"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "dmNo"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "dmDate"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "rohDate"))}</TableCell>
@@ -370,7 +386,7 @@ export default function WagonDataSheetProjectDetail() {
                 ))}
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={34} align="center">
+                    <TableCell colSpan={35} align="center">
                       No wagon rows added yet for this project.
                     </TableCell>
                   </TableRow>

@@ -11,12 +11,44 @@ const normalizeWheelDataKey = (value) =>
     .trim()
     .replace(/\s+/g, " ")
     .toUpperCase();
+const createInternalWheelDataKey = (prefix) =>
+  `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+const asProjectIdOrNull = (value) =>
+  mongoose.Types.ObjectId.isValid(value) ? new mongoose.Types.ObjectId(value) : null;
 const asSerialNumbers = (value) => {
   const source = Array.isArray(value) ? value : String(value || "").split(/\r?\n|,/);
   return source
     .map((item) => String(item || "").trim())
     .filter(Boolean)
     .slice(0, 8);
+};
+const asObjectIdList = (value, limit = 8) => {
+  const source = Array.isArray(value) ? value : [];
+  return source
+    .map((item) => (mongoose.Types.ObjectId.isValid(item) ? new mongoose.Types.ObjectId(item) : null))
+    .filter(Boolean)
+    .slice(0, limit);
+};
+const getLinkedWheelIds = (row) => [
+  ...(row?.firstZone?.bogie1WheelDataRows || []).map((item) => String(item?.rowId || "")),
+  ...(row?.firstZone?.bogie2WheelDataRows || []).map((item) => String(item?.rowId || "")),
+].filter(Boolean);
+const attachLinkedWheelDataRows = async (rows) => {
+  const wheelIds = [...new Set(rows.flatMap((row) => getLinkedWheelIds(row)))];
+  if (wheelIds.length === 0) {
+    return rows;
+  }
+
+  const wheelRows = await WagonDataSheetRow.find({ _id: { $in: wheelIds } }).lean();
+  const wheelRowMap = new Map(wheelRows.map((row) => [String(row._id), row]));
+
+  return rows.map((row) => ({
+    ...row,
+    linkedWheelDataRows: [
+      ...(row?.firstZone?.bogie1WheelDataRows || []).map((item) => wheelRowMap.get(String(item?.rowId || ""))).filter(Boolean),
+      ...(row?.firstZone?.bogie2WheelDataRows || []).map((item) => wheelRowMap.get(String(item?.rowId || ""))).filter(Boolean),
+    ],
+  }));
 };
 
 const getNextSlNo = async (projectId) => {
@@ -42,7 +74,7 @@ router.get("/projects", async (_req, res) => {
           totalRows: { $sum: 1 },
           completedRows: {
             $sum: {
-              $cond: [{ $ifNull: ["$secondZone.submittedAt", false] }, 1, 0],
+              $cond: [{ $ifNull: ["$firstZone.submittedAt", false] }, 1, 0],
             },
           },
           finalCompletedRows: {
@@ -55,7 +87,7 @@ router.get("/projects", async (_req, res) => {
               $cond: [
                 {
                   $and: [
-                    { $ifNull: ["$secondZone.submittedAt", false] },
+                    { $ifNull: ["$firstZone.submittedAt", false] },
                     { $not: [{ $ifNull: ["$finalAssembly.submittedAt", false] }] },
                   ],
                 },
@@ -122,7 +154,7 @@ router.get("/projects/:projectId/detail", async (req, res) => {
       return res.status(400).json({ success: false, message: "Valid projectId is required." });
     }
 
-    const [project, rows] = await Promise.all([
+    const [project, rawRows] = await Promise.all([
       WagonDataSheetProject.findById(projectId).lean(),
       WagonDataSheetRow.find({ projectId }).sort({ createdAt: 1 }).lean(),
     ]);
@@ -131,6 +163,7 @@ router.get("/projects/:projectId/detail", async (req, res) => {
       return res.status(404).json({ success: false, message: "Project not found." });
     }
 
+    const rows = await attachLinkedWheelDataRows(rawRows);
     res.json({ success: true, data: { project, rows } });
   } catch (error) {
     console.error("Error fetching wagon data sheet project detail:", error);
@@ -153,6 +186,23 @@ router.get("/rows", async (req, res) => {
   }
 });
 
+router.get("/rows/available-wheel-data", async (_req, res) => {
+  try {
+    const rows = await WagonDataSheetRow.find({
+      projectId: null,
+      "secondZone.submittedAt": { $ne: null },
+      "wheelDataUsage.linkedProjectRowId": null,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error("Error fetching available wheel data rows:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.get("/rows/pending-second-zone", async (req, res) => {
   try {
     const { projectId } = req.query;
@@ -160,13 +210,14 @@ router.get("/rows/pending-second-zone", async (req, res) => {
       return res.status(400).json({ success: false, message: "Valid projectId is required." });
     }
 
-    const rows = await WagonDataSheetRow.find({
+    const rawRows = await WagonDataSheetRow.find({
       projectId,
-      "secondZone.submittedAt": null,
+      "firstZone.submittedAt": null,
     })
       .sort({ createdAt: -1 })
       .lean();
 
+    const rows = await attachLinkedWheelDataRows(rawRows);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error("Error fetching pending second zone rows:", error);
@@ -181,13 +232,14 @@ router.get("/rows/final-details-options", async (req, res) => {
       return res.status(400).json({ success: false, message: "Valid projectId is required." });
     }
 
-    const rows = await WagonDataSheetRow.find({
+    const rawRows = await WagonDataSheetRow.find({
       projectId,
-      "secondZone.submittedAt": { $ne: null },
+      "firstZone.submittedAt": { $ne: null },
     })
       .sort({ createdAt: -1 })
       .lean();
 
+    const rows = await attachLinkedWheelDataRows(rawRows);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error("Error fetching final details options:", error);
@@ -197,52 +249,161 @@ router.get("/rows/final-details-options", async (req, res) => {
 
 router.post("/rows/first-zone", async (req, res) => {
   try {
-    const { projectId } = req.body;
-    const wheelDataKey = normalizeWheelDataKey(req.body.wheelDataKey);
+    const projectId = asProjectIdOrNull(req.body.projectId);
+    const rowId = mongoose.Types.ObjectId.isValid(req.body.rowId) ? new mongoose.Types.ObjectId(req.body.rowId) : null;
+    const bogie1WheelDataRowIds = asObjectIdList(req.body.bogie1WheelDataRowIds, 2);
+    const bogie2WheelDataRowIds = asObjectIdList(req.body.bogie2WheelDataRowIds, 2);
+    const selectedWheelIds = [...bogie1WheelDataRowIds, ...bogie2WheelDataRowIds];
 
-    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+    if (!projectId) {
       return res.status(400).json({ success: false, message: "Valid projectId is required." });
     }
-    if (!wheelDataKey) {
-      return res.status(400).json({ success: false, message: "Wheel data key is required." });
+    if (bogie1WheelDataRowIds.length !== 2 || bogie2WheelDataRowIds.length !== 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Select exactly 2 wheel data entries for bogie 1 and 2 wheel data entries for bogie 2.",
+      });
+    }
+    if (new Set(selectedWheelIds.map((item) => String(item))).size !== 4) {
+      return res.status(400).json({ success: false, message: "Each wheel data selection must be unique." });
     }
 
-    const existingRow = await WagonDataSheetRow.findOne({ projectId, wheelDataKey })
-      .select("_id slNo")
-      .lean();
+    const [existingRow, selectedWheelRows] = await Promise.all([
+      rowId ? WagonDataSheetRow.findById(rowId) : null,
+      WagonDataSheetRow.find({ _id: { $in: selectedWheelIds } }),
+    ]);
 
-    const row = await WagonDataSheetRow.findOneAndUpdate(
-      { projectId, wheelDataKey },
-      {
-        $setOnInsert: {
-          projectId,
-          wheelDataKey,
-          slNo: existingRow?.slNo || await getNextSlNo(projectId),
-        },
-        $set: {
-          texNo: asText(req.body.texNo),
-          wagonNo: asText(req.body.wagonNo),
-          wagonConfiguration: asText(req.body.wagonConfiguration),
-          "firstZone.bogie.make": asText(req.body.bogieMake),
-          "firstZone.bogie.serialNumbers": asSerialNumbers(req.body.bogieSerialNumbers),
-          "firstZone.coupler.make": asText(req.body.couplerMake),
-          "firstZone.coupler.serialNumbers": asSerialNumbers(req.body.couplerSerialNumbers),
-          "firstZone.draftGear.make": asText(req.body.draftGearMake),
-          "firstZone.draftGear.serialNumbers": asSerialNumbers(req.body.draftGearSerialNumbers),
-          "firstZone.dv.make": asText(req.body.dvMake),
-          "firstZone.dv.serialNumbers": asSerialNumbers(req.body.dvSerialNumbers),
-          "firstZone.bc.make": asText(req.body.bcMake),
-          "firstZone.bc.serialNumbers": asSerialNumbers(req.body.bcSerialNumbers),
-          "firstZone.ar.make": asText(req.body.arMake),
-          "firstZone.ar.serialNumbers": asSerialNumbers(req.body.arSerialNumbers),
-          "firstZone.sabMake": asText(req.body.sabMake),
-          "firstZone.atlMake": asText(req.body.atlMake),
-          "firstZone.crfMake": asText(req.body.crfMake),
-          "firstZone.submittedAt": new Date(),
-        },
+    if (rowId && !existingRow) {
+      return res.status(404).json({ success: false, message: "Project wagon row not found." });
+    }
+
+    const selectedWheelRowMap = new Map(selectedWheelRows.map((row) => [String(row._id), row]));
+    if (selectedWheelRows.length !== 4) {
+      return res.status(400).json({ success: false, message: "Selected wheel data entries were not found." });
+    }
+
+    for (const wheelRowId of selectedWheelIds.map((item) => String(item))) {
+      const wheelRow = selectedWheelRowMap.get(wheelRowId);
+      const linkedProjectRowId = String(wheelRow?.wheelDataUsage?.linkedProjectRowId || "");
+      const currentRowId = String(existingRow?._id || "");
+      if (wheelRow?.projectId || !wheelRow?.secondZone?.submittedAt) {
+        return res.status(400).json({ success: false, message: "Only independent first-zone wheel data can be linked." });
+      }
+      if (linkedProjectRowId && linkedProjectRowId !== currentRowId) {
+        return res.status(400).json({ success: false, message: `Wheel data ${wheelRow.wheelDataKey} is already linked.` });
+      }
+    }
+
+    const previousWheelIds = existingRow ? getLinkedWheelIds(existingRow.toObject()) : [];
+
+    const buildWheelLinkPayload = (ids) =>
+      ids.map((item) => {
+        const wheelRow = selectedWheelRowMap.get(String(item));
+        return {
+          rowId: wheelRow._id,
+          wheelDataKey: wheelRow.wheelDataKey,
+        };
+      });
+
+    const row = existingRow || new WagonDataSheetRow({
+      projectId,
+      wheelDataKey: createInternalWheelDataKey("WAGON"),
+      slNo: await getNextSlNo(projectId),
+    });
+
+    row.projectId = projectId;
+    row.texNo = asText(req.body.texNo);
+    row.wagonNo = asText(req.body.wagonNo);
+    row.wagonConfiguration = asText(req.body.wagonConfiguration);
+    row.firstZone = {
+      ...row.firstZone?.toObject?.(),
+      bogie: {
+        ...(row.firstZone?.bogie?.toObject?.() || {}),
+        make: asText(req.body.bogieMake),
+        serialNumbers: [asText(req.body.bogie1SerialNumber), asText(req.body.bogie2SerialNumber)].filter(Boolean),
       },
-      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
-    );
+      bogie1SerialNumber: asText(req.body.bogie1SerialNumber),
+      bogie2SerialNumber: asText(req.body.bogie2SerialNumber),
+      bogie1WheelDataRows: buildWheelLinkPayload(bogie1WheelDataRowIds),
+      bogie2WheelDataRows: buildWheelLinkPayload(bogie2WheelDataRowIds),
+      coupler: {
+        ...(row.firstZone?.coupler?.toObject?.() || {}),
+        make: asText(req.body.couplerMake),
+        serialNumbers: asSerialNumbers(req.body.couplerSerialNumbers),
+      },
+      draftGear: {
+        ...(row.firstZone?.draftGear?.toObject?.() || {}),
+        make: asText(req.body.draftGearMake),
+        serialNumbers: asSerialNumbers(req.body.draftGearSerialNumbers),
+      },
+      dv: {
+        ...(row.firstZone?.dv?.toObject?.() || {}),
+        make: asText(req.body.dvMake),
+        serialNumbers: asSerialNumbers(req.body.dvSerialNumbers),
+      },
+      bc: {
+        ...(row.firstZone?.bc?.toObject?.() || {}),
+        make: asText(req.body.bcMake),
+        serialNumbers: asSerialNumbers(req.body.bcSerialNumbers),
+      },
+      ar: {
+        ...(row.firstZone?.ar?.toObject?.() || {}),
+        make: asText(req.body.arMake),
+        serialNumbers: asSerialNumbers(req.body.arSerialNumbers),
+      },
+      sabMake: asText(req.body.sabMake),
+      atlMake: asText(req.body.atlMake),
+      crfMake: asText(req.body.crfMake),
+      submittedAt: new Date(),
+    };
+
+    await row.save();
+
+    const selectedWheelIdStrings = selectedWheelIds.map((item) => String(item));
+    const releasedWheelIds = previousWheelIds.filter((item) => !selectedWheelIdStrings.includes(item));
+
+    if (releasedWheelIds.length > 0) {
+      await WagonDataSheetRow.updateMany(
+        { _id: { $in: releasedWheelIds } },
+        {
+          $set: {
+            "wheelDataUsage.linkedProjectRowId": null,
+            "wheelDataUsage.linkedProjectId": null,
+            "wheelDataUsage.linkedBogiePosition": "",
+            "wheelDataUsage.linkedAt": null,
+          },
+        }
+      );
+    }
+
+    await WagonDataSheetRow.bulkWrite([
+      ...bogie1WheelDataRowIds.map((wheelRowId) => ({
+        updateOne: {
+          filter: { _id: wheelRowId },
+          update: {
+            $set: {
+              "wheelDataUsage.linkedProjectRowId": row._id,
+              "wheelDataUsage.linkedProjectId": projectId,
+              "wheelDataUsage.linkedBogiePosition": "BOGIE_1",
+              "wheelDataUsage.linkedAt": new Date(),
+            },
+          },
+        },
+      })),
+      ...bogie2WheelDataRowIds.map((wheelRowId) => ({
+        updateOne: {
+          filter: { _id: wheelRowId },
+          update: {
+            $set: {
+              "wheelDataUsage.linkedProjectRowId": row._id,
+              "wheelDataUsage.linkedProjectId": projectId,
+              "wheelDataUsage.linkedBogiePosition": "BOGIE_2",
+              "wheelDataUsage.linkedAt": new Date(),
+            },
+          },
+        },
+      })),
+    ]);
 
     res.status(existingRow ? 200 : 201).json({ success: true, data: row });
   } catch (error) {
@@ -253,12 +414,9 @@ router.post("/rows/first-zone", async (req, res) => {
 
 router.post("/rows/second-zone", async (req, res) => {
   try {
-    const { projectId } = req.body;
+    const projectId = asProjectIdOrNull(req.body.projectId);
     const wheelDataKey = normalizeWheelDataKey(req.body.wheelDataKey);
 
-    if (!mongoose.Types.ObjectId.isValid(projectId)) {
-      return res.status(400).json({ success: false, message: "Valid projectId is required." });
-    }
     if (!wheelDataKey) {
       return res.status(400).json({ success: false, message: "Wheel data key is required." });
     }
@@ -309,7 +467,8 @@ router.post("/rows/final-details", async (req, res) => {
           "finalAssembly.tareWeight": asText(req.body.tareWeight),
           "finalAssembly.txrFitDate": asText(req.body.txrFitDate),
           "finalAssembly.manufactureDate": asText(req.body.manufactureDate),
-          "finalAssembly.rfidNo": asText(req.body.rfidNo),
+          "finalAssembly.rfidNo1": asText(req.body.rfidNo1),
+          "finalAssembly.rfidNo2": asText(req.body.rfidNo2),
           "finalAssembly.dmNo": asText(req.body.dmNo),
           "finalAssembly.dmDate": asText(req.body.dmDate),
           "finalAssembly.rohDate": asText(req.body.rohDate),

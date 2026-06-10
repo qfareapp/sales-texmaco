@@ -692,7 +692,7 @@ function App() {
             path="/quality/wagon-data-sheet/first-zone"
             element={
               <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
-                <WagonDataSheetFirstZoneForm />
+                <WagonDataSheetSecondZoneForm />
               </ProtectedRoute>
             }
           />
@@ -700,7 +700,7 @@ function App() {
             path="/quality/wagon-data-sheet/second-zone"
             element={
               <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
-                <WagonDataSheetSecondZoneForm />
+                <WagonDataSheetFirstZoneForm />
               </ProtectedRoute>
             }
           />
