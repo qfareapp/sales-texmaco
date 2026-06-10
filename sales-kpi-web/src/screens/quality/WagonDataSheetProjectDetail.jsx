@@ -164,7 +164,8 @@ export default function WagonDataSheetProjectDetail() {
       "TXR FIT DATE",
       "MFG. DATE",
       "RFID NO.",
-      "DM NO & DATE",
+      "DM NO.",
+      "DM DATE",
       "ROH DATE",
       "RETURN / POH DATE",
     ]];
@@ -200,13 +201,14 @@ export default function WagonDataSheetProjectDetail() {
       textOrDash(finalValue(row, "txrFitDate")),
       textOrDash(finalValue(row, "manufactureDate")),
       textOrDash(finalValue(row, "rfidNo")),
-      textOrDash(finalValue(row, "dmNoAndDate")),
+      textOrDash(finalValue(row, "dmNo")),
+      textOrDash(finalValue(row, "dmDate")),
       textOrDash(finalValue(row, "rohDate")),
       textOrDash(finalValue(row, "returnOrPohDate")),
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([...headerRows, ...tableHeader, ...tableRows]);
-    ws["!cols"] = new Array(33).fill({ wch: 18 });
+    ws["!cols"] = new Array(34).fill({ wch: 18 });
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
     ws["!rows"] = [{ hpt: 22 }];
 
@@ -217,12 +219,12 @@ export default function WagonDataSheetProjectDetail() {
     applyRangeStyle(ws, 10, 10, 4, 18, styles.zone1Header);
     applyRangeStyle(ws, 10, 10, 19, 19, styles.zone2LinkHeader);
     applyRangeStyle(ws, 10, 10, 20, 25, styles.zone2Header);
-    applyRangeStyle(ws, 10, 10, 26, 32, styles.zone3Header);
+    applyRangeStyle(ws, 10, 10, 26, 33, styles.zone3Header);
     applyRangeStyle(ws, 11, 11, 4, 25, styles.subHeader);
 
     const dataStartRow = 12;
     const dataEndRow = dataStartRow + Math.max(tableRows.length - 1, 0);
-    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 32, styles.body);
+    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 33, styles.body);
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Wagon Data Sheet");
@@ -315,7 +317,8 @@ export default function WagonDataSheetProjectDetail() {
                   <HeaderCell rowSpan={2}>TXR FIT DATE</HeaderCell>
                   <HeaderCell rowSpan={2}>MFG. DATE</HeaderCell>
                   <HeaderCell rowSpan={2}>RFID NO.</HeaderCell>
-                  <HeaderCell rowSpan={2}>DM NO & DATE</HeaderCell>
+                  <HeaderCell rowSpan={2}>DM NO.</HeaderCell>
+                  <HeaderCell rowSpan={2}>DM DATE</HeaderCell>
                   <HeaderCell rowSpan={2}>ROH DATE</HeaderCell>
                   <HeaderCell rowSpan={2}>RETURN / POH DATE</HeaderCell>
                 </TableRow>
@@ -359,14 +362,15 @@ export default function WagonDataSheetProjectDetail() {
                     <TableCell>{textOrDash(finalValue(row, "txrFitDate"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "manufactureDate"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "rfidNo"))}</TableCell>
-                    <TableCell>{textOrDash(finalValue(row, "dmNoAndDate"))}</TableCell>
+                    <TableCell>{textOrDash(finalValue(row, "dmNo"))}</TableCell>
+                    <TableCell>{textOrDash(finalValue(row, "dmDate"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "rohDate"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "returnOrPohDate"))}</TableCell>
                   </TableRow>
                 ))}
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={33} align="center">
+                    <TableCell colSpan={34} align="center">
                       No wagon rows added yet for this project.
                     </TableCell>
                   </TableRow>

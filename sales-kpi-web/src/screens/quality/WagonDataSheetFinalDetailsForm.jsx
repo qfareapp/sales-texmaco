@@ -22,7 +22,8 @@ const initialForm = {
   txrFitDate: "",
   manufactureDate: "",
   rfidNo: "",
-  dmNoAndDate: "",
+  dmNo: "",
+  dmDate: "",
   rohDate: "",
   returnOrPohDate: "",
 };
@@ -97,7 +98,8 @@ export default function WagonDataSheetFinalDetailsForm() {
       txrFitDate: row?.finalAssembly?.txrFitDate || "",
       manufactureDate: row?.finalAssembly?.manufactureDate || "",
       rfidNo: row?.finalAssembly?.rfidNo || "",
-      dmNoAndDate: row?.finalAssembly?.dmNoAndDate || "",
+      dmNo: row?.finalAssembly?.dmNo || "",
+      dmDate: row?.finalAssembly?.dmDate || "",
       rohDate: row?.finalAssembly?.rohDate || "",
       returnOrPohDate: row?.finalAssembly?.returnOrPohDate || "",
     }));
@@ -125,7 +127,8 @@ export default function WagonDataSheetFinalDetailsForm() {
           txrFitDate: current.finalAssembly?.txrFitDate || "",
           manufactureDate: current.finalAssembly?.manufactureDate || "",
           rfidNo: current.finalAssembly?.rfidNo || "",
-          dmNoAndDate: current.finalAssembly?.dmNoAndDate || "",
+          dmNo: current.finalAssembly?.dmNo || "",
+          dmDate: current.finalAssembly?.dmDate || "",
           rohDate: current.finalAssembly?.rohDate || "",
           returnOrPohDate: current.finalAssembly?.returnOrPohDate || "",
         }));
@@ -369,11 +372,23 @@ export default function WagonDataSheetFinalDetailsForm() {
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="DM No. & Date"
-                  value={form.dmNoAndDate}
-                  onChange={handleChange("dmNoAndDate")}
+                  label="DM No."
+                  value={form.dmNo}
+                  onChange={handleChange("dmNo")}
                   fullWidth
                   size="small"
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="DM Date"
+                  type="date"
+                  value={form.dmDate}
+                  onChange={handleChange("dmDate")}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
                   sx={{ bgcolor: "white", borderRadius: 1 }}
                 />
               </Grid>
