@@ -18,11 +18,27 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api";
+import { downloadWagonOfferWorkbook } from "../../utils/wagonOfferWorkbook";
+import { downloadWagonElectronicsWorkbook } from "../../utils/wagonElectronicsWorkbook";
+import { downloadWagonCocWorkbook } from "../../utils/wagonCocWorkbook";
 
 const joinSerials = (value) => (Array.isArray(value) && value.length ? value.join(", ") : "—");
 const textOrDash = (value) => (value ? String(value) : "—");
 const finalValue = (row, key) => row?.finalAssembly?.[key] || row?.secondZone?.[key] || "";
 const fileSafe = (value) => String(value || "project").replace(/[\\/:*?"<>|]+/g, "_");
+const wheelDataLinksForBogie = (row, bogieKey) =>
+  (row?.firstZone?.[bogieKey] || []).map((item) => item?.wheelDataKey).filter(Boolean);
+const linkedWheelKeyMapping = (row) => {
+  const bogie1SerialNumber = textOrDash(row?.firstZone?.bogie1SerialNumber);
+  const bogie2SerialNumber = textOrDash(row?.firstZone?.bogie2SerialNumber);
+  const bogie1Links = wheelDataLinksForBogie(row, "bogie1WheelDataRows");
+  const bogie2Links = wheelDataLinksForBogie(row, "bogie2WheelDataRows");
+
+  return [
+    `B1 [${bogie1SerialNumber}]: ${bogie1Links.length ? bogie1Links.join(", ") : "â€”"}`,
+    `B2 [${bogie2SerialNumber}]: ${bogie2Links.length ? bogie2Links.join(", ") : "â€”"}`,
+  ].join("\n");
+};
 const linkedWheelKeys = (row) =>
   row?.linkedWheelDataRows?.length ? row.linkedWheelDataRows.map((item) => item.wheelDataKey).join(", ") : "—";
 const linkedWheelMakes = (row, key) => {
@@ -35,6 +51,35 @@ const linkedWheelSerials = (row, key) => {
 };
 const bogieSerialSummary = (row) =>
   [row?.firstZone?.bogie1SerialNumber, row?.firstZone?.bogie2SerialNumber].filter(Boolean).join(", ") || "—";
+
+const safeText = (value) => (value ? String(value) : "-");
+const safeJoinSerials = (value) => (Array.isArray(value) && value.length ? value.join(", ") : "-");
+const safeLinkedWheelMakes = (row, key) => {
+  const values = [...new Set((row?.linkedWheelDataRows || []).map((item) => item?.secondZone?.[key]?.make).filter(Boolean))];
+  return values.length ? values.join(", ") : "-";
+};
+const safeLinkedWheelSerials = (row, key) => {
+  const values = (row?.linkedWheelDataRows || []).flatMap((item) => item?.secondZone?.[key]?.serialNumbers || []).filter(Boolean);
+  return values.length ? values.join(", ") : "-";
+};
+const safeBogieSerialSummary = (row) =>
+  [row?.firstZone?.bogie1SerialNumber, row?.firstZone?.bogie2SerialNumber].filter(Boolean).join(", ") || "-";
+const safeLinkedWheelKeyMapping = (row) => {
+  const bogie1SerialNumber = safeText(row?.firstZone?.bogie1SerialNumber);
+  const bogie2SerialNumber = safeText(row?.firstZone?.bogie2SerialNumber);
+  const bogie1Links = wheelDataLinksForBogie(row, "bogie1WheelDataRows");
+  const bogie2Links = wheelDataLinksForBogie(row, "bogie2WheelDataRows");
+
+  return [
+    `B1 [${bogie1SerialNumber}]: ${bogie1Links.length ? bogie1Links.join(", ") : "-"}`,
+    `B2 [${bogie2SerialNumber}]: ${bogie2Links.length ? bogie2Links.join(", ") : "-"}`,
+  ].join("\n");
+};
+const combinedRfidNumbers = (row) =>
+  [finalValue(row, "rfidNo1"), finalValue(row, "rfidNo2")]
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .join("\n") || "-";
 
 const applyCellStyle = (ws, ref, style) => {
   if (ws[ref]) ws[ref].s = style;
@@ -135,13 +180,13 @@ export default function WagonDataSheetProjectDetail() {
     const headerRows = [
       ["WAGON DATA SHEET - PROJECT DETAIL"],
       [],
-      ["Project Name", textOrDash(project.projectName), "Contract / P.O. No.", textOrDash(project.contractPoNumber)],
-      ["P.O. Date", textOrDash(project.contractPoDate), "D.P. Upto", textOrDash(project.deliveryPeriodUpto)],
-      ["Total Quantity", textOrDash(project.totalQuantity), "Contract Placed By", textOrDash(project.contractPlacedBy)],
-      ["Wagon Manufacturer", textOrDash(project.wagonManufacturer), "Wagon Type in P.O.", textOrDash(project.wagonTypeInPo)],
-      ["Type Offered", textOrDash(project.wagonTypeOffered), "Rows", rows.length],
-      ["Offered For Inspection", textOrDash(project.wagonsOfferedForInspection), "Inspection Offer Date", textOrDash(project.inspectionOfferDate)],
-      ["Notes", textOrDash(project.notes)],
+      ["Project Name", safeText(project.projectName), "Contract / P.O. No.", safeText(project.contractPoNumber)],
+      ["P.O. Date", safeText(project.contractPoDate), "D.P. Upto", safeText(project.deliveryPeriodUpto)],
+      ["Total Quantity", safeText(project.totalQuantity), "Contract Placed By", safeText(project.contractPlacedBy)],
+      ["Wagon Manufacturer", safeText(project.wagonManufacturer), "Wagon Type in P.O.", safeText(project.wagonTypeInPo)],
+      ["Type Offered", safeText(project.wagonTypeOffered), "Rows", rows.length],
+      ["Offered For Inspection", safeText(project.wagonsOfferedForInspection), "Inspection Offer Date", safeText(project.inspectionOfferDate)],
+      ["Notes", safeText(project.notes)],
       [],
     ];
 
@@ -165,7 +210,7 @@ export default function WagonDataSheetProjectDetail() {
       "SAB MAKE",
       "ATL MAKE",
       "CRF MAKE",
-      "WHEEL DATA",
+      "BOGIE / WHEEL DATA LINK",
       "AXLE MAKE",
       "AXLE SL. NO.",
       "WHEEL MAKE",
@@ -173,10 +218,9 @@ export default function WagonDataSheetProjectDetail() {
       "BEARING MAKE",
       "BEARING SL. NO.",
       "TARE WEIGHT",
-      "TXR FIT DATE",
       "MFG. DATE",
-      "RFID NO. 1",
-      "RFID NO. 2",
+      "TXR FIT DATE",
+      "RFID NO.",
       "DM NO.",
       "DM DATE",
       "ROH DATE",
@@ -185,44 +229,43 @@ export default function WagonDataSheetProjectDetail() {
 
     const tableRows = rows.map((row, idx) => [
       row.slNo || idx + 1,
-      textOrDash(row.texNo),
-      textOrDash(row.wagonNo),
-      textOrDash(row.wagonConfiguration),
-      textOrDash(row.firstZone?.bogie?.make),
-      bogieSerialSummary(row),
-      textOrDash(row.firstZone?.coupler?.make),
-      joinSerials(row.firstZone?.coupler?.serialNumbers),
-      textOrDash(row.firstZone?.draftGear?.make),
-      joinSerials(row.firstZone?.draftGear?.serialNumbers),
-      textOrDash(row.firstZone?.dv?.make),
-      joinSerials(row.firstZone?.dv?.serialNumbers),
-      textOrDash(row.firstZone?.bc?.make),
-      joinSerials(row.firstZone?.bc?.serialNumbers),
-      textOrDash(row.firstZone?.ar?.make),
-      joinSerials(row.firstZone?.ar?.serialNumbers),
-      textOrDash(row.firstZone?.sabMake),
-      textOrDash(row.firstZone?.atlMake),
-      textOrDash(row.firstZone?.crfMake),
-      linkedWheelKeys(row),
-      linkedWheelMakes(row, "axle"),
-      linkedWheelSerials(row, "axle"),
-      linkedWheelMakes(row, "wheel"),
-      linkedWheelSerials(row, "wheel"),
-      linkedWheelMakes(row, "bearing"),
-      linkedWheelSerials(row, "bearing"),
-      textOrDash(finalValue(row, "tareWeight")),
-      textOrDash(finalValue(row, "txrFitDate")),
-      textOrDash(finalValue(row, "manufactureDate")),
-      textOrDash(finalValue(row, "rfidNo1")),
-      textOrDash(finalValue(row, "rfidNo2")),
-      textOrDash(finalValue(row, "dmNo")),
-      textOrDash(finalValue(row, "dmDate")),
-      textOrDash(finalValue(row, "rohDate")),
-      textOrDash(finalValue(row, "returnOrPohDate")),
+      safeText(row.texNo),
+      safeText(row.wagonNo),
+      safeText(row.wagonConfiguration),
+      safeText(row.firstZone?.bogie?.make),
+      safeBogieSerialSummary(row),
+      safeText(row.firstZone?.coupler?.make),
+      safeJoinSerials(row.firstZone?.coupler?.serialNumbers),
+      safeText(row.firstZone?.draftGear?.make),
+      safeJoinSerials(row.firstZone?.draftGear?.serialNumbers),
+      safeText(row.firstZone?.dv?.make),
+      safeJoinSerials(row.firstZone?.dv?.serialNumbers),
+      safeText(row.firstZone?.bc?.make),
+      safeJoinSerials(row.firstZone?.bc?.serialNumbers),
+      safeText(row.firstZone?.ar?.make),
+      safeJoinSerials(row.firstZone?.ar?.serialNumbers),
+      safeText(row.firstZone?.sabMake),
+      safeText(row.firstZone?.atlMake),
+      safeText(row.firstZone?.crfMake),
+      safeLinkedWheelKeyMapping(row),
+      safeLinkedWheelMakes(row, "axle"),
+      safeLinkedWheelSerials(row, "axle"),
+      safeLinkedWheelMakes(row, "wheel"),
+      safeLinkedWheelSerials(row, "wheel"),
+      safeLinkedWheelMakes(row, "bearing"),
+      safeLinkedWheelSerials(row, "bearing"),
+      safeText(finalValue(row, "tareWeight")),
+      safeText(finalValue(row, "manufactureDate")),
+      safeText(finalValue(row, "txrFitDate")),
+      combinedRfidNumbers(row),
+      safeText(finalValue(row, "dmNo")),
+      safeText(finalValue(row, "dmDate")),
+      safeText(finalValue(row, "rohDate")),
+      safeText(finalValue(row, "returnOrPohDate")),
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([...headerRows, ...tableHeader, ...tableRows]);
-    ws["!cols"] = new Array(35).fill({ wch: 18 });
+    ws["!cols"] = Array.from({ length: 34 }, (_value, index) => ({ wch: index === 19 || index === 29 ? 34 : 18 }));
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
     ws["!rows"] = [{ hpt: 22 }];
 
@@ -233,12 +276,12 @@ export default function WagonDataSheetProjectDetail() {
     applyRangeStyle(ws, 10, 10, 4, 18, styles.zone1Header);
     applyRangeStyle(ws, 10, 10, 19, 19, styles.zone2LinkHeader);
     applyRangeStyle(ws, 10, 10, 20, 25, styles.zone2Header);
-    applyRangeStyle(ws, 10, 10, 26, 34, styles.zone3Header);
+    applyRangeStyle(ws, 10, 10, 26, 33, styles.zone3Header);
     applyRangeStyle(ws, 11, 11, 4, 25, styles.subHeader);
 
     const dataStartRow = 12;
     const dataEndRow = dataStartRow + Math.max(tableRows.length - 1, 0);
-    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 34, styles.body);
+    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 33, styles.body);
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Wagon Data Sheet");
@@ -248,6 +291,30 @@ export default function WagonDataSheetProjectDetail() {
       new Blob([buffer], { type: "application/octet-stream" }),
       `Wagon_Data_Sheet_${fileSafe(project.projectName)}.xlsx`
     );
+  };
+
+  const handleDownloadOfferWorkbook = () => {
+    if (!project) {
+      return;
+    }
+
+    downloadWagonOfferWorkbook(project, rows);
+  };
+
+  const handleDownloadElectronicsWorkbook = () => {
+    if (!project) {
+      return;
+    }
+
+    downloadWagonElectronicsWorkbook(project, rows);
+  };
+
+  const handleDownloadCocWorkbook = () => {
+    if (!project) {
+      return;
+    }
+
+    downloadWagonCocWorkbook(project, rows);
   };
 
   if (role !== "admin") {
@@ -272,6 +339,15 @@ export default function WagonDataSheetProjectDetail() {
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
           <Button variant="contained" onClick={handleDownloadExcel} disabled={!project}>
             Download Excel
+          </Button>
+          <Button variant="outlined" onClick={handleDownloadOfferWorkbook} disabled={!project}>
+            Wagon Offer Copy.xlsx
+          </Button>
+          <Button variant="outlined" onClick={handleDownloadElectronicsWorkbook} disabled={!project}>
+            Wagon Electronics Data Sheet.xlsx
+          </Button>
+          <Button variant="outlined" onClick={handleDownloadCocWorkbook} disabled={!project}>
+            COC OF Wagon.xlsx
           </Button>
           <Button variant="outlined" onClick={() => navigate("/quality/wagon-data-sheet/projects")}>
             Back to Projects
@@ -323,15 +399,14 @@ export default function WagonDataSheetProjectDetail() {
                   <HeaderCell rowSpan={2} sx={{ background: "#d9f0c1" }}>SAB MAKE</HeaderCell>
                   <HeaderCell rowSpan={2} sx={{ background: "#d9f0c1" }}>ATL MAKE</HeaderCell>
                   <HeaderCell rowSpan={2} sx={{ background: "#d9f0c1" }}>CRF MAKE</HeaderCell>
-                  <HeaderCell rowSpan={2} sx={{ background: "#f6c453" }}>Wheel Data</HeaderCell>
+                  <HeaderCell rowSpan={2} sx={{ background: "#f6c453" }}>Bogie / Wheel Data Link</HeaderCell>
                   <HeaderCell colSpan={2} sx={{ background: "#fff3b0", textAlign: "center" }}>AXLE NO.</HeaderCell>
                   <HeaderCell colSpan={2} sx={{ background: "#fff3b0", textAlign: "center" }}>WHEEL NO.</HeaderCell>
                   <HeaderCell colSpan={2} sx={{ background: "#fff3b0", textAlign: "center" }}>BEARING NO.</HeaderCell>
                   <HeaderCell rowSpan={2}>TARE WEIGHT</HeaderCell>
-                  <HeaderCell rowSpan={2}>TXR FIT DATE</HeaderCell>
                   <HeaderCell rowSpan={2}>MFG. DATE</HeaderCell>
-                  <HeaderCell rowSpan={2}>RFID NO. 1</HeaderCell>
-                  <HeaderCell rowSpan={2}>RFID NO. 2</HeaderCell>
+                  <HeaderCell rowSpan={2}>TXR FIT DATE</HeaderCell>
+                  <HeaderCell rowSpan={2}>RFID NO.</HeaderCell>
                   <HeaderCell rowSpan={2}>DM NO.</HeaderCell>
                   <HeaderCell rowSpan={2}>DM DATE</HeaderCell>
                   <HeaderCell rowSpan={2}>ROH DATE</HeaderCell>
@@ -366,7 +441,7 @@ export default function WagonDataSheetProjectDetail() {
                     <TableCell>{textOrDash(row.firstZone?.sabMake)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.atlMake)}</TableCell>
                     <TableCell>{textOrDash(row.firstZone?.crfMake)}</TableCell>
-                    <TableCell>{linkedWheelKeys(row)}</TableCell>
+                    <TableCell sx={{ whiteSpace: "pre-line", minWidth: 260 }}>{linkedWheelKeyMapping(row)}</TableCell>
                     <TableCell>{linkedWheelMakes(row, "axle")}</TableCell>
                     <TableCell>{linkedWheelSerials(row, "axle")}</TableCell>
                     <TableCell>{linkedWheelMakes(row, "wheel")}</TableCell>
@@ -374,10 +449,9 @@ export default function WagonDataSheetProjectDetail() {
                     <TableCell>{linkedWheelMakes(row, "bearing")}</TableCell>
                     <TableCell>{linkedWheelSerials(row, "bearing")}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "tareWeight"))}</TableCell>
-                    <TableCell>{textOrDash(finalValue(row, "txrFitDate"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "manufactureDate"))}</TableCell>
-                    <TableCell>{textOrDash(finalValue(row, "rfidNo1"))}</TableCell>
-                    <TableCell>{textOrDash(finalValue(row, "rfidNo2"))}</TableCell>
+                    <TableCell>{textOrDash(finalValue(row, "txrFitDate"))}</TableCell>
+                    <TableCell sx={{ whiteSpace: "pre-line", minWidth: 180 }}>{combinedRfidNumbers(row)}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "dmNo"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "dmDate"))}</TableCell>
                     <TableCell>{textOrDash(finalValue(row, "rohDate"))}</TableCell>
@@ -386,7 +460,7 @@ export default function WagonDataSheetProjectDetail() {
                 ))}
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={35} align="center">
+                    <TableCell colSpan={34} align="center">
                       No wagon rows added yet for this project.
                     </TableCell>
                   </TableRow>

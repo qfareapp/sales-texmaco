@@ -21,13 +21,22 @@ const initialForm = {
   tareWeight: "",
   txrFitDate: "",
   manufactureDate: "",
-  rfidNo1: "",
-  rfidNo2: "",
+  rfidNumbers: "",
   dmNo: "",
   dmDate: "",
   rohDate: "",
   returnOrPohDate: "",
 };
+
+const combineRfidNumbers = (rfidNo1, rfidNo2) =>
+  [rfidNo1, rfidNo2].map((item) => String(item || "").trim()).filter(Boolean).join("\n");
+
+const splitRfidNumbers = (value) =>
+  String(value || "")
+    .split(/\r?\n|,/)
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 2);
 
 function SectionHeader({ label, color = "#374151" }) {
   return (
@@ -102,8 +111,7 @@ export default function WagonDataSheetFinalDetailsForm() {
       tareWeight: row?.finalAssembly?.tareWeight || "",
       txrFitDate: row?.finalAssembly?.txrFitDate || "",
       manufactureDate: row?.finalAssembly?.manufactureDate || "",
-      rfidNo1: row?.finalAssembly?.rfidNo1 || "",
-      rfidNo2: row?.finalAssembly?.rfidNo2 || "",
+      rfidNumbers: combineRfidNumbers(row?.finalAssembly?.rfidNo1, row?.finalAssembly?.rfidNo2),
       dmNo: row?.finalAssembly?.dmNo || "",
       dmDate: row?.finalAssembly?.dmDate || "",
       rohDate: row?.finalAssembly?.rohDate || "",
@@ -118,7 +126,12 @@ export default function WagonDataSheetFinalDetailsForm() {
     setSuccess("");
 
     try {
-      await api.post("/wagon-data-sheet/rows/final-details", form);
+      const [rfidNo1 = "", rfidNo2 = ""] = splitRfidNumbers(form.rfidNumbers);
+      await api.post("/wagon-data-sheet/rows/final-details", {
+        ...form,
+        rfidNo1,
+        rfidNo2,
+      });
       setSuccess("Final details saved successfully.");
       const { data } = await api.get("/wagon-data-sheet/rows/final-details-options", {
         params: { projectId: form.projectId },
@@ -132,8 +145,10 @@ export default function WagonDataSheetFinalDetailsForm() {
           tareWeight: current.finalAssembly?.tareWeight || "",
           txrFitDate: current.finalAssembly?.txrFitDate || "",
           manufactureDate: current.finalAssembly?.manufactureDate || "",
-          rfidNo1: current.finalAssembly?.rfidNo1 || "",
-          rfidNo2: current.finalAssembly?.rfidNo2 || "",
+          rfidNumbers: combineRfidNumbers(
+            current.finalAssembly?.rfidNo1,
+            current.finalAssembly?.rfidNo2
+          ),
           dmNo: current.finalAssembly?.dmNo || "",
           dmDate: current.finalAssembly?.dmDate || "",
           rohDate: current.finalAssembly?.rohDate || "",
@@ -311,11 +326,11 @@ export default function WagonDataSheetFinalDetailsForm() {
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  id="final-details-txr-fit-date"
-                  label="TXR Fit Date"
+                  id="final-details-mfg-date"
+                  label="Mfg. Date"
                   type="date"
-                  value={form.txrFitDate}
-                  onChange={handleChange("txrFitDate")}
+                  value={form.manufactureDate}
+                  onChange={handleChange("manufactureDate")}
                   fullWidth
                   size="small"
                   InputLabelProps={{ shrink: true }}
@@ -324,11 +339,11 @@ export default function WagonDataSheetFinalDetailsForm() {
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  id="final-details-mfg-date"
-                  label="Mfg. Date"
+                  id="final-details-txr-fit-date"
+                  label="TXR Fit Date"
                   type="date"
-                  value={form.manufactureDate}
-                  onChange={handleChange("manufactureDate")}
+                  value={form.txrFitDate}
+                  onChange={handleChange("txrFitDate")}
                   fullWidth
                   size="small"
                   InputLabelProps={{ shrink: true }}
@@ -369,21 +384,14 @@ export default function WagonDataSheetFinalDetailsForm() {
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
                 <TextField
-                  label="RFID No. 1"
-                  value={form.rfidNo1}
-                  onChange={handleChange("rfidNo1")}
+                  label="RFID No."
+                  value={form.rfidNumbers}
+                  onChange={handleChange("rfidNumbers")}
                   fullWidth
                   size="small"
-                  sx={{ bgcolor: "white", borderRadius: 1 }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  label="RFID No. 2"
-                  value={form.rfidNo2}
-                  onChange={handleChange("rfidNo2")}
-                  fullWidth
-                  size="small"
+                  multiline
+                  minRows={2}
+                  helperText="Enter one RFID per line"
                   sx={{ bgcolor: "white", borderRadius: 1 }}
                 />
               </Grid>

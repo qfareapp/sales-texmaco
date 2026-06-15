@@ -48,6 +48,31 @@ const pairFields = [
   ["bc", "BC"],
   ["ar", "AR"],
 ];
+const normalizeSerialNumber = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+const parseSerialNumbers = (value) =>
+  String(value || "")
+    .split(/\r?\n|,/)
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+const findDuplicateSerialNumber = (value) => {
+  const serialNumbers = parseSerialNumbers(value);
+  const seen = new Set();
+
+  for (const serialNumber of serialNumbers) {
+    const normalizedValue = normalizeSerialNumber(serialNumber);
+    if (seen.has(normalizedValue)) {
+      return serialNumber;
+    }
+    seen.add(normalizedValue);
+  }
+
+  return "";
+};
 
 function SectionHeader({ label, color = "#2e7d32" }) {
   return (
@@ -90,7 +115,7 @@ function ComponentRow({ keyName, label, form, handleChange }) {
         size="small"
         multiline
         minRows={2}
-        helperText="One per line"
+        helperText="One per line. Values must be unique within this field."
         sx={{ bgcolor: "white", borderRadius: 1 }}
       />
     </Box>
@@ -199,6 +224,13 @@ export default function WagonDataSheetFirstZoneForm() {
     setSuccess("");
 
     try {
+      for (const [key, label] of pairFields) {
+        const duplicateSerialNumber = findDuplicateSerialNumber(form[`${key}SerialNumbers`]);
+        if (duplicateSerialNumber) {
+          throw new Error(`${label} serial numbers must be unique within the same field. Duplicate serial number: ${duplicateSerialNumber}`);
+        }
+      }
+
       await api.post("/wagon-data-sheet/rows/first-zone", {
         ...form,
         bogie1WheelDataRowIds: [form.bogie1WheelDataRowId1, form.bogie1WheelDataRowId2],

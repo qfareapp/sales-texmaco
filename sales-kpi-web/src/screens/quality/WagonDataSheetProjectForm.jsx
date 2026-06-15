@@ -17,6 +17,9 @@ import {
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import { buildProjectLabel } from "./wagonDataSheetConfig";
+import { downloadWagonOfferWorkbook } from "../../utils/wagonOfferWorkbook";
+import { downloadWagonElectronicsWorkbook } from "../../utils/wagonElectronicsWorkbook";
+import { downloadWagonCocWorkbook } from "../../utils/wagonCocWorkbook";
 
 const initialForm = {
   projectName: "",
@@ -67,6 +70,7 @@ export default function WagonDataSheetProjectForm() {
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [downloadingProjectId, setDownloadingProjectId] = useState("");
 
   const fetchProjects = async () => {
     try {
@@ -97,6 +101,66 @@ export default function WagonDataSheetProjectForm() {
       setError(err.response?.data?.message || "Failed to create project.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadOfferWorkbook = async (event, projectId) => {
+    event.stopPropagation();
+    setError("");
+    setDownloadingProjectId(projectId);
+
+    try {
+      const { data } = await api.get(`/wagon-data-sheet/projects/${projectId}/detail`);
+      const detail = data?.data;
+      if (!detail?.project) {
+        throw new Error("Project details not found.");
+      }
+
+      downloadWagonOfferWorkbook(detail.project, detail.rows || []);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Failed to download Wagon Offer Copy.xlsx.");
+    } finally {
+      setDownloadingProjectId("");
+    }
+  };
+
+  const handleDownloadElectronicsWorkbook = async (event, projectId) => {
+    event.stopPropagation();
+    setError("");
+    setDownloadingProjectId(projectId);
+
+    try {
+      const { data } = await api.get(`/wagon-data-sheet/projects/${projectId}/detail`);
+      const detail = data?.data;
+      if (!detail?.project) {
+        throw new Error("Project details not found.");
+      }
+
+      downloadWagonElectronicsWorkbook(detail.project, detail.rows || []);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Failed to download Wagon Electronics Data Sheet.xlsx.");
+    } finally {
+      setDownloadingProjectId("");
+    }
+  };
+
+  const handleDownloadCocWorkbook = async (event, projectId) => {
+    event.stopPropagation();
+    setError("");
+    setDownloadingProjectId(projectId);
+
+    try {
+      const { data } = await api.get(`/wagon-data-sheet/projects/${projectId}/detail`);
+      const detail = data?.data;
+      if (!detail?.project) {
+        throw new Error("Project details not found.");
+      }
+
+      downloadWagonCocWorkbook(detail.project, detail.rows || []);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Failed to download COC OF Wagon.xlsx.");
+    } finally {
+      setDownloadingProjectId("");
     }
   };
 
@@ -518,6 +582,36 @@ export default function WagonDataSheetProjectForm() {
                         Click to open full table view
                       </Typography>
                     )}
+                  </Stack>
+
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignSelf: "flex-start" }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={(event) => handleDownloadOfferWorkbook(event, project._id)}
+                      disabled={downloadingProjectId === project._id}
+                      sx={{ textTransform: "none", fontWeight: 700 }}
+                    >
+                      {downloadingProjectId === project._id ? "Downloading..." : "Wagon Offer Copy.xlsx"}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={(event) => handleDownloadElectronicsWorkbook(event, project._id)}
+                      disabled={downloadingProjectId === project._id}
+                      sx={{ textTransform: "none", fontWeight: 700 }}
+                    >
+                      {downloadingProjectId === project._id ? "Downloading..." : "Wagon Electronics Data Sheet.xlsx"}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={(event) => handleDownloadCocWorkbook(event, project._id)}
+                      disabled={downloadingProjectId === project._id}
+                      sx={{ textTransform: "none", fontWeight: 700 }}
+                    >
+                      {downloadingProjectId === project._id ? "Downloading..." : "COC OF Wagon.xlsx"}
+                    </Button>
                   </Stack>
                 </Paper>
               </Grid>

@@ -11,16 +11,44 @@ const normalizeWheelDataKey = (value) =>
     .trim()
     .replace(/\s+/g, " ")
     .toUpperCase();
+const normalizeSerialNumber = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
 const createInternalWheelDataKey = (prefix) =>
   `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 const asProjectIdOrNull = (value) =>
   mongoose.Types.ObjectId.isValid(value) ? new mongoose.Types.ObjectId(value) : null;
-const asSerialNumbers = (value) => {
+const findDuplicateSerialNumber = (values) => {
+  const seen = new Set();
+
+  for (const value of values) {
+    const normalizedValue = normalizeSerialNumber(value);
+    if (!normalizedValue) {
+      continue;
+    }
+    if (seen.has(normalizedValue)) {
+      return String(value || "").trim();
+    }
+    seen.add(normalizedValue);
+  }
+
+  return "";
+};
+const asSerialNumbers = (value, fieldLabel = "Serial numbers") => {
   const source = Array.isArray(value) ? value : String(value || "").split(/\r?\n|,/);
-  return source
+  const serialNumbers = source
     .map((item) => String(item || "").trim())
     .filter(Boolean)
     .slice(0, 8);
+
+  const duplicateSerialNumber = findDuplicateSerialNumber(serialNumbers);
+  if (duplicateSerialNumber) {
+    throw new Error(`${fieldLabel} must be unique within the same field. Duplicate serial number: ${duplicateSerialNumber}`);
+  }
+
+  return serialNumbers;
 };
 const asObjectIdList = (value, limit = 8) => {
   const source = Array.isArray(value) ? value : [];
@@ -329,27 +357,27 @@ router.post("/rows/first-zone", async (req, res) => {
       coupler: {
         ...(row.firstZone?.coupler?.toObject?.() || {}),
         make: asText(req.body.couplerMake),
-        serialNumbers: asSerialNumbers(req.body.couplerSerialNumbers),
+        serialNumbers: asSerialNumbers(req.body.couplerSerialNumbers, "Coupler serial numbers"),
       },
       draftGear: {
         ...(row.firstZone?.draftGear?.toObject?.() || {}),
         make: asText(req.body.draftGearMake),
-        serialNumbers: asSerialNumbers(req.body.draftGearSerialNumbers),
+        serialNumbers: asSerialNumbers(req.body.draftGearSerialNumbers, "Draft gear serial numbers"),
       },
       dv: {
         ...(row.firstZone?.dv?.toObject?.() || {}),
         make: asText(req.body.dvMake),
-        serialNumbers: asSerialNumbers(req.body.dvSerialNumbers),
+        serialNumbers: asSerialNumbers(req.body.dvSerialNumbers, "DV serial numbers"),
       },
       bc: {
         ...(row.firstZone?.bc?.toObject?.() || {}),
         make: asText(req.body.bcMake),
-        serialNumbers: asSerialNumbers(req.body.bcSerialNumbers),
+        serialNumbers: asSerialNumbers(req.body.bcSerialNumbers, "BC serial numbers"),
       },
       ar: {
         ...(row.firstZone?.ar?.toObject?.() || {}),
         make: asText(req.body.arMake),
-        serialNumbers: asSerialNumbers(req.body.arSerialNumbers),
+        serialNumbers: asSerialNumbers(req.body.arSerialNumbers, "AR serial numbers"),
       },
       sabMake: asText(req.body.sabMake),
       atlMake: asText(req.body.atlMake),
@@ -435,11 +463,11 @@ router.post("/rows/second-zone", async (req, res) => {
         },
         $set: {
           "secondZone.axle.make": asText(req.body.axleMake),
-          "secondZone.axle.serialNumbers": asSerialNumbers(req.body.axleSerialNumbers),
+          "secondZone.axle.serialNumbers": asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers"),
           "secondZone.wheel.make": asText(req.body.wheelMake),
-          "secondZone.wheel.serialNumbers": asSerialNumbers(req.body.wheelSerialNumbers),
+          "secondZone.wheel.serialNumbers": asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers"),
           "secondZone.bearing.make": asText(req.body.bearingMake),
-          "secondZone.bearing.serialNumbers": asSerialNumbers(req.body.bearingSerialNumbers),
+          "secondZone.bearing.serialNumbers": asSerialNumbers(req.body.bearingSerialNumbers, "Bearing serial numbers"),
           "secondZone.submittedAt": new Date(),
         },
       },
