@@ -63,6 +63,13 @@ function ZoneComparisonTable({ zone, entries }) {
     [entries]
   );
 
+  const stickyFieldColumnSx = {
+    position: "sticky",
+    left: 0,
+    zIndex: 2,
+    borderRight: `1.5px solid ${style.border}`,
+  };
+
   return (
     <Paper
       elevation={0}
@@ -70,7 +77,7 @@ function ZoneComparisonTable({ zone, entries }) {
     >
       <Box
         sx={{
-          px: 2.5,
+          px: { xs: 1.75, sm: 2.5 },
           py: 1.5,
           bgcolor: style.bg,
           borderBottom: `1px solid ${style.border}`,
@@ -90,19 +97,37 @@ function ZoneComparisonTable({ zone, entries }) {
         />
       </Box>
 
-      <TableContainer sx={{ overflowX: "auto" }}>
-        <Table size="small" sx={{ minWidth: 320 + entries.length * 180 }}>
+      {entries.length > 1 && (
+        <Box
+          sx={{
+            display: { xs: "block", sm: "none" },
+            px: 1.75,
+            py: 0.5,
+            bgcolor: "#fffbeb",
+            borderBottom: "1px solid #fde68a",
+          }}
+        >
+          <Typography variant="caption" color="#92400e" fontWeight={600}>
+            ⇆ Swipe sideways to see other submissions
+          </Typography>
+        </Box>
+      )}
+
+      <TableContainer sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <Table size="small" sx={{ minWidth: 280 + entries.length * 170 }}>
           <TableHead>
             <TableRow sx={{ bgcolor: style.bg }}>
               <TableCell
                 sx={{
+                  ...stickyFieldColumnSx,
+                  bgcolor: style.bg,
                   fontWeight: 700,
                   color: "text.secondary",
                   fontSize: "0.78rem",
                   borderColor: style.border,
                   textTransform: "uppercase",
                   letterSpacing: 0.4,
-                  width: { xs: 150, sm: 200 },
+                  width: { xs: 130, sm: 200 },
                 }}
               >
                 Field
@@ -110,7 +135,7 @@ function ZoneComparisonTable({ zone, entries }) {
               {entries.map((entry) => (
                 <TableCell
                   key={entry.id}
-                  sx={{ borderColor: style.border, minWidth: 180, verticalAlign: "top" }}
+                  sx={{ borderColor: style.border, minWidth: 170, verticalAlign: "top" }}
                 >
                   <Typography fontWeight={800} fontSize="0.85rem" noWrap>
                     {entry.projectName}
@@ -123,35 +148,40 @@ function ZoneComparisonTable({ zone, entries }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {fieldLabels.map((label, index) => (
-              <TableRow
-                key={label}
-                sx={{
-                  bgcolor: index % 2 === 0 ? "white" : "#fafafa",
-                  "&:last-child td": { borderBottom: 0 },
-                }}
-              >
-                <TableCell
+            {fieldLabels.map((label, index) => {
+              const rowBg = index % 2 === 0 ? "white" : "#fafafa";
+              return (
+                <TableRow
+                  key={label}
                   sx={{
-                    fontWeight: 700,
-                    color: "text.secondary",
-                    fontSize: "0.82rem",
-                    borderColor: "#eee",
-                    verticalAlign: "top",
+                    bgcolor: rowBg,
+                    "&:last-child td": { borderBottom: 0 },
                   }}
                 >
-                  {label}
-                </TableCell>
-                {valuesByEntry.map((values, columnIndex) => (
                   <TableCell
-                    key={`${entries[columnIndex].id}-${label}`}
-                    sx={{ fontWeight: 600, fontSize: "0.88rem", borderColor: "#eee", wordBreak: "break-word" }}
+                    sx={{
+                      ...stickyFieldColumnSx,
+                      bgcolor: rowBg,
+                      fontWeight: 700,
+                      color: "text.secondary",
+                      fontSize: "0.82rem",
+                      borderColor: "#eee",
+                      verticalAlign: "top",
+                    }}
                   >
-                    {textOrDash(values[label])}
+                    {label}
                   </TableCell>
-                ))}
-              </TableRow>
-            ))}
+                  {valuesByEntry.map((values, columnIndex) => (
+                    <TableCell
+                      key={`${entries[columnIndex].id}-${label}`}
+                      sx={{ fontWeight: 600, fontSize: "0.88rem", borderColor: "#eee", wordBreak: "break-word" }}
+                    >
+                      {textOrDash(values[label])}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
@@ -324,7 +354,7 @@ export default function WagonDataSheetInspectorHistory() {
           </Typography>
         </Box>
       </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: 7 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: { xs: 0, sm: 7 } }}>
         Read-only history of the wagon data sheet forms submitted by {username}.
       </Typography>
 
@@ -343,13 +373,14 @@ export default function WagonDataSheetInspectorHistory() {
 
       {!loading && !error && entries.length > 0 && (
         <>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2 }}>
             <TextField
               label="Search Wheel Data Key"
               value={wheelDataKeySearch}
               onChange={(event) => setWheelDataKeySearch(event.target.value)}
               size="small"
-              sx={{ maxWidth: 320, bgcolor: "white", borderRadius: 1 }}
+              fullWidth
+              sx={{ maxWidth: { xs: "100%", sm: 320 }, bgcolor: "white", borderRadius: 1 }}
               helperText="Filter submissions by wheel data key"
             />
             <TextField
@@ -358,8 +389,9 @@ export default function WagonDataSheetInspectorHistory() {
               value={entryDateFilter}
               onChange={(event) => setEntryDateFilter(event.target.value)}
               size="small"
+              fullWidth
               InputLabelProps={{ shrink: true }}
-              sx={{ maxWidth: 220, bgcolor: "white", borderRadius: 1 }}
+              sx={{ maxWidth: { xs: "100%", sm: 220 }, bgcolor: "white", borderRadius: 1 }}
               helperText="Filter by submission date"
             />
           </Stack>

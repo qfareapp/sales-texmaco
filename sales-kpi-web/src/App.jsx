@@ -112,7 +112,7 @@ const LayoutWrapper = ({ children }) => {
             ☰
           </button>
           <button
-            className="btn btn-sm btn-warning ms-2"
+            className="btn btn-sm btn-warning ms-2 d-none d-lg-inline-block"
             onClick={() => {
               setSidebarHidden((prev) => !prev);
               setSidebarOpen(false);
