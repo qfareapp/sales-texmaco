@@ -10,7 +10,9 @@
       "Bash(python generate_quality_ppt.py)",
       "Bash(Select-Object Name, Length, LastWriteTime)",
       "PowerShell(Get-Item \"d:\\\\temaco final copy\\\\Final Stage 5\\(development\\)\\\\Quality_Module_Presentation.pptx\" | Select-Object Name, @{N='Size_KB';E={[math]::Round\\($_.Length/1KB,1\\)}}, LastWriteTime)",
-      "PowerShell($f = Get-Item \"d:\\\\temaco final copy\\\\Final Stage 5\\(development\\)\\\\Quality_Module_Presentation.pptx\"; Write-Output \"Name: $\\($f.Name\\)  Size: $\\([math]::Round\\($f.Length/1KB,1\\)\\) KB  Modified: $\\($f.LastWriteTime\\)\")"
+      "PowerShell($f = Get-Item \"d:\\\\temaco final copy\\\\Final Stage 5\\(development\\)\\\\Quality_Module_Presentation.pptx\"; Write-Output \"Name: $\\($f.Name\\)  Size: $\\([math]::Round\\($f.Length/1KB,1\\)\\) KB  Modified: $\\($f.LastWriteTime\\)\")",
+      "Bash(node -e \"require\\('@babel/core'\\)\")",
+      "Bash(npx --no-install eslint src/screens/quality/WagonDataSheetProjectForm.jsx)"
     ]
   }
 }

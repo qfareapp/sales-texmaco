@@ -130,6 +130,8 @@ function ComponentRow({ keyName, label, form, handleChange }) {
 }
 
 export default function WagonDataSheetSecondZoneForm() {
+  const submittedByUsername = localStorage.getItem("username") || "";
+  const submittedByRole = localStorage.getItem("role") || "";
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -155,13 +157,15 @@ export default function WagonDataSheetSecondZoneForm() {
       await api.post("/wagon-data-sheet/rows/second-zone", {
         ...form,
         wheelDataKey: normalizeWheelDataKey(form.wheelDataKey),
+        submittedByUsername,
+        submittedByRole,
       });
       setSuccess(
         `First zone wheel data saved successfully. Wheel Data Link: ${normalizeWheelDataKey(form.wheelDataKey)}`
       );
       setForm(initialForm);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to save second zone row.");
+      setError(err.response?.data?.message || err.message || "Failed to save second zone row.");
     } finally {
       setSaving(false);
     }

@@ -6,9 +6,12 @@ export default function TexmacoAccessPortal() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoggingIn(true);
+    setError("");
     try {
       const res = await axios.post(`${API_ROOT}/auth/login`, {
         username,
@@ -30,6 +33,7 @@ export default function TexmacoAccessPortal() {
     } catch (err) {
       console.error("Login Error:", err);
       setError("Invalid username or password");
+      setLoggingIn(false);
     }
   };
 
@@ -54,7 +58,7 @@ export default function TexmacoAccessPortal() {
         }}
       >
         <img
-          src="/texmaco-logo.png"
+          src="/Texmaco logo.png"
           alt="Texmaco Logo"
           style={{ width: 100, marginBottom: 20 }}
         />
@@ -78,8 +82,8 @@ export default function TexmacoAccessPortal() {
             style={inputStyle}
             required
           />
-          <button type="submit" style={buttonStyle}>
-            Login
+          <button type="submit" style={buttonStyle} disabled={loggingIn}>
+            {loggingIn ? "Logging in..." : "Login"}
           </button>
         </form>
         {error && <p style={{ color: "red", marginTop: 15 }}>{error}</p>}

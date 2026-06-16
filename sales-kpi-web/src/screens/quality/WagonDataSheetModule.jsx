@@ -55,6 +55,14 @@ export default function WagonDataSheetModule() {
           >
             🧾 Final Details Form
           </Button>
+          <Button
+            variant="outlined"
+            color="info"
+            onClick={() => navigate("/quality/wagon-data-sheet/my-submissions")}
+            sx={{ textTransform: "none", fontWeight: 700, justifyContent: "flex-start" }}
+          >
+            My Filled Forms
+          </Button>
         </Stack>
       </Paper>
     </Box>

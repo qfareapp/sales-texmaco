@@ -29,6 +29,7 @@ import WagonDataSheetFirstZoneForm from './screens/quality/WagonDataSheetFirstZo
 import WagonDataSheetSecondZoneForm from './screens/quality/WagonDataSheetSecondZoneForm';
 import WagonDataSheetFinalDetailsForm from './screens/quality/WagonDataSheetFinalDetailsForm';
 import WagonDataSheetProjectDetail from './screens/quality/WagonDataSheetProjectDetail';
+import WagonDataSheetInspectorHistory from './screens/quality/WagonDataSheetInspectorHistory';
 import EquipmentMaintenanceScreen from './screens/maintenance/EquipmentMaintenanceScreen';
 import EquipmentMasterForm from './screens/maintenance/EquipmentMasterForm';
 import MaintenanceDashboard from "./screens/maintenance/MaintenanceDashboard.jsx";
@@ -64,8 +65,9 @@ function ProtectedRoute({ children, allowedRoles }) {
 
 const LayoutWrapper = ({ children }) => {
   const location = useLocation();
+  const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
-  const standalonePaths = ['/daily-update', '/daily-production'];
+  const standalonePaths = ['/login', '/daily-update', '/daily-production'];
   const isStandalone = standalonePaths.includes(location.pathname);
   const isGroundInspector = role === "ground-inspector";
   const homePath = isGroundInspector ? "/quality-dashboard" : "/";
@@ -120,16 +122,18 @@ const LayoutWrapper = ({ children }) => {
             {sidebarHidden ? 'Show Menu' : 'Hide Menu'}
           </button>
           <button
-  className="btn btn-sm btn-light ms-2"
-  onClick={() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("username");
-    window.location.href = "/login";
-  }}
->
-  Logout
-</button>
+            className="btn btn-sm btn-light ms-2"
+            onClick={() => {
+              if (token) {
+                localStorage.removeItem("token");
+                localStorage.removeItem("role");
+                localStorage.removeItem("username");
+              }
+              window.location.href = "/login";
+            }}
+          >
+            {token ? "Logout" : "Login"}
+          </button>
           </span>
 
           
@@ -709,6 +713,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
                 <WagonDataSheetFinalDetailsForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/my-submissions"
+            element={
+              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+                <WagonDataSheetInspectorHistory />
               </ProtectedRoute>
             }
           />

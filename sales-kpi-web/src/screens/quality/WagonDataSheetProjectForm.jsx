@@ -12,11 +12,11 @@ import {
   Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
-import { buildProjectLabel } from "./wagonDataSheetConfig";
 import { downloadWagonOfferWorkbook } from "../../utils/wagonOfferWorkbook";
 import { downloadWagonElectronicsWorkbook } from "../../utils/wagonElectronicsWorkbook";
 import { downloadWagonCocWorkbook } from "../../utils/wagonCocWorkbook";
@@ -467,15 +467,22 @@ export default function WagonDataSheetProjectForm() {
           <Typography color="text.secondary">No wagon data sheet projects created yet.</Typography>
         </Paper>
       ) : (
-        <Grid container spacing={2}>
+        <Grid container spacing={2.5}>
           {projects.map((project) => {
             const total = project.totalRows || 0;
             const completed = project.completedRows || 0;
             const pending = project.pendingRows || 0;
             const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+            const isDownloading = downloadingProjectId === project._id;
+
+            const reportActions = [
+              { key: "offer", label: "Offer Copy", fullName: "Wagon Offer Copy.xlsx", onClick: handleDownloadOfferWorkbook },
+              { key: "electronics", label: "Electronics Sheet", fullName: "Wagon Electronics Data Sheet.xlsx", onClick: handleDownloadElectronicsWorkbook },
+              { key: "coc", label: "COC", fullName: "COC OF Wagon.xlsx", onClick: handleDownloadCocWorkbook },
+            ];
 
             return (
-              <Grid item xs={12} sm={6} lg={4} key={project._id}>
+              <Grid item xs={12} sm={6} lg={6} xl={4} key={project._id}>
                 <Paper
                   elevation={0}
                   onClick={() => role === "admin" && navigate(`/quality/wagon-data-sheet/projects/${project._id}`)}
@@ -487,7 +494,7 @@ export default function WagonDataSheetProjectForm() {
                     height: "100%",
                     display: "flex",
                     flexDirection: "column",
-                    gap: 1.5,
+                    gap: 1.75,
                     cursor: role === "admin" ? "pointer" : "default",
                     transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
                     "&:hover": role === "admin"
@@ -499,14 +506,38 @@ export default function WagonDataSheetProjectForm() {
                       : {},
                   }}
                 >
-                  {/* Project Name */}
-                  <Box>
-                    <Typography fontWeight={800} fontSize="0.95rem" sx={{ lineHeight: 1.3 }}>
-                      {project.projectName || "—"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {[project.contractPoNumber, project.wagonTypeOffered].filter(Boolean).join(" · ") || "—"}
-                    </Typography>
+                  {/* Header: name + open affordance */}
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography fontWeight={800} fontSize="0.98rem" sx={{ lineHeight: 1.3 }} noWrap>
+                        {project.projectName || "—"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
+                        {[project.contractPoNumber, project.wagonTypeOffered].filter(Boolean).join(" · ") || "—"}
+                      </Typography>
+                    </Box>
+                    {role === "admin" && (
+                      <Tooltip title="Open full project table">
+                        <Box
+                          sx={{
+                            flexShrink: 0,
+                            width: 30,
+                            height: 30,
+                            borderRadius: "50%",
+                            bgcolor: "white",
+                            border: "1.5px solid #7dd3fc",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "0.95rem",
+                            color: "#0369a1",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ↗
+                        </Box>
+                      </Tooltip>
+                    )}
                   </Box>
 
                   <Divider />
@@ -539,80 +570,85 @@ export default function WagonDataSheetProjectForm() {
                     </Box>
                   )}
 
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 0.5 }}>
-                    {project.finalPendingRows > 0 ? (
-                      <Chip
-                        label={`3rd Zone Pending (${project.finalPendingRows})`}
-                        clickable
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          navigate(`/quality/wagon-data-sheet/final-details?projectId=${project._id}`);
-                        }}
-                        sx={{
-                          bgcolor: "#fff7ed",
-                          color: "#c2410c",
-                          border: "1px solid #fdba74",
-                          fontWeight: 700,
-                        }}
-                      />
-                    ) : project.finalCompletedRows > 0 ? (
-                      <Chip
-                        label="3rd Zone Complete"
-                        sx={{
-                          bgcolor: "#ecfdf5",
-                          color: "#15803d",
-                          border: "1px solid #86efac",
-                          fontWeight: 700,
-                        }}
-                      />
-                    ) : (
-                      <Chip
-                        label="3rd Zone Not Started"
-                        sx={{
-                          bgcolor: "#f8fafc",
-                          color: "#64748b",
-                          border: "1px solid #cbd5e1",
-                          fontWeight: 700,
-                        }}
-                      />
-                    )}
+                  {/* Final zone status */}
+                  {project.finalPendingRows > 0 ? (
+                    <Chip
+                      label={`3rd Zone Pending (${project.finalPendingRows})`}
+                      clickable
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/quality/wagon-data-sheet/final-details?projectId=${project._id}`);
+                      }}
+                      sx={{
+                        alignSelf: "flex-start",
+                        bgcolor: "#fff7ed",
+                        color: "#c2410c",
+                        border: "1px solid #fdba74",
+                        fontWeight: 700,
+                      }}
+                    />
+                  ) : project.finalCompletedRows > 0 ? (
+                    <Chip
+                      label="3rd Zone Complete"
+                      sx={{
+                        alignSelf: "flex-start",
+                        bgcolor: "#ecfdf5",
+                        color: "#15803d",
+                        border: "1px solid #86efac",
+                        fontWeight: 700,
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      label="3rd Zone Not Started"
+                      sx={{
+                        alignSelf: "flex-start",
+                        bgcolor: "#f8fafc",
+                        color: "#64748b",
+                        border: "1px solid #cbd5e1",
+                        fontWeight: 700,
+                      }}
+                    />
+                  )}
 
-                    {role === "admin" && (
-                      <Typography variant="caption" color="#0369a1" fontWeight={700}>
-                        Click to open full table view
-                      </Typography>
-                    )}
-                  </Stack>
-
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignSelf: "flex-start" }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={(event) => handleDownloadOfferWorkbook(event, project._id)}
-                      disabled={downloadingProjectId === project._id}
-                      sx={{ textTransform: "none", fontWeight: 700 }}
-                    >
-                      {downloadingProjectId === project._id ? "Downloading..." : "Wagon Offer Copy.xlsx"}
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={(event) => handleDownloadElectronicsWorkbook(event, project._id)}
-                      disabled={downloadingProjectId === project._id}
-                      sx={{ textTransform: "none", fontWeight: 700 }}
-                    >
-                      {downloadingProjectId === project._id ? "Downloading..." : "Wagon Electronics Data Sheet.xlsx"}
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={(event) => handleDownloadCocWorkbook(event, project._id)}
-                      disabled={downloadingProjectId === project._id}
-                      sx={{ textTransform: "none", fontWeight: 700 }}
-                    >
-                      {downloadingProjectId === project._id ? "Downloading..." : "COC OF Wagon.xlsx"}
-                    </Button>
-                  </Stack>
+                  {/* Reports */}
+                  <Box sx={{ mt: "auto", pt: 0.5 }}>
+                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.6, mb: 0.75, display: "block" }}>
+                      Reports
+                    </Typography>
+                    <Grid container spacing={1}>
+                      {reportActions.map((action) => (
+                        <Grid item xs={4} key={action.key}>
+                          <Tooltip title={action.fullName}>
+                            <span>
+                              <Button
+                                fullWidth
+                                variant="outlined"
+                                size="small"
+                                onClick={(event) => action.onClick(event, project._id)}
+                                disabled={isDownloading}
+                                sx={{
+                                  textTransform: "none",
+                                  fontWeight: 700,
+                                  fontSize: "0.72rem",
+                                  px: 0.5,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  bgcolor: "white",
+                                  borderColor: "#7dd3fc",
+                                  color: "#0369a1",
+                                  "&:hover": { borderColor: "#0369a1", bgcolor: "#e0f2fe" },
+                                }}
+                              >
+                                {isDownloading ? "…" : action.label}
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
                 </Paper>
               </Grid>
             );

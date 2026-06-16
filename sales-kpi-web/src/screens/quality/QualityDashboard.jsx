@@ -68,6 +68,17 @@ export default function QualityDashboard() {
           📄 Wagon Data Sheet
         </Button>
 
+        {isGroundInspector ? (
+          <Button
+            variant="outlined"
+            color="info"
+            onClick={() => navigate("/quality/wagon-data-sheet/my-submissions")}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            My Filled Forms
+          </Button>
+        ) : null}
+
         <Button variant="outlined" disabled sx={{ textTransform: "none" }}>
           ⚙️ Coupler Inspection (Coming Soon)
         </Button>

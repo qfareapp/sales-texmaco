@@ -169,6 +169,8 @@ function WheelDataAutocomplete({
 }
 
 export default function WagonDataSheetFirstZoneForm() {
+  const submittedByUsername = localStorage.getItem("username") || "";
+  const submittedByRole = localStorage.getItem("role") || "";
   const [projects, setProjects] = useState([]);
   const [availableWheelData, setAvailableWheelData] = useState([]);
   const [form, setForm] = useState(initialForm);
@@ -235,6 +237,8 @@ export default function WagonDataSheetFirstZoneForm() {
         ...form,
         bogie1WheelDataRowIds: [form.bogie1WheelDataRowId1, form.bogie1WheelDataRowId2],
         bogie2WheelDataRowIds: [form.bogie2WheelDataRowId1, form.bogie2WheelDataRowId2],
+        submittedByUsername,
+        submittedByRole,
       });
       setSuccess("Second zone row saved successfully. Linked wheel data entries are now removed from the list.");
       setForm((prev) => ({ ...initialForm, projectId: prev.projectId }));

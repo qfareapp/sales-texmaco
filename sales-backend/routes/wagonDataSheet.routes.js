@@ -6,6 +6,10 @@ const WagonDataSheetRow = require("../models/WagonDataSheetRow");
 const router = express.Router();
 
 const asText = (value) => String(value || "").trim();
+const asSubmittedBy = (body) => ({
+  username: asText(body?.submittedByUsername),
+  role: asText(body?.submittedByRole),
+});
 const normalizeWheelDataKey = (value) =>
   String(value || "")
     .trim()
@@ -275,6 +279,43 @@ router.get("/rows/final-details-options", async (req, res) => {
   }
 });
 
+router.get("/rows/submissions", async (req, res) => {
+  try {
+    const username = asText(req.query.username);
+    if (!username) {
+      return res.status(400).json({ success: false, message: "Username is required." });
+    }
+
+    const rawRows = await WagonDataSheetRow.find({
+      $or: [
+        { "firstZone.submittedBy.username": username },
+        { "secondZone.submittedBy.username": username },
+        { "finalAssembly.submittedBy.username": username },
+      ],
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const rows = await attachLinkedWheelDataRows(rawRows);
+    const projectIds = [...new Set(rows.map((row) => String(row?.projectId || "")).filter(Boolean))];
+    const projects = projectIds.length
+      ? await WagonDataSheetProject.find({ _id: { $in: projectIds } }).lean()
+      : [];
+    const projectMap = new Map(projects.map((project) => [String(project._id), project]));
+
+    res.json({
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        project: projectMap.get(String(row?.projectId || "")) || null,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching wagon data sheet submissions:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.post("/rows/first-zone", async (req, res) => {
   try {
     const projectId = asProjectIdOrNull(req.body.projectId);
@@ -382,6 +423,7 @@ router.post("/rows/first-zone", async (req, res) => {
       sabMake: asText(req.body.sabMake),
       atlMake: asText(req.body.atlMake),
       crfMake: asText(req.body.crfMake),
+      submittedBy: asSubmittedBy(req.body),
       submittedAt: new Date(),
     };
 
@@ -449,32 +491,37 @@ router.post("/rows/second-zone", async (req, res) => {
       return res.status(400).json({ success: false, message: "Wheel data key is required." });
     }
 
-    const existingRow = await WagonDataSheetRow.findOne({ projectId, wheelDataKey })
-      .select("_id slNo")
-      .lean();
+    const existingRow = await WagonDataSheetRow.findOne({ projectId, wheelDataKey }).select("_id").lean();
+    if (existingRow) {
+      return res.status(400).json({
+        success: false,
+        message: `Duplicate entry. Wheel data key ${wheelDataKey} already exists.`,
+      });
+    }
 
-    const row = await WagonDataSheetRow.findOneAndUpdate(
-      { projectId, wheelDataKey },
-      {
-        $setOnInsert: {
-          projectId,
-          wheelDataKey,
-          slNo: existingRow?.slNo || await getNextSlNo(projectId),
+    const row = await WagonDataSheetRow.create({
+      projectId,
+      wheelDataKey,
+      slNo: await getNextSlNo(projectId),
+      secondZone: {
+        axle: {
+          make: asText(req.body.axleMake),
+          serialNumbers: asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers"),
         },
-        $set: {
-          "secondZone.axle.make": asText(req.body.axleMake),
-          "secondZone.axle.serialNumbers": asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers"),
-          "secondZone.wheel.make": asText(req.body.wheelMake),
-          "secondZone.wheel.serialNumbers": asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers"),
-          "secondZone.bearing.make": asText(req.body.bearingMake),
-          "secondZone.bearing.serialNumbers": asSerialNumbers(req.body.bearingSerialNumbers, "Bearing serial numbers"),
-          "secondZone.submittedAt": new Date(),
+        wheel: {
+          make: asText(req.body.wheelMake),
+          serialNumbers: asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers"),
         },
+        bearing: {
+          make: asText(req.body.bearingMake),
+          serialNumbers: asSerialNumbers(req.body.bearingSerialNumbers, "Bearing serial numbers"),
+        },
+        submittedBy: asSubmittedBy(req.body),
+        submittedAt: new Date(),
       },
-      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
-    );
+    });
 
-    res.status(existingRow ? 200 : 201).json({ success: true, data: row });
+    res.status(201).json({ success: true, data: row });
   } catch (error) {
     console.error("Error saving second zone row:", error);
     res.status(400).json({ success: false, message: error.message });
@@ -501,6 +548,7 @@ router.post("/rows/final-details", async (req, res) => {
           "finalAssembly.dmDate": asText(req.body.dmDate),
           "finalAssembly.rohDate": asText(req.body.rohDate),
           "finalAssembly.returnOrPohDate": asText(req.body.returnOrPohDate),
+          "finalAssembly.submittedBy": asSubmittedBy(req.body),
           "finalAssembly.submittedAt": new Date(),
         },
       },

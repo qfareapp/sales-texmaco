@@ -56,6 +56,8 @@ function SectionHeader({ label, color = "#374151" }) {
 }
 
 export default function WagonDataSheetFinalDetailsForm() {
+  const submittedByUsername = localStorage.getItem("username") || "";
+  const submittedByRole = localStorage.getItem("role") || "";
   const [searchParams] = useSearchParams();
   const preselectedProjectId = searchParams.get("projectId") || "";
   const [projects, setProjects] = useState([]);
@@ -131,30 +133,18 @@ export default function WagonDataSheetFinalDetailsForm() {
         ...form,
         rfidNo1,
         rfidNo2,
+        submittedByUsername,
+        submittedByRole,
       });
       setSuccess("Final details saved successfully.");
       const { data } = await api.get("/wagon-data-sheet/rows/final-details-options", {
         params: { projectId: form.projectId },
       });
-      const refreshed = data?.data || [];
-      setRows(refreshed);
-      const current = refreshed.find((row) => row._id === form.rowId);
-      if (current) {
-        setForm((prev) => ({
-          ...prev,
-          tareWeight: current.finalAssembly?.tareWeight || "",
-          txrFitDate: current.finalAssembly?.txrFitDate || "",
-          manufactureDate: current.finalAssembly?.manufactureDate || "",
-          rfidNumbers: combineRfidNumbers(
-            current.finalAssembly?.rfidNo1,
-            current.finalAssembly?.rfidNo2
-          ),
-          dmNo: current.finalAssembly?.dmNo || "",
-          dmDate: current.finalAssembly?.dmDate || "",
-          rohDate: current.finalAssembly?.rohDate || "",
-          returnOrPohDate: current.finalAssembly?.returnOrPohDate || "",
-        }));
-      }
+      setRows(data?.data || []);
+      setForm((prev) => ({
+        ...initialForm,
+        projectId: prev.projectId,
+      }));
     } catch (err) {
       setError(err.response?.data?.message || "Failed to save final details.");
     } finally {

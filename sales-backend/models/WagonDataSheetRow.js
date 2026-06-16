@@ -27,6 +27,14 @@ const linkedWheelDataSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const submissionBySchema = new mongoose.Schema(
+  {
+    username: { type: String, default: "", trim: true },
+    role: { type: String, default: "", trim: true },
+  },
+  { _id: false }
+);
+
 const WagonDataSheetRowSchema = new mongoose.Schema(
   {
     projectId: {
@@ -54,12 +62,14 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
       sabMake: { type: String, default: "", trim: true },
       atlMake: { type: String, default: "", trim: true },
       crfMake: { type: String, default: "", trim: true },
+      submittedBy: { type: submissionBySchema, default: () => ({}) },
       submittedAt: { type: Date, default: null },
     },
     secondZone: {
       axle: { type: makeSerialSchema, default: () => ({}) },
       wheel: { type: makeSerialSchema, default: () => ({}) },
       bearing: { type: makeSerialSchema, default: () => ({}) },
+      submittedBy: { type: submissionBySchema, default: () => ({}) },
       submittedAt: { type: Date, default: null },
     },
     finalAssembly: {
@@ -72,6 +82,7 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
       dmDate: { type: String, default: "", trim: true },
       rohDate: { type: String, default: "", trim: true },
       returnOrPohDate: { type: String, default: "", trim: true },
+      submittedBy: { type: submissionBySchema, default: () => ({}) },
       submittedAt: { type: Date, default: null },
     },
     wheelDataUsage: {
