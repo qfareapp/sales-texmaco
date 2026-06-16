@@ -6,12 +6,7 @@ import {
   Paper,
   Stack,
   TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import api from "../../api";
@@ -45,6 +40,11 @@ const zoneStyles = {
 const defaultZoneStyle = { accent: "#374151", bg: "#f3f4f6", border: "#d1d5db" };
 const zoneOrder = ["1st Zone", "2nd Zone", "3rd Zone"];
 
+const FIELD_COL_WIDTH = 124;
+const ENTRY_COL_WIDTH = 200;
+const HEADER_ROW_HEIGHT = 56;
+const BODY_ROW_HEIGHT = 42;
+
 function ZoneComparisonTable({ zone, entries }) {
   const style = zoneStyles[zone] || defaultZoneStyle;
 
@@ -63,11 +63,16 @@ function ZoneComparisonTable({ zone, entries }) {
     [entries]
   );
 
-  const stickyFieldColumnSx = {
-    position: "sticky",
-    left: 0,
-    zIndex: 2,
-    borderRight: `1.5px solid ${style.border}`,
+  const bodyCellSx = {
+    height: BODY_ROW_HEIGHT,
+    display: "flex",
+    alignItems: "center",
+    px: 1.25,
+    fontSize: "0.82rem",
+    borderBottom: "1px solid #eee",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   };
 
   return (
@@ -108,83 +113,102 @@ function ZoneComparisonTable({ zone, entries }) {
           }}
         >
           <Typography variant="caption" color="#92400e" fontWeight={600}>
-            ⇆ Swipe sideways to see other submissions
+            ⇆ Swipe to lock onto the next submission
           </Typography>
         </Box>
       )}
 
-      <TableContainer sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-        <Table size="small" sx={{ minWidth: 280 + entries.length * 170 }}>
-          <TableHead>
-            <TableRow sx={{ bgcolor: style.bg }}>
-              <TableCell
+      <Box sx={{ display: "flex" }}>
+        {/* Field labels — fixed, outside the scroll/snap area */}
+        <Box sx={{ flexShrink: 0, width: FIELD_COL_WIDTH, bgcolor: style.bg, borderRight: `1.5px solid ${style.border}` }}>
+          <Box
+            sx={{
+              height: HEADER_ROW_HEIGHT,
+              display: "flex",
+              alignItems: "center",
+              px: 1.25,
+              fontWeight: 700,
+              color: "text.secondary",
+              fontSize: "0.72rem",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+              borderBottom: `1px solid ${style.border}`,
+            }}
+          >
+            Field
+          </Box>
+          {fieldLabels.map((label, index) => (
+            <Tooltip key={label} title={label} enterTouchDelay={400}>
+              <Box
                 sx={{
-                  ...stickyFieldColumnSx,
-                  bgcolor: style.bg,
+                  ...bodyCellSx,
+                  bgcolor: index % 2 === 0 ? "white" : "#fafafa",
                   fontWeight: 700,
                   color: "text.secondary",
-                  fontSize: "0.78rem",
-                  borderColor: style.border,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.4,
-                  width: { xs: 130, sm: 200 },
                 }}
               >
-                Field
-              </TableCell>
-              {entries.map((entry) => (
-                <TableCell
-                  key={entry.id}
-                  sx={{ borderColor: style.border, minWidth: 170, verticalAlign: "top" }}
-                >
-                  <Typography fontWeight={800} fontSize="0.85rem" noWrap>
-                    {entry.projectName}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
-                    {formatTimestamp(entry.submittedAt)}
-                  </Typography>
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {fieldLabels.map((label, index) => {
-              const rowBg = index % 2 === 0 ? "white" : "#fafafa";
-              return (
-                <TableRow
-                  key={label}
-                  sx={{
-                    bgcolor: rowBg,
-                    "&:last-child td": { borderBottom: 0 },
-                  }}
-                >
-                  <TableCell
+                {label}
+              </Box>
+            </Tooltip>
+          ))}
+        </Box>
+
+        {/* Entries — one snap point per submission; a swipe locks onto exactly one */}
+        <Box
+          sx={{
+            display: "flex",
+            overflowX: "auto",
+            scrollSnapType: "x mandatory",
+            WebkitOverflowScrolling: "touch",
+            flex: 1,
+          }}
+        >
+          {entries.map((entry, columnIndex) => (
+            <Box
+              key={entry.id}
+              sx={{
+                flex: entries.length === 1 ? "1 1 auto" : `0 0 ${ENTRY_COL_WIDTH}px`,
+                minWidth: ENTRY_COL_WIDTH,
+                scrollSnapAlign: "start",
+                scrollSnapStop: "always",
+                borderRight: "1px solid #eee",
+              }}
+            >
+              <Box
+                sx={{
+                  height: HEADER_ROW_HEIGHT,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  px: 1.25,
+                  borderBottom: `1px solid ${style.border}`,
+                  overflow: "hidden",
+                }}
+              >
+                <Typography fontWeight={800} fontSize="0.85rem" noWrap>
+                  {entry.projectName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  {formatTimestamp(entry.submittedAt)}
+                </Typography>
+              </Box>
+              {fieldLabels.map((label, index) => (
+                <Tooltip key={label} title={textOrDash(valuesByEntry[columnIndex][label])} enterTouchDelay={400}>
+                  <Box
                     sx={{
-                      ...stickyFieldColumnSx,
-                      bgcolor: rowBg,
-                      fontWeight: 700,
-                      color: "text.secondary",
-                      fontSize: "0.82rem",
-                      borderColor: "#eee",
-                      verticalAlign: "top",
+                      ...bodyCellSx,
+                      bgcolor: index % 2 === 0 ? "white" : "#fafafa",
+                      fontWeight: 600,
                     }}
                   >
-                    {label}
-                  </TableCell>
-                  {valuesByEntry.map((values, columnIndex) => (
-                    <TableCell
-                      key={`${entries[columnIndex].id}-${label}`}
-                      sx={{ fontWeight: 600, fontSize: "0.88rem", borderColor: "#eee", wordBreak: "break-word" }}
-                    >
-                      {textOrDash(values[label])}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                    {textOrDash(valuesByEntry[columnIndex][label])}
+                  </Box>
+                </Tooltip>
+              ))}
+            </Box>
+          ))}
+        </Box>
+      </Box>
     </Paper>
   );
 }
