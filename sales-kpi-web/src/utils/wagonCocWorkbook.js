@@ -16,10 +16,19 @@ const formatDate = (value) => {
 
   return raw;
 };
-const dmNoAndDate = (row) => {
-  const dmNo = text(row?.finalAssembly?.dmNo);
-  const dmDate = formatDate(row?.finalAssembly?.dmDate);
-  return [dmNo, dmDate].filter(Boolean).join("\n");
+const formatMonthYear = (value) => {
+  const raw = text(value);
+  if (!raw) {
+    return "";
+  }
+
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return raw;
+  }
+
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${monthNames[Number(match[2]) - 1]} ${match[1]}`;
 };
 const titleText = (project) => {
   const wagonType = text(project?.wagonTypeOffered || project?.wagonTypeInPo || "Wagons");
@@ -35,7 +44,8 @@ export function downloadWagonCocWorkbook(project, rows) {
     "Wagon Number(s)",
     "Tare weight",
     "TYPE OFWAGON",
-    "DM No & date",
+    "DM No",
+    "DM Date",
     "ROH Date",
     "POH Date",
   ]];
@@ -45,19 +55,21 @@ export function downloadWagonCocWorkbook(project, rows) {
     text(row?.wagonNo),
     text(row?.finalAssembly?.tareWeight),
     text(project?.wagonTypeOffered || project?.wagonTypeInPo),
-    dmNoAndDate(row),
-    formatDate(row?.finalAssembly?.rohDate),
-    formatDate(row?.finalAssembly?.returnOrPohDate),
+    text(row?.finalAssembly?.dmNo),
+    formatDate(row?.finalAssembly?.dmDate),
+    formatMonthYear(row?.finalAssembly?.rohDate),
+    formatMonthYear(row?.finalAssembly?.returnOrPohDate),
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet([[titleText(project)], ...header, ...body]);
-  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }];
   ws["!cols"] = [
     { wch: 8 },
     { wch: 20 },
     { wch: 14 },
     { wch: 16 },
     { wch: 18 },
+    { wch: 14 },
     { wch: 12 },
     { wch: 12 },
   ];
@@ -100,10 +112,10 @@ export function downloadWagonCocWorkbook(project, rows) {
     }
   };
 
-  applyStyle(0, 0, 0, 6, titleStyle);
-  applyStyle(1, 1, 0, 6, headerStyle);
+  applyStyle(0, 0, 0, 7, titleStyle);
+  applyStyle(1, 1, 0, 7, headerStyle);
   if (body.length > 0) {
-    applyStyle(2, body.length + 1, 0, 6, bodyStyle);
+    applyStyle(2, body.length + 1, 0, 7, bodyStyle);
   }
 
   const wb = XLSX.utils.book_new();

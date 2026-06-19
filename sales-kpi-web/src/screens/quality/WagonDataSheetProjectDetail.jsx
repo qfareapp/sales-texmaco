@@ -19,6 +19,7 @@ import { saveAs } from "file-saver";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api";
 import { downloadWagonOfferWorkbook } from "../../utils/wagonOfferWorkbook";
+import { downloadWagonOfferPdf } from "../../utils/wagonOfferPdf";
 import { downloadWagonElectronicsWorkbook } from "../../utils/wagonElectronicsWorkbook";
 import { downloadWagonCocWorkbook } from "../../utils/wagonCocWorkbook";
 
@@ -54,6 +55,25 @@ const bogieSerialSummary = (row) =>
 
 const safeText = (value) => (value ? String(value) : "-");
 const safeJoinSerials = (value) => (Array.isArray(value) && value.length ? value.join(", ") : "-");
+const formatDateTime = (value) => {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
 const safeLinkedWheelMakes = (row, key) => {
   const values = [...new Set((row?.linkedWheelDataRows || []).map((item) => item?.secondZone?.[key]?.make).filter(Boolean))];
   return values.length ? values.join(", ") : "-";
@@ -301,6 +321,14 @@ export default function WagonDataSheetProjectDetail() {
     downloadWagonOfferWorkbook(project, rows);
   };
 
+  const handleDownloadOfferPdf = async () => {
+    if (!project) {
+      return;
+    }
+
+    await downloadWagonOfferPdf(project, rows);
+  };
+
   const handleDownloadElectronicsWorkbook = () => {
     if (!project) {
       return;
@@ -342,6 +370,9 @@ export default function WagonDataSheetProjectDetail() {
           </Button>
           <Button variant="outlined" onClick={handleDownloadOfferWorkbook} disabled={!project}>
             Wagon Offer Copy.xlsx
+          </Button>
+          <Button variant="outlined" onClick={handleDownloadOfferPdf} disabled={!project}>
+            Wagon Offer Copy.pdf
           </Button>
           <Button variant="outlined" onClick={handleDownloadElectronicsWorkbook} disabled={!project}>
             Wagon Electronics Data Sheet.xlsx
@@ -387,6 +418,8 @@ export default function WagonDataSheetProjectDetail() {
               <TableHead>
                 <TableRow sx={{ "& th": { background: "#d9f2ff" } }}>
                   <HeaderCell rowSpan={2}>SL.NO</HeaderCell>
+                  <HeaderCell rowSpan={2}>INSPECTOR NAME</HeaderCell>
+                  <HeaderCell rowSpan={2}>DATE &amp; TIME</HeaderCell>
                   <HeaderCell rowSpan={2}>TEX NO.</HeaderCell>
                   <HeaderCell rowSpan={2}>WAGON NO.</HeaderCell>
                   <HeaderCell rowSpan={2}>CONFIGURATION</HeaderCell>
@@ -423,6 +456,8 @@ export default function WagonDataSheetProjectDetail() {
                 {rows.map((row, idx) => (
                   <TableRow key={row._id} hover>
                     <TableCell>{row.slNo || idx + 1}</TableCell>
+                    <TableCell>{textOrDash(row.firstZone?.submittedBy?.username)}</TableCell>
+                    <TableCell sx={{ minWidth: 150 }}>{formatDateTime(row.firstZone?.submittedAt)}</TableCell>
                     <TableCell>{textOrDash(row.texNo)}</TableCell>
                     <TableCell>{textOrDash(row.wagonNo)}</TableCell>
                     <TableCell>{textOrDash(row.wagonConfiguration)}</TableCell>
@@ -460,7 +495,7 @@ export default function WagonDataSheetProjectDetail() {
                 ))}
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={34} align="center">
+                    <TableCell colSpan={36} align="center">
                       No wagon rows added yet for this project.
                     </TableCell>
                   </TableRow>

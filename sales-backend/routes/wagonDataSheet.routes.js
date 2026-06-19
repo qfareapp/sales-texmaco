@@ -6,6 +6,7 @@ const WagonDataSheetRow = require("../models/WagonDataSheetRow");
 const router = express.Router();
 
 const asText = (value) => String(value || "").trim();
+const escapeRegex = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const asSubmittedBy = (body) => ({
   username: asText(body?.submittedByUsername),
   role: asText(body?.submittedByRole),
@@ -24,6 +25,7 @@ const createInternalWheelDataKey = (prefix) =>
   `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 const asProjectIdOrNull = (value) =>
   mongoose.Types.ObjectId.isValid(value) ? new mongoose.Types.ObjectId(value) : null;
+const buildExactMatchRegex = (value) => new RegExp(`^${escapeRegex(asText(value))}$`, "i");
 const findDuplicateSerialNumber = (values) => {
   const seen = new Set();
 
@@ -91,6 +93,35 @@ const getNextSlNo = async (projectId) => {
   }, 0);
 
   return String(maxSlNo + 1);
+};
+const ensureUniqueWagonIdentifiers = async ({ rowId, texNo, wagonNo }) => {
+  const duplicateChecks = [];
+  const cleanTexNo = asText(texNo);
+  const cleanWagonNo = asText(wagonNo);
+
+  if (cleanTexNo) {
+    duplicateChecks.push({ texNo: buildExactMatchRegex(cleanTexNo) });
+  }
+  if (cleanWagonNo) {
+    duplicateChecks.push({ wagonNo: buildExactMatchRegex(cleanWagonNo) });
+  }
+  if (!duplicateChecks.length) {
+    return;
+  }
+
+  const duplicateRows = await WagonDataSheetRow.find({
+    ...(rowId ? { _id: { $ne: rowId } } : {}),
+    $or: duplicateChecks,
+  })
+    .select("texNo wagonNo")
+    .lean();
+
+  if (cleanTexNo && duplicateRows.some((row) => asText(row.texNo).toUpperCase() === cleanTexNo.toUpperCase())) {
+    throw new Error("TEX No. already filled.");
+  }
+  if (cleanWagonNo && duplicateRows.some((row) => asText(row.wagonNo).toUpperCase() === cleanWagonNo.toUpperCase())) {
+    throw new Error("Wagon No. already filled.");
+  }
 };
 
 router.get("/projects", async (_req, res) => {
@@ -364,6 +395,14 @@ router.post("/rows/first-zone", async (req, res) => {
     }
 
     const previousWheelIds = existingRow ? getLinkedWheelIds(existingRow.toObject()) : [];
+    const texNo = asText(req.body.texNo);
+    const wagonNo = asText(req.body.wagonNo);
+
+    await ensureUniqueWagonIdentifiers({
+      rowId: existingRow?._id || null,
+      texNo,
+      wagonNo,
+    });
 
     const buildWheelLinkPayload = (ids) =>
       ids.map((item) => {
@@ -381,8 +420,8 @@ router.post("/rows/first-zone", async (req, res) => {
     });
 
     row.projectId = projectId;
-    row.texNo = asText(req.body.texNo);
-    row.wagonNo = asText(req.body.wagonNo);
+    row.texNo = texNo;
+    row.wagonNo = wagonNo;
     row.wagonConfiguration = asText(req.body.wagonConfiguration);
     row.firstZone = {
       ...row.firstZone?.toObject?.(),

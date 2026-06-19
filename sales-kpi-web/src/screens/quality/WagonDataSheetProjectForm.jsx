@@ -18,6 +18,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import { downloadWagonOfferWorkbook } from "../../utils/wagonOfferWorkbook";
+import { downloadWagonOfferPdf } from "../../utils/wagonOfferPdf";
 import { downloadWagonElectronicsWorkbook } from "../../utils/wagonElectronicsWorkbook";
 import { downloadWagonCocWorkbook } from "../../utils/wagonCocWorkbook";
 
@@ -119,6 +120,26 @@ export default function WagonDataSheetProjectForm() {
       downloadWagonOfferWorkbook(detail.project, detail.rows || []);
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Failed to download Wagon Offer Copy.xlsx.");
+    } finally {
+      setDownloadingProjectId("");
+    }
+  };
+
+  const handleDownloadOfferPdf = async (event, projectId) => {
+    event.stopPropagation();
+    setError("");
+    setDownloadingProjectId(projectId);
+
+    try {
+      const { data } = await api.get(`/wagon-data-sheet/projects/${projectId}/detail`);
+      const detail = data?.data;
+      if (!detail?.project) {
+        throw new Error("Project details not found.");
+      }
+
+      await downloadWagonOfferPdf(detail.project, detail.rows || []);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Failed to download Wagon Offer Copy.pdf.");
     } finally {
       setDownloadingProjectId("");
     }
@@ -477,6 +498,7 @@ export default function WagonDataSheetProjectForm() {
 
             const reportActions = [
               { key: "offer", label: "Offer Copy", fullName: "Wagon Offer Copy.xlsx", onClick: handleDownloadOfferWorkbook },
+              { key: "offer-pdf", label: "Offer PDF", fullName: "Wagon Offer Copy.pdf", onClick: handleDownloadOfferPdf },
               { key: "electronics", label: "Electronics Sheet", fullName: "Wagon Electronics Data Sheet.xlsx", onClick: handleDownloadElectronicsWorkbook },
               { key: "coc", label: "COC", fullName: "COC OF Wagon.xlsx", onClick: handleDownloadCocWorkbook },
             ];
@@ -618,7 +640,7 @@ export default function WagonDataSheetProjectForm() {
                     </Typography>
                     <Grid container spacing={1}>
                       {reportActions.map((action) => (
-                        <Grid item xs={4} key={action.key}>
+                        <Grid item xs={6} key={action.key}>
                           <Tooltip title={action.fullName}>
                             <span>
                               <Button

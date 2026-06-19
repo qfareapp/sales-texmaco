@@ -58,7 +58,7 @@ const linkedComponentValues = (row, key, field) => {
 
   return values.length ? values.join(field === "make" ? "  " : " ") : "-";
 };
-const wagonIdentifier = (row) => combineValues([row?.texNo, row?.wagonNo], "\n");
+const wagonIdentifier = (row) => textOrDash(row?.wagonNo);
 const contractPoSummary = (project) => {
   const parts = [text(project.contractPoNumber)];
   const poDate = formatDate(project.contractPoDate);

@@ -244,7 +244,11 @@ export default function WagonDataSheetFirstZoneForm() {
       setForm((prev) => ({ ...initialForm, projectId: prev.projectId }));
       await fetchAvailableWheelData();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to save second zone row.");
+      const message = err.response?.data?.message || "Failed to save second zone row.";
+      setError(message);
+      if (/already filled/i.test(message)) {
+        window.alert(message);
+      }
     } finally {
       setSaving(false);
     }
