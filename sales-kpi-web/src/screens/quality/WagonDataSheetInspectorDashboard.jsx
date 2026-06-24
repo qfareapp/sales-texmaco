@@ -438,7 +438,7 @@ function StageTable({ title, rows, stages, counts, actionLabel, onComplete, savi
               <Typography variant="body2" color="text.secondary">
                 {pdiMode
                   ? "PDI status will appear here once wagons reach the DM Line stage."
-                  : "Use "Create New Wagon Inspection" above to add the first wagon for this project."}
+                  : 'Use "Create New Wagon Inspection" above to add the first wagon for this project.'}
               </Typography>
             </Box>
           ) : (
