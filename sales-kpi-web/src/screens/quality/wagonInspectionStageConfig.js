@@ -10,6 +10,18 @@ export const inspectionStages = [
   { key: "dm_line", label: "DM Line" },
 ];
 
+export const pdiStages = [
+  { key: "weld_visual_clear_by_tpi", label: "Weld Visual Clear by TPI" },
+  { key: "pipe_infringement_clear_by_tpi", label: "Pipe Infringement Clear by TPI" },
+  { key: "air_brake_clear_by_tpi", label: "Air Brake Clear by TPI" },
+  { key: "hand_brake_clear_by_tpi", label: "Hand Brake Clear by TPI" },
+  { key: "lsd_gap_clear_by_tpi", label: "LSD Gap Clear by TPI" },
+  { key: "coupler_articulation_and_operation", label: "Coupler Articulation & Operation" },
+  { key: "apd_pdi_clear_by_tpi", label: "APD / PDI Clear by TPI" },
+  { key: "painting_clear_by_tpi", label: "Painting Clear by TPI" },
+  { key: "lettring_clear_by_tpi", label: "Lettring Clear by TPI" },
+];
+
 export const formatStageDate = (value) => {
   if (!value) return "";
 

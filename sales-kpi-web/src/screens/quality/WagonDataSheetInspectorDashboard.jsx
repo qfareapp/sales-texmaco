@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Paper,
   Stack,
@@ -14,27 +18,11 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { buildProjectLabel } from "./wagonDataSheetConfig";
-import { formatStageDate, inspectionStages } from "./wagonInspectionStageConfig";
-
-// Short label for each stage — used in the mobile count strip
-const stageShort = {
-  uf_fit_up: "U/F",
-  boxing: "Box",
-  manipulator_bmp: "BMP",
-  reverse_visual: "Rev.",
-  top_visual_final_inspection: "Top",
-  blasting: "Blast",
-  wheeling: "Wheel",
-  container_test: "C.Test",
-  dm_line: "DM",
-};
-
-// ── Sub-components ────────────────────────────────────────────────────────────
+import { formatStageDate, inspectionStages, pdiStages } from "./wagonInspectionStageConfig";
 
 function StatCard({ label, value, accent = "#374151" }) {
   return (
@@ -43,19 +31,14 @@ function StatCard({ label, value, accent = "#374151" }) {
       sx={{
         px: 2,
         py: 1.5,
+        minWidth: 120,
         borderRadius: 2,
         border: "1.5px solid #e2e8f0",
         bgcolor: "white",
         borderLeft: `4px solid ${accent}`,
-        minWidth: 120,
       }}
     >
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        fontWeight={700}
-        sx={{ textTransform: "uppercase", letterSpacing: 0.5, display: "block" }}
-      >
+      <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: "uppercase", letterSpacing: 0.5, display: "block" }}>
         {label}
       </Typography>
       <Typography variant="h5" fontWeight={800} color={accent} sx={{ lineHeight: 1.1, mt: 0.25 }}>
@@ -65,161 +48,156 @@ function StatCard({ label, value, accent = "#374151" }) {
   );
 }
 
-// Nine coloured dots showing progress through all stages.
-// Green = done, amber ring = active/pending, grey = not started.
-function StageDots({ row }) {
+function StageTable({
+  title,
+  rows,
+  stages,
+  counts,
+  actionLabel,
+  onComplete,
+  saving,
+  projectName,
+  pdiMode = false,
+}) {
   return (
-    <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-      {inspectionStages.map((stage) => {
-        const stageData = (row.inspectionProgress?.stages || []).find((s) => s.key === stage.key);
-        const isActive = row.activeStage?.key === stage.key;
-        const isDone = !!stageData?.completedOn;
-        const tooltipText = isDone
-          ? `${stage.label} — ${formatStageDate(stageData.completedOn)}`
-          : isActive
-          ? `${stage.label} — Pending`
-          : stage.label;
-        return (
-          <Tooltip key={stage.key} title={tooltipText} enterTouchDelay={300}>
-            <Box
-              sx={{
-                width: 22,
-                height: 22,
-                borderRadius: "50%",
-                flexShrink: 0,
-                bgcolor: isDone ? "#16a34a" : isActive ? "#b45309" : "#e2e8f0",
-                border: isActive ? "2.5px solid #92400e" : "2px solid transparent",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {isDone && (
-                <Typography sx={{ color: "white", fontSize: "0.58rem", fontWeight: 900, lineHeight: 1 }}>
-                  ✓
-                </Typography>
-              )}
-            </Box>
-          </Tooltip>
-        );
-      })}
-    </Box>
-  );
-}
-
-// Card shown per wagon on mobile — replaces the wide table
-function WagonMobileCard({ row, index, saving, onComplete }) {
-  const completedCount = (row.inspectionProgress?.stages || []).filter((s) => s.completedOn).length;
-  const allDone = !row.activeStage;
-
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        borderRadius: 2.5,
-        border: allDone ? "1.5px solid #86efac" : "1.5px solid #fcd34d",
-        bgcolor: allDone ? "#f0fdf4" : "white",
-        overflow: "hidden",
-      }}
-    >
-      {/* ── Card header ── */}
-      <Box
-        sx={{
-          px: 2,
-          py: 1.25,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          bgcolor: allDone ? "#dcfce7" : "#fffbeb",
-          borderBottom: `1px solid ${allDone ? "#86efac" : "#fde68a"}`,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ lineHeight: 1 }}>
-            #{row.slNo || index + 1}
-          </Typography>
-          <Typography fontWeight={800} fontSize="1.05rem" color="#111827">
-            {row.texNo || "—"}
-          </Typography>
-        </Box>
-        {allDone ? (
-          <Chip
-            size="small"
-            label="All Stages Done"
-            sx={{ bgcolor: "#16a34a", color: "white", fontWeight: 700, fontSize: "0.7rem" }}
-          />
-        ) : (
-          <Chip
-            size="small"
-            label={`${completedCount} / ${inspectionStages.length} done`}
-            sx={{ bgcolor: "#f1f5f9", color: "#475569", fontWeight: 700, fontSize: "0.7rem" }}
-          />
-        )}
+    <Paper elevation={0} sx={{ borderRadius: 3, border: "1.5px solid #e5e7eb", overflow: "hidden" }}>
+      <Box sx={{ px: 2.5, py: 1.25, bgcolor: "#111827", color: "white" }}>
+        <Typography variant="subtitle2" fontWeight={800}>
+          {title}{projectName ? ` "${projectName}"` : ""}
+        </Typography>
       </Box>
+      <TableContainer sx={{ maxHeight: "60vh" }}>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 800, bgcolor: "#f1f5f9" }}>SL No.</TableCell>
+              <TableCell sx={{ fontWeight: 800, bgcolor: "#f1f5f9" }}>TEX-No.</TableCell>
+              {stages.map((stage) => (
+                <TableCell key={stage.key} align="center" sx={{ fontWeight: 800, bgcolor: "#f1f5f9", minWidth: 132 }}>
+                  {stage.label}
+                </TableCell>
+              ))}
+              <TableCell align="center" sx={{ fontWeight: 800, bgcolor: "#f1f5f9", minWidth: 170 }}>
+                Action
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            <TableRow>
+              <TableCell colSpan={2} sx={{ fontWeight: 800, bgcolor: "#fefce8", color: "#78350f" }}>
+                Total qty. -&gt;
+              </TableCell>
+              {stages.map((stage) => {
+                const count = (counts || []).find((item) => item.key === stage.key)?.pendingCount || 0;
+                return (
+                  <TableCell key={stage.key} align="center" sx={{ bgcolor: "#fef9c3", fontWeight: 800, color: count > 0 ? "#b45309" : "#6b7280" }}>
+                    {count}
+                  </TableCell>
+                );
+              })}
+              <TableCell sx={{ bgcolor: "#fefce8" }} />
+            </TableRow>
 
-      {/* ── Progress dots + current stage ── */}
-      <Box sx={{ px: 2, pt: 1.5, pb: row.activeStage ? 0 : 1.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
-          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ whiteSpace: "nowrap" }}>
-            Progress:
-          </Typography>
-          <StageDots row={row} />
-        </Box>
-
-        {row.activeStage && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.5 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={600}>
-              Current stage:
-            </Typography>
-            <Chip
-              size="small"
-              label={row.activeStage.label}
-              sx={{ bgcolor: "#fef9c3", color: "#92400e", fontWeight: 700, fontSize: "0.75rem" }}
-            />
-          </Box>
-        )}
-      </Box>
-
-      {/* ── Complete CTA ── */}
-      {row.activeStage && (
-        <Box sx={{ px: 2, pb: 2 }}>
-          <Button
-            fullWidth
-            variant="contained"
-            disabled={saving}
-            onClick={() => onComplete(row)}
-            sx={{
-              bgcolor: "#15803d",
-              "&:hover": { bgcolor: "#166534" },
-              "&:disabled": { bgcolor: "#d1d5db" },
-              fontWeight: 700,
-              borderRadius: 1.5,
-              textTransform: "none",
-              py: 1.1,
-              fontSize: "0.9rem",
-              boxShadow: "0 3px 10px rgba(21,128,61,0.28)",
-            }}
-          >
-            ✓ Mark Complete
-          </Button>
-        </Box>
-      )}
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={stages.length + 3} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                  {pdiMode
+                    ? "PDI status will appear here after wagons reach DM Line."
+                    : "Use Create New Wagon Inspection to add the first wagon row for this project."}
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row, index) => (
+                <TableRow key={`${pdiMode ? "pdi" : "daily"}-${row._id}`} sx={{ bgcolor: index % 2 === 0 ? "white" : "#f9fafb" }}>
+                  <TableCell sx={{ fontWeight: 600, color: "#6b7280" }}>{row.slNo || index + 1}</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>{row.texNo || "New Wagon"}</TableCell>
+                  {stages.map((stage) => {
+                    const stageList = pdiMode ? row.pdiProgress?.stages || [] : row.inspectionProgress?.stages || [];
+                    const activeStage = pdiMode ? row.activePdiStage : row.activeStage;
+                    const stageData = stageList.find((item) => item.key === stage.key);
+                    const isActive = activeStage?.key === stage.key;
+                    const isDone = Boolean(stageData?.completedOn);
+                    return (
+                      <TableCell
+                        key={stage.key}
+                        align="center"
+                        sx={{
+                          bgcolor: isActive ? "#fffbeb" : "inherit",
+                          color: isDone ? "#166534" : isActive ? "#b45309" : "#d1d5db",
+                          fontWeight: isDone ? 700 : 600,
+                          fontSize: "0.78rem",
+                        }}
+                      >
+                        {isDone ? formatStageDate(stageData.completedOn) : isActive ? "Pending" : ""}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell align="center">
+                    {pdiMode ? (
+                      row.activePdiStage ? (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          disabled={saving}
+                          onClick={() => onComplete(row)}
+                          sx={{ textTransform: "none", fontWeight: 700, bgcolor: "#1d4ed8", "&:hover": { bgcolor: "#1e40af" } }}
+                        >
+                          Complete {row.activePdiStage.label}
+                        </Button>
+                      ) : row.isPdiActivated ? (
+                        <Chip label="PDI Complete" size="small" sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 800 }} />
+                      ) : (
+                        <Chip label="Not Active" size="small" sx={{ bgcolor: "#f3f4f6", color: "#6b7280", fontWeight: 700 }} />
+                      )
+                    ) : row.activeStage ? (
+                      row.activeStage.key === "dm_line" && row.isPdiActivated ? (
+                        <Chip label="Continue in PDI Status" size="small" sx={{ bgcolor: "#fff7ed", color: "#b45309", fontWeight: 800 }} />
+                      ) : (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          disabled={saving}
+                          onClick={() => onComplete(row)}
+                          sx={{ textTransform: "none", fontWeight: 700, bgcolor: "#15803d", "&:hover": { bgcolor: "#166534" } }}
+                        >
+                          {actionLabel} {row.activeStage.label}
+                        </Button>
+                      )
+                    ) : (
+                      <Chip label="All Stages Done" size="small" sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 800 }} />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Paper>
   );
 }
-
-// ── Main component ─────────────────────────────────────────────────────────────
 
 export default function WagonDataSheetInspectorDashboard() {
   const role = localStorage.getItem("role") || "";
   const submittedByUsername = localStorage.getItem("username") || "";
   const submittedByRole = role;
+
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [dashboard, setDashboard] = useState({ project: null, rows: [], stageCounts: [], stages: inspectionStages });
+  const [dashboard, setDashboard] = useState({
+    project: null,
+    rows: [],
+    stageCounts: [],
+    pdiStageCounts: [],
+    stages: inspectionStages,
+    pdiStages,
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [ufDialogOpen, setUfDialogOpen] = useState(false);
+  const [newTexNo, setNewTexNo] = useState("");
+  const [selectedUfRow, setSelectedUfRow] = useState(null);
 
   const loadProjects = async () => {
     const { data } = await api.get("/wagon-data-sheet/projects");
@@ -230,11 +208,11 @@ export default function WagonDataSheetInspectorDashboard() {
 
   const loadDashboard = async (projectId) => {
     if (!projectId) {
-      setDashboard({ project: null, rows: [], stageCounts: [], stages: inspectionStages });
+      setDashboard({ project: null, rows: [], stageCounts: [], pdiStageCounts: [], stages: inspectionStages, pdiStages });
       return;
     }
     const { data } = await api.get(`/wagon-data-sheet/projects/${projectId}/stage-dashboard`);
-    setDashboard(data?.data || { project: null, rows: [], stageCounts: [], stages: inspectionStages });
+    setDashboard(data?.data || { project: null, rows: [], stageCounts: [], pdiStageCounts: [], stages: inspectionStages, pdiStages });
   };
 
   useEffect(() => {
@@ -250,15 +228,40 @@ export default function WagonDataSheetInspectorDashboard() {
     () => (dashboard.stageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0),
     [dashboard.stageCounts]
   );
+  const totalPdiPending = useMemo(
+    () => (dashboard.pdiStageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0),
+    [dashboard.pdiStageCounts]
+  );
 
-  const handleProjectChange = (event) => {
-    setSelectedProjectId(event.target.value);
+  const pdiRows = useMemo(
+    () => (dashboard.rows || []).filter((row) => row.isPdiActivated),
+    [dashboard.rows]
+  );
+
+  const handleCreateWagonInspection = async () => {
+    setSaving(true);
     setError("");
     setSuccess("");
+    try {
+      await api.post("/wagon-data-sheet/rows/stage-entry", { projectId: selectedProjectId });
+      setSuccess("New wagon inspection created. Current stage is U/F Fit-Up.");
+      await loadDashboard(selectedProjectId);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to create wagon inspection.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCompleteStage = async (row) => {
     if (!row?.activeStage?.key) return;
+    if (row.activeStage.key === "uf_fit_up") {
+      setSelectedUfRow(row);
+      setNewTexNo(row.texNo || "");
+      setUfDialogOpen(true);
+      return;
+    }
+
     setSaving(true);
     setError("");
     setSuccess("");
@@ -267,10 +270,52 @@ export default function WagonDataSheetInspectorDashboard() {
         submittedByUsername,
         submittedByRole,
       });
-      setSuccess(`${row.texNo || "Selected TEX"} — ${row.activeStage.label} marked complete.`);
+      setSuccess(`${row.texNo || "Selected TEX"} - ${row.activeStage.label} marked complete.`);
       await loadDashboard(selectedProjectId);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to complete stage.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStartUfFitUp = async () => {
+    if (!selectedUfRow?._id) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.patch(`/wagon-data-sheet/rows/${selectedUfRow._id}/stages/uf_fit_up/complete`, {
+        texNo: newTexNo,
+        submittedByUsername,
+        submittedByRole,
+      });
+      setSuccess("U/F Fit-Up completed and TEX No. saved.");
+      setUfDialogOpen(false);
+      setNewTexNo("");
+      setSelectedUfRow(null);
+      await loadDashboard(selectedProjectId);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to complete U/F Fit-Up.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCompletePdiStage = async (row) => {
+    if (!row?.activePdiStage?.key) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.patch(`/wagon-data-sheet/rows/${row._id}/pdi-stages/${row.activePdiStage.key}/complete`, {
+        submittedByUsername,
+        submittedByRole,
+      });
+      setSuccess(`${row.texNo || "Selected TEX"} - ${row.activePdiStage.label} marked complete.`);
+      await loadDashboard(selectedProjectId);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to complete PDI stage.");
     } finally {
       setSaving(false);
     }
@@ -284,48 +329,34 @@ export default function WagonDataSheetInspectorDashboard() {
     );
   }
 
-  const projectName = dashboard.project?.projectName || "";
-
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1600, mx: "auto" }}>
-
-      {/* ── Page Header ── */}
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1700, mx: "auto" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5 }}>
-        <Box
-          sx={{
-            bgcolor: "#15803d",
-            borderRadius: 2,
-            p: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Typography sx={{ color: "white", fontSize: 20, lineHeight: 1 }}>🔧</Typography>
-        </Box>
+        <Box sx={{ bgcolor: "#15803d", borderRadius: 2, p: 1, color: "white", fontWeight: 800 }}>I</Box>
         <Box>
-          <Typography variant="h5" fontWeight={800} sx={{ lineHeight: 1.1, letterSpacing: -0.5 }}>
-            Wagon Stage Inspection
-          </Typography>
+          <Typography variant="h5" fontWeight={800}>Wagon Stage Inspection</Typography>
           <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
             Inspector Workspace
           </Typography>
         </Box>
       </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: { xs: 0, sm: 7 } }}>
-        Mark the current pending stage complete. The date is recorded automatically.
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Create a new wagon inspection, then complete each daily stage one by one. After DM line is reached, continue in the PDI status section. DM line turns complete only after all PDI stages are done.
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
 
-      {/* ── Project Selector + Summary ── */}
-      <Paper elevation={0} sx={{ p: { xs: 2, md: 2.5 }, mb: 2.5, borderRadius: 3, border: "1.5px solid #d1fae5", bgcolor: "#f0fdf4" }}>
+      <Paper elevation={0} sx={{ p: 2.5, mb: 2.5, borderRadius: 3, border: "1.5px solid #d1fae5", bgcolor: "#f0fdf4" }}>
         <TextField
           select
           label="Project"
           value={selectedProjectId}
-          onChange={handleProjectChange}
+          onChange={(event) => {
+            setSelectedProjectId(event.target.value);
+            setError("");
+            setSuccess("");
+          }}
           fullWidth
           size="small"
           sx={{ mb: 2, bgcolor: "white", borderRadius: 1 }}
@@ -336,253 +367,78 @@ export default function WagonDataSheetInspectorDashboard() {
             </MenuItem>
           ))}
         </TextField>
-        <Stack direction="row" spacing={1.5}>
-          <StatCard label="TEX Rows" value={dashboard.rows?.length || 0} accent="#15803d" />
-          <StatCard label="Pending" value={totalPending} accent={totalPending > 0 ? "#b45309" : "#6b7280"} />
+
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "flex-end" }}>
+          <StatCard label="Total Tex Nos" value={dashboard.rows?.length || 0} accent="#15803d" />
+          <StatCard label="Daily Pending" value={totalPending} accent={totalPending > 0 ? "#b45309" : "#6b7280"} />
+          <StatCard label="PDI Pending" value={totalPdiPending} accent={totalPdiPending > 0 ? "#1d4ed8" : "#6b7280"} />
+          <Button
+            variant="contained"
+            onClick={handleCreateWagonInspection}
+            disabled={saving || !selectedProjectId}
+            sx={{ minHeight: 56, px: 2.5, textTransform: "none", fontWeight: 800, bgcolor: "#15803d", "&:hover": { bgcolor: "#166534" } }}
+          >
+            Create New Wagon Inspection
+          </Button>
         </Stack>
       </Paper>
 
-      {/* ── Stage Pending Counts ── */}
-      <Paper elevation={0} sx={{ mb: 3, borderRadius: 3, border: "1.5px solid #e5e7eb", overflow: "hidden" }}>
-        <Box sx={{ px: 2.5, py: 1.25, bgcolor: "#f8fafc", borderBottom: "1px solid #e5e7eb" }}>
-          <Typography variant="subtitle2" fontWeight={800} color="#374151">
-            Pending Count by Stage
-          </Typography>
-        </Box>
-        <Box sx={{ p: 2 }}>
-          {/* Mobile: horizontal scroll strip */}
-          <Box
-            sx={{
-              display: { xs: "flex", sm: "none" },
-              overflowX: "auto",
-              gap: 1,
-              pb: 0.5,
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            {(dashboard.stageCounts || []).map((stage) => {
-              const hasPending = (stage.pendingCount || 0) > 0;
-              return (
-                <Box
-                  key={stage.key}
-                  sx={{
-                    flexShrink: 0,
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: 2,
-                    textAlign: "center",
-                    minWidth: 56,
-                    bgcolor: hasPending ? "#fffbeb" : "#f8fafc",
-                    border: `1.5px solid ${hasPending ? "#fcd34d" : "#e2e8f0"}`,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      display: "block",
-                      fontSize: "0.6rem",
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: 0.3,
-                      color: hasPending ? "#92400e" : "#94a3b8",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {stageShort[stage.key] || stage.key}
-                  </Typography>
-                  <Typography fontWeight={800} fontSize="1.15rem" color={hasPending ? "#b45309" : "#9ca3af"} sx={{ lineHeight: 1.1, mt: 0.25 }}>
-                    {stage.pendingCount || 0}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
+      <Box sx={{ display: "grid", gap: 3 }}>
+        <StageTable
+          title="Daily Status"
+          rows={dashboard.rows || []}
+          stages={inspectionStages}
+          counts={dashboard.stageCounts || []}
+          actionLabel="Complete"
+          onComplete={handleCompleteStage}
+          saving={saving}
+          projectName={dashboard.project?.projectName || ""}
+        />
 
-          {/* Desktop: 5-col grid */}
-          <Box
-            sx={{
-              display: { xs: "none", sm: "grid" },
-              gridTemplateColumns: { sm: "1fr 1fr", md: "repeat(5, 1fr)" },
-              gap: 1.25,
-            }}
-          >
-            {(dashboard.stageCounts || []).map((stage) => (
-              <StatCard
-                key={stage.key}
-                label={stage.label}
-                value={stage.pendingCount || 0}
-                accent={(stage.pendingCount || 0) > 0 ? "#b45309" : "#9ca3af"}
-              />
-            ))}
-          </Box>
-        </Box>
-      </Paper>
+        <StageTable
+          title="BLSS PDI Status"
+          rows={pdiRows}
+          stages={pdiStages}
+          counts={dashboard.pdiStageCounts || []}
+          actionLabel="Complete"
+          onComplete={handleCompletePdiStage}
+          saving={saving}
+          projectName={dashboard.project?.projectName || ""}
+          pdiMode
+        />
+      </Box>
 
-      {/* ── Wagon List ── */}
-      <Paper elevation={0} sx={{ borderRadius: 3, border: "1.5px solid #e5e7eb", overflow: "hidden" }}>
-
-        {/* Section header */}
-        <Box
-          sx={{
-            px: { xs: 2, md: 2.5 },
-            py: 1.25,
-            bgcolor: "#111827",
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            flexWrap: "wrap",
-          }}
-        >
-          <Typography variant="subtitle2" fontWeight={800} color="white">
-            Daily Status{projectName ? ` — ${projectName}` : ""}
-          </Typography>
-          {dashboard.rows?.length > 0 && (
-            <Chip
+      <Dialog open={ufDialogOpen} onClose={() => !saving && setUfDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Complete U/F Fit-Up</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label="TEX No."
+              value={newTexNo}
+              onChange={(event) => setNewTexNo(event.target.value)}
               size="small"
-              label={`${dashboard.rows.length} wagons`}
-              sx={{ bgcolor: "rgba(255,255,255,0.15)", color: "white", fontWeight: 700, fontSize: "0.7rem" }}
+              fullWidth
+              autoFocus
             />
-          )}
-        </Box>
-
-        {/* ── MOBILE: card stack (xs only) ── */}
-        <Box sx={{ display: { xs: "block", sm: "none" }, p: 2 }}>
-          {(dashboard.rows || []).length === 0 ? (
-            <Box sx={{ textAlign: "center", py: 5 }}>
-              <Typography sx={{ fontSize: 32, mb: 1 }}>🚃</Typography>
-              <Typography color="text.secondary" variant="body2">
-                No TEX numbers have been added for this project yet.
-              </Typography>
-            </Box>
-          ) : (
-            <Stack spacing={1.5}>
-              {(dashboard.rows || []).map((row, index) => (
-                <WagonMobileCard
-                  key={row._id}
-                  row={row}
-                  index={index}
-                  saving={saving}
-                  onComplete={handleCompleteStage}
-                />
-              ))}
-            </Stack>
-          )}
-        </Box>
-
-        {/* ── DESKTOP: sticky table (sm+) ── */}
-        <Box sx={{ display: { xs: "none", sm: "block" } }}>
-          <TableContainer sx={{ maxHeight: "66vh" }}>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 800, bgcolor: "#f1f5f9", color: "#374151", whiteSpace: "nowrap" }}>SL No.</TableCell>
-                  <TableCell sx={{ fontWeight: 800, bgcolor: "#f1f5f9", color: "#374151", whiteSpace: "nowrap" }}>TEX No.</TableCell>
-                  {inspectionStages.map((stage) => (
-                    <TableCell
-                      key={stage.key}
-                      align="center"
-                      sx={{ fontWeight: 700, bgcolor: "#f1f5f9", color: "#374151", minWidth: 120, fontSize: "0.75rem" }}
-                    >
-                      {stage.label}
-                    </TableCell>
-                  ))}
-                  <TableCell align="center" sx={{ fontWeight: 800, bgcolor: "#f1f5f9", color: "#374151", minWidth: 180 }}>
-                    Action
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {/* Total qty. summary row */}
-                <TableRow>
-                  <TableCell colSpan={2} sx={{ fontWeight: 800, bgcolor: "#fefce8", color: "#78350f" }}>
-                    Total qty. →
-                  </TableCell>
-                  {inspectionStages.map((stage) => {
-                    const count = (dashboard.stageCounts || []).find((item) => item.key === stage.key)?.pendingCount || 0;
-                    return (
-                      <TableCell
-                        key={stage.key}
-                        align="center"
-                        sx={{ bgcolor: "#fef9c3", fontWeight: 800, color: count > 0 ? "#b45309" : "#6b7280" }}
-                      >
-                        {count}
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell sx={{ bgcolor: "#fefce8" }} />
-                </TableRow>
-
-                {(dashboard.rows || []).length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={inspectionStages.length + 3} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                      No TEX numbers have been added for this project yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  (dashboard.rows || []).map((row, index) => (
-                    <TableRow
-                      key={row._id}
-                      sx={{
-                        bgcolor: index % 2 === 0 ? "white" : "#f9fafb",
-                        "&:hover": { bgcolor: "#f0fdf4" },
-                      }}
-                    >
-                      <TableCell sx={{ fontWeight: 600, color: "#6b7280", fontSize: "0.8rem" }}>{row.slNo || index + 1}</TableCell>
-                      <TableCell sx={{ fontWeight: 800, fontSize: "0.85rem" }}>{row.texNo || "-"}</TableCell>
-                      {inspectionStages.map((stage) => {
-                        const stageData = row.inspectionProgress?.stages?.find((item) => item.key === stage.key);
-                        const isActive = row.activeStage?.key === stage.key;
-                        const isDone = !!stageData?.completedOn;
-                        return (
-                          <TableCell
-                            key={stage.key}
-                            align="center"
-                            sx={{
-                              bgcolor: isActive ? "#fffbeb" : "inherit",
-                              fontWeight: isDone ? 700 : 600,
-                              color: isDone ? "#166534" : isActive ? "#b45309" : "#d1d5db",
-                              fontSize: "0.78rem",
-                            }}
-                          >
-                            {isDone ? formatStageDate(stageData.completedOn) : isActive ? "Pending" : ""}
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell align="center">
-                        {row.activeStage ? (
-                          <Button
-                            variant="contained"
-                            size="small"
-                            disabled={saving}
-                            onClick={() => handleCompleteStage(row)}
-                            sx={{
-                              textTransform: "none",
-                              fontWeight: 700,
-                              fontSize: "0.78rem",
-                              bgcolor: "#15803d",
-                              "&:hover": { bgcolor: "#166534" },
-                              borderRadius: 1.5,
-                              px: 1.5,
-                            }}
-                          >
-                            ✓ Complete {row.activeStage.label}
-                          </Button>
-                        ) : (
-                          <Chip
-                            label="All Stages Done"
-                            size="small"
-                            sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 700, fontSize: "0.72rem" }}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-
-      </Paper>
+            <Typography variant="body2" color="text.secondary">
+              Enter the TEX No. and confirm. This marks U/F Fit-Up complete for wagon row #{selectedUfRow?.slNo || "-"}.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setUfDialogOpen(false)} color="inherit" disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleStartUfFitUp}
+            disabled={saving || !newTexNo.trim()}
+            sx={{ bgcolor: "#15803d", "&:hover": { bgcolor: "#166534" } }}
+          >
+            Complete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

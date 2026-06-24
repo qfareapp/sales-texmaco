@@ -707,7 +707,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/stage-dashboard"
             element={
-              <ProtectedRoute allowedRoles={["ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["admin", "ground-inspector"]}>
                 {localStorage.getItem("role") === "ground-inspector" ? (
                   <WagonDataSheetInspectorDashboard />
                 ) : (

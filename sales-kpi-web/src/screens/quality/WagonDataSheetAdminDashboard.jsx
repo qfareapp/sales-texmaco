@@ -17,17 +17,125 @@ import {
 } from "@mui/material";
 import api from "../../api";
 import { buildProjectLabel } from "./wagonDataSheetConfig";
-import { formatStageDate, inspectionStages } from "./wagonInspectionStageConfig";
+import { formatStageDate, inspectionStages, pdiStages } from "./wagonInspectionStageConfig";
 
-function CountChip({ label, value, color }) {
-  return <Chip label={`${label}: ${value || 0}`} sx={{ bgcolor: color.bg, color: color.text, fontWeight: 800 }} />;
+function CountChip({ label, value, bg, color }) {
+  return <Chip label={`${label}: ${value || 0}`} sx={{ bgcolor: bg, color, fontWeight: 800 }} />;
+}
+
+function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode = false }) {
+  return (
+    <Paper elevation={0} sx={{ borderRadius: 3, border: "1.5px solid #e5e7eb", overflow: "hidden" }}>
+      <Box sx={{ px: 2.5, py: 1.25, bgcolor: "#111827", color: "white" }}>
+        <Typography variant="subtitle2" fontWeight={800}>
+          {title}{projectName ? ` "${projectName}"` : ""}
+        </Typography>
+      </Box>
+      <TableContainer sx={{ maxHeight: "60vh" }}>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 800, bgcolor: "#f1f5f9" }}>SL No.</TableCell>
+              <TableCell sx={{ fontWeight: 800, bgcolor: "#f1f5f9" }}>TEX-No.</TableCell>
+              {stages.map((stage) => (
+                <TableCell key={stage.key} align="center" sx={{ fontWeight: 800, bgcolor: "#f1f5f9", minWidth: 132 }}>
+                  {stage.label}
+                </TableCell>
+              ))}
+              <TableCell align="center" sx={{ fontWeight: 800, bgcolor: "#f1f5f9", minWidth: 170 }}>
+                Current Status
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            <TableRow>
+              <TableCell colSpan={2} sx={{ fontWeight: 800, bgcolor: "#fefce8", color: "#78350f" }}>
+                Total qty. -&gt;
+              </TableCell>
+              {stages.map((stage) => {
+                const count = (counts || []).find((item) => item.key === stage.key)?.pendingCount || 0;
+                return (
+                  <TableCell key={stage.key} align="center" sx={{ bgcolor: "#fef9c3", fontWeight: 800, color: count > 0 ? "#b45309" : "#6b7280" }}>
+                    {count}
+                  </TableCell>
+                );
+              })}
+              <TableCell sx={{ bgcolor: "#fefce8" }} />
+            </TableRow>
+
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={stages.length + 3} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                  {pdiMode ? "PDI status will appear here after wagons reach DM Line." : "No wagon inspections found for this project yet."}
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row, index) => (
+                <TableRow key={`${pdiMode ? "pdi" : "daily"}-${row._id}`} sx={{ bgcolor: index % 2 === 0 ? "white" : "#f9fafb" }}>
+                  <TableCell sx={{ fontWeight: 600, color: "#6b7280" }}>{row.slNo || index + 1}</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>{row.texNo || "New Wagon"}</TableCell>
+                  {stages.map((stage) => {
+                    const stageList = pdiMode ? row.pdiProgress?.stages || [] : row.inspectionProgress?.stages || [];
+                    const activeStage = pdiMode ? row.activePdiStage : row.activeStage;
+                    const stageData = stageList.find((item) => item.key === stage.key);
+                    const isActive = activeStage?.key === stage.key;
+                    const isDone = Boolean(stageData?.completedOn);
+                    return (
+                      <TableCell
+                        key={stage.key}
+                        align="center"
+                        sx={{
+                          bgcolor: isActive ? "#fffbeb" : "inherit",
+                          color: isDone ? "#166534" : isActive ? "#b45309" : "#d1d5db",
+                          fontWeight: isDone ? 700 : 600,
+                          fontSize: "0.78rem",
+                        }}
+                      >
+                        {isDone ? formatStageDate(stageData.completedOn) : isActive ? "Pending" : ""}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell align="center">
+                    {pdiMode ? (
+                      row.activePdiStage ? (
+                        <Chip label={`Pending: ${row.activePdiStage.label}`} size="small" sx={{ bgcolor: "#dbeafe", color: "#1d4ed8", fontWeight: 800 }} />
+                      ) : row.isPdiActivated ? (
+                        <Chip label="PDI Complete" size="small" sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 800 }} />
+                      ) : (
+                        <Chip label="Not Active" size="small" sx={{ bgcolor: "#f3f4f6", color: "#6b7280", fontWeight: 700 }} />
+                      )
+                    ) : row.activeStage ? (
+                      row.activeStage.key === "dm_line" && row.isPdiActivated ? (
+                        <Chip label="Pending in PDI" size="small" sx={{ bgcolor: "#fff7ed", color: "#b45309", fontWeight: 800 }} />
+                      ) : (
+                        <Chip label={`Pending: ${row.activeStage.label}`} size="small" sx={{ bgcolor: "#fff7ed", color: "#b45309", fontWeight: 800 }} />
+                      )
+                    ) : (
+                      <Chip label="All Stages Done" size="small" sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 800 }} />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Paper>
+  );
 }
 
 export default function WagonDataSheetAdminDashboard() {
   const role = localStorage.getItem("role") || "";
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [dashboard, setDashboard] = useState({ project: null, rows: [], stageCounts: [], stages: inspectionStages });
+  const [dashboard, setDashboard] = useState({
+    project: null,
+    rows: [],
+    stageCounts: [],
+    pdiStageCounts: [],
+    stages: inspectionStages,
+    pdiStages,
+  });
   const [error, setError] = useState("");
 
   const loadProjects = async () => {
@@ -39,11 +147,11 @@ export default function WagonDataSheetAdminDashboard() {
 
   const loadDashboard = async (projectId) => {
     if (!projectId) {
-      setDashboard({ project: null, rows: [], stageCounts: [], stages: inspectionStages });
+      setDashboard({ project: null, rows: [], stageCounts: [], pdiStageCounts: [], stages: inspectionStages, pdiStages });
       return;
     }
     const { data } = await api.get(`/wagon-data-sheet/projects/${projectId}/stage-dashboard`);
-    setDashboard(data?.data || { project: null, rows: [], stageCounts: [], stages: inspectionStages });
+    setDashboard(data?.data || { project: null, rows: [], stageCounts: [], pdiStageCounts: [], stages: inspectionStages, pdiStages });
   };
 
   useEffect(() => {
@@ -56,10 +164,16 @@ export default function WagonDataSheetAdminDashboard() {
   }, [selectedProjectId]);
 
   const totals = useMemo(() => {
-    const pending = (dashboard.stageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0);
+    const dailyPending = (dashboard.stageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0);
+    const pdiPending = (dashboard.pdiStageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0);
     const completed = (dashboard.rows || []).filter((row) => !row.activeStage).length;
-    return { pending, completed };
+    return { dailyPending, pdiPending, completed };
   }, [dashboard]);
+
+  const pdiRows = useMemo(
+    () => (dashboard.rows || []).filter((row) => row.isPdiActivated),
+    [dashboard.rows]
+  );
 
   if (role !== "admin") {
     return (
@@ -81,12 +195,12 @@ export default function WagonDataSheetAdminDashboard() {
         </Box>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        View project-wise inspection dates and pending load at every stage. Cells show only the completion date; blank active cells remain pending.
+        Review Daily Status and BLSS PDI Status project-wise. DM line remains pending until the last PDI stage is completed.
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
 
-      <Paper elevation={0} sx={{ p: 2, mb: 2.5, borderRadius: 3, border: "1px solid #dbeafe", bgcolor: "#f8fbff" }}>
+      <Paper elevation={0} sx={{ p: 2.5, mb: 2.5, borderRadius: 3, border: "1.5px solid #dbeafe", bgcolor: "#f8fbff" }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }} justifyContent="space-between">
           <TextField
             select
@@ -103,100 +217,32 @@ export default function WagonDataSheetAdminDashboard() {
             ))}
           </TextField>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <CountChip label="TEX Rows" value={dashboard.rows?.length || 0} color={{ bg: "#e0f2fe", text: "#075985" }} />
-            <CountChip label="Pending" value={totals.pending} color={{ bg: "#ffedd5", text: "#9a3412" }} />
-            <CountChip label="DM Line Done" value={totals.completed} color={{ bg: "#dcfce7", text: "#166534" }} />
+            <CountChip label="TEX Rows" value={dashboard.rows?.length || 0} bg="#e0f2fe" color="#075985" />
+            <CountChip label="Daily Pending" value={totals.dailyPending} bg="#ffedd5" color="#9a3412" />
+            <CountChip label="PDI Pending" value={totals.pdiPending} bg="#dbeafe" color="#1d4ed8" />
+            <CountChip label="Done" value={totals.completed} bg="#dcfce7" color="#166534" />
           </Stack>
         </Stack>
       </Paper>
 
-      <Paper elevation={0} sx={{ mb: 3, borderRadius: 3, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-        <Box sx={{ p: 2, bgcolor: "#f8fafc", borderBottom: "1px solid #e5e7eb" }}>
-          <Typography variant="subtitle2" fontWeight={800}>Pending Count By Stage</Typography>
-        </Box>
-        <Box sx={{ p: 2, display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" }, gap: 1.25 }}>
-          {(dashboard.stageCounts || []).map((stage) => (
-            <Chip
-              key={stage.key}
-              label={`${stage.label}: ${stage.pendingCount || 0}`}
-              sx={{
-                justifyContent: "flex-start",
-                bgcolor: (stage.pendingCount || 0) > 0 ? "#fff7ed" : "#f3f4f6",
-                color: (stage.pendingCount || 0) > 0 ? "#9a3412" : "#4b5563",
-                fontWeight: 800,
-              }}
-            />
-          ))}
-        </Box>
-      </Paper>
+      <Box sx={{ display: "grid", gap: 3 }}>
+        <ReadOnlyStageTable
+          title="Daily Status"
+          rows={dashboard.rows || []}
+          stages={inspectionStages}
+          counts={dashboard.stageCounts || []}
+          projectName={dashboard.project?.projectName || ""}
+        />
 
-      <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-        <Box sx={{ p: 2, bgcolor: "#111827", color: "white" }}>
-          <Typography variant="subtitle2" fontWeight={800}>
-            Daily Status {dashboard.project?.projectName ? `"${dashboard.project.projectName}"` : ""}
-          </Typography>
-        </Box>
-        <TableContainer sx={{ maxHeight: "70vh" }}>
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 800, bgcolor: "#f3f4f6" }}>SL No.</TableCell>
-                <TableCell sx={{ fontWeight: 800, bgcolor: "#f3f4f6" }}>TEX no.</TableCell>
-                {inspectionStages.map((stage) => (
-                  <TableCell key={stage.key} align="center" sx={{ fontWeight: 800, bgcolor: "#f3f4f6", minWidth: 132 }}>
-                    {stage.label}
-                  </TableCell>
-                ))}
-                <TableCell align="center" sx={{ fontWeight: 800, bgcolor: "#f3f4f6", minWidth: 140 }}>Current Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              <TableRow>
-                <TableCell colSpan={2} sx={{ fontWeight: 800, bgcolor: "#fff7cc" }}>Total qty. →</TableCell>
-                {inspectionStages.map((stage) => {
-                  const count = (dashboard.stageCounts || []).find((item) => item.key === stage.key)?.pendingCount || 0;
-                  return (
-                    <TableCell key={stage.key} align="center" sx={{ bgcolor: "#fff59d", fontWeight: 800 }}>
-                      {count}
-                    </TableCell>
-                  );
-                })}
-                <TableCell sx={{ bgcolor: "#fffde7" }} />
-              </TableRow>
-              {(dashboard.rows || []).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={inspectionStages.length + 3} align="center" sx={{ py: 6, color: "text.secondary" }}>
-                    No TEX numbers have been added for this project yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                (dashboard.rows || []).map((row, index) => (
-                  <TableRow key={row._id} hover>
-                    <TableCell>{row.slNo || index + 1}</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>{row.texNo || "-"}</TableCell>
-                    {inspectionStages.map((stage) => {
-                      const stageData = row.inspectionProgress?.stages?.find((item) => item.key === stage.key);
-                      const isActive = row.activeStage?.key === stage.key;
-                      return (
-                        <TableCell key={stage.key} align="center" sx={{ bgcolor: isActive ? "#fff7ed" : "inherit", fontWeight: stageData?.completedOn ? 700 : 600, color: stageData?.completedOn ? "#166534" : isActive ? "#b45309" : "#9ca3af" }}>
-                          {stageData?.completedOn ? formatStageDate(stageData.completedOn) : isActive ? "Pending" : ""}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell align="center">
-                      {row.activeStage ? (
-                        <Chip label={`Pending: ${row.activeStage.label}`} size="small" sx={{ bgcolor: "#fff7ed", color: "#9a3412", fontWeight: 800 }} />
-                      ) : (
-                        <Chip label="DM Line Complete" color="success" size="small" />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+        <ReadOnlyStageTable
+          title="BLSS PDI Status"
+          rows={pdiRows}
+          stages={pdiStages}
+          counts={dashboard.pdiStageCounts || []}
+          projectName={dashboard.project?.projectName || ""}
+          pdiMode
+        />
+      </Box>
     </Box>
   );
 }

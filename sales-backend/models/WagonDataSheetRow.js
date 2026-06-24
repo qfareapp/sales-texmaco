@@ -115,6 +115,13 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
       lastCompletedStageKey: { type: String, default: "", trim: true },
       lastCompletedOn: { type: String, default: "", trim: true },
     },
+    pdiProgress: {
+      stages: { type: [inspectionStageSchema], default: [] },
+      currentStageIndex: { type: Number, default: -1 },
+      lastCompletedStageKey: { type: String, default: "", trim: true },
+      lastCompletedOn: { type: String, default: "", trim: true },
+      isActivated: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

@@ -16,6 +16,7 @@ import { buildProjectLabel, wagonConfigurationOptions } from "./wagonDataSheetCo
 
 const initialForm = {
   projectId: "",
+  rowId: "",
   texNo: "",
   wagonNo: "",
   wagonConfiguration: "",
@@ -174,6 +175,7 @@ export default function WagonDataSheetFirstZoneForm() {
   const submittedByRole = localStorage.getItem("role") || "";
   const [projects, setProjects] = useState([]);
   const [availableWheelData, setAvailableWheelData] = useState([]);
+  const [eligibleTexRows, setEligibleTexRows] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -204,6 +206,16 @@ export default function WagonDataSheetFirstZoneForm() {
     const { data } = await api.get("/wagon-data-sheet/rows/available-wheel-data");
     setAvailableWheelData(data?.data || []);
   };
+  const fetchEligibleTexRows = async (projectId) => {
+    if (!projectId) {
+      setEligibleTexRows([]);
+      return;
+    }
+    const { data } = await api.get("/wagon-data-sheet/rows/pending-second-zone", {
+      params: { projectId },
+    });
+    setEligibleTexRows(data?.data || []);
+  };
 
   useEffect(() => {
     Promise.all([fetchProjects(), fetchAvailableWheelData()]).catch(() =>
@@ -214,8 +226,26 @@ export default function WagonDataSheetFirstZoneForm() {
   const handleChange = (field) => (event) =>
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
 
+  useEffect(() => {
+    fetchEligibleTexRows(form.projectId).catch(() =>
+      setError("Failed to load TEX numbers that completed DM Line.")
+    );
+  }, [form.projectId]);
+
   const handleWheelDataSelect = (field) => (value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleTexRowChange = (event) => {
+    const rowId = event.target.value;
+    const selectedRow = eligibleTexRows.find((row) => row._id === rowId);
+    setForm((prev) => ({
+      ...prev,
+      rowId,
+      texNo: selectedRow?.texNo || "",
+      wagonNo: selectedRow?.wagonNo || prev.wagonNo,
+      wagonConfiguration: selectedRow?.wagonConfiguration || prev.wagonConfiguration,
+    }));
+  };
 
   const getWheelOptions = (currentValue) =>
     availableWheelData.filter((row) => !selectedWheelIds.includes(row._id) || row._id === currentValue);
@@ -243,6 +273,7 @@ export default function WagonDataSheetFirstZoneForm() {
       });
       setSuccess("Second zone row saved successfully. Linked wheel data entries are now removed from the list.");
       setForm((prev) => ({ ...initialForm, projectId: prev.projectId }));
+      await fetchEligibleTexRows(form.projectId);
       await fetchAvailableWheelData();
     } catch (err) {
       const message = err.response?.data?.message || "Failed to save second zone row.";
@@ -293,7 +324,7 @@ export default function WagonDataSheetFirstZoneForm() {
         </Box>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: 7 }}>
-        Select the project, enter wagon component details, and link 2 first-zone wheel data entries to each bogie.
+        Select a TEX number that already completed DM Line in stage inspection, then fill the rest of the wagon component details and link 2 first-zone wheel data entries to each bogie.
       </Typography>
 
       {error && (
@@ -346,13 +377,22 @@ export default function WagonDataSheetFirstZoneForm() {
             <Grid container spacing={2} sx={{ mb: 3 }}>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
+                  select
                   label="TEX No."
-                  value={form.texNo}
-                  onChange={handleChange("texNo")}
+                  value={form.rowId}
+                  onChange={handleTexRowChange}
                   fullWidth
                   size="small"
+                  required
+                  helperText={!form.projectId ? "Select a project first" : "Only TEX numbers that reached DM Line are listed here"}
                   sx={{ bgcolor: "white", borderRadius: 1 }}
-                />
+                >
+                  {eligibleTexRows.map((row) => (
+                    <MenuItem key={row._id} value={row._id}>
+                      {row.texNo || "-"}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Grid>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField

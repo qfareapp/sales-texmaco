@@ -32,6 +32,17 @@ const INSPECTION_STAGES = [
   { key: "container_test", label: "Container Test" },
   { key: "dm_line", label: "DM Line" },
 ];
+const PDI_STAGES = [
+  { key: "weld_visual_clear_by_tpi", label: "Weld Visual Clear by TPI" },
+  { key: "pipe_infringement_clear_by_tpi", label: "Pipe Infringement Clear by TPI" },
+  { key: "air_brake_clear_by_tpi", label: "Air Brake Clear by TPI" },
+  { key: "hand_brake_clear_by_tpi", label: "Hand Brake Clear by TPI" },
+  { key: "lsd_gap_clear_by_tpi", label: "LSD Gap Clear by TPI" },
+  { key: "coupler_articulation_and_operation", label: "Coupler Articulation & Operation" },
+  { key: "apd_pdi_clear_by_tpi", label: "APD / PDI Clear by TPI" },
+  { key: "painting_clear_by_tpi", label: "Painting Clear by TPI" },
+  { key: "lettring_clear_by_tpi", label: "Lettring Clear by TPI" },
+];
 const createInternalWheelDataKey = (prefix) =>
   `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 const asProjectIdOrNull = (value) =>
@@ -48,6 +59,13 @@ const formatStageDate = (date = new Date()) => {
 };
 const createDefaultInspectionStages = () =>
   INSPECTION_STAGES.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    completedOn: "",
+    completedBy: { username: "", role: "" },
+  }));
+const createDefaultPdiStages = () =>
+  PDI_STAGES.map((stage) => ({
     key: stage.key,
     label: stage.label,
     completedOn: "",
@@ -85,8 +103,44 @@ const getInspectionProgress = (row) => {
     isFullyCompleted: currentStageIndex >= INSPECTION_STAGES.length,
   };
 };
+const getPdiProgress = (row) => {
+  const sourceStages = Array.isArray(row?.pdiProgress?.stages) && row.pdiProgress.stages.length
+    ? row.pdiProgress.stages
+    : [];
+  const stageMap = new Map(sourceStages.map((stage) => [stage.key, stage]));
+  const stages = PDI_STAGES.map((stage) => {
+    const existingStage = stageMap.get(stage.key);
+    return {
+      key: stage.key,
+      label: stage.label,
+      completedOn: asText(existingStage?.completedOn),
+      completedBy: existingStage?.completedBy || { username: "", role: "" },
+    };
+  });
+  const completedStages = stages.filter((stage) => stage.completedOn);
+  const isActivated = Boolean(row?.pdiProgress?.isActivated);
+  const requestedIndex = Number.isInteger(row?.pdiProgress?.currentStageIndex)
+    ? row.pdiProgress.currentStageIndex
+    : isActivated
+    ? completedStages.length
+    : -1;
+  const currentStageIndex = !isActivated
+    ? -1
+    : Math.min(PDI_STAGES.length, Math.max(completedStages.length, requestedIndex, 0));
+
+  return {
+    stages,
+    currentStageIndex,
+    lastCompletedStageKey: completedStages[completedStages.length - 1]?.key || "",
+    lastCompletedOn: completedStages[completedStages.length - 1]?.completedOn || "",
+    activeStage: currentStageIndex >= 0 && currentStageIndex < PDI_STAGES.length ? PDI_STAGES[currentStageIndex] : null,
+    isFullyCompleted: isActivated && currentStageIndex >= PDI_STAGES.length,
+    isActivated,
+  };
+};
 const buildStageDashboardRow = (row) => {
   const progress = getInspectionProgress(row);
+  const pdiProgress = getPdiProgress(row);
   return {
     ...row,
     inspectionProgress: {
@@ -95,8 +149,18 @@ const buildStageDashboardRow = (row) => {
       lastCompletedStageKey: progress.lastCompletedStageKey,
       lastCompletedOn: progress.lastCompletedOn,
     },
+    pdiProgress: {
+      stages: pdiProgress.stages,
+      currentStageIndex: pdiProgress.currentStageIndex,
+      lastCompletedStageKey: pdiProgress.lastCompletedStageKey,
+      lastCompletedOn: pdiProgress.lastCompletedOn,
+      isActivated: pdiProgress.isActivated,
+    },
     activeStage: progress.activeStage,
     isFullyCompleted: progress.isFullyCompleted,
+    activePdiStage: pdiProgress.activeStage,
+    isPdiCompleted: pdiProgress.isFullyCompleted,
+    isPdiActivated: pdiProgress.isActivated,
   };
 };
 const buildStageCounts = (rows) => {
@@ -124,6 +188,34 @@ const buildStageCounts = (rows) => {
 
   return counts;
 };
+const buildPdiCounts = (rows) => {
+  const counts = PDI_STAGES.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    pendingCount: 0,
+    completedCount: 0,
+  }));
+
+  rows.forEach((row) => {
+    const pdiProgress = getPdiProgress(row);
+    pdiProgress.stages.forEach((stage, index) => {
+      if (stage.completedOn) {
+        counts[index].completedCount += 1;
+      }
+    });
+    if (pdiProgress.activeStage) {
+      const activeIndex = PDI_STAGES.findIndex((stage) => stage.key === pdiProgress.activeStage.key);
+      if (activeIndex >= 0) {
+        counts[activeIndex].pendingCount += 1;
+      }
+    }
+  });
+
+  return counts;
+};
+const hasCompletedStage = (row, stageKey) =>
+  getInspectionProgress(row).stages.some((stage) => stage.key === stageKey && stage.completedOn);
+const isPdiActivated = (row) => getPdiProgress(row).isActivated;
 const findDuplicateSerialNumber = (values) => {
   const seen = new Set();
 
@@ -244,6 +336,7 @@ router.get("/projects", async (_req, res) => {
       data: projects.map((project) => {
         const rows = rowMap.get(String(project._id)) || [];
         const stageCounts = buildStageCounts(rows);
+        const pdiCounts = buildPdiCounts(rows);
         const completedRows = rows.filter((row) => getInspectionProgress(row).isFullyCompleted).length;
         return {
           ...project,
@@ -253,6 +346,7 @@ router.get("/projects", async (_req, res) => {
           finalCompletedRows: completedRows,
           finalPendingRows: stageCounts.find((stage) => stage.key === "dm_line")?.pendingCount || 0,
           stageCounts,
+          pdiCounts,
         };
       }),
     });
@@ -333,7 +427,9 @@ router.get("/projects/:projectId/stage-dashboard", async (req, res) => {
       data: {
         project,
         stages: INSPECTION_STAGES,
+        pdiStages: PDI_STAGES,
         stageCounts: buildStageCounts(rows),
+        pdiStageCounts: buildPdiCounts(rows),
         rows: dashboardRows,
       },
     });
@@ -361,32 +457,15 @@ router.get("/rows", async (req, res) => {
 router.post("/rows/stage-entry", async (req, res) => {
   try {
     const projectId = asProjectIdOrNull(req.body.projectId);
-    const texNo = asText(req.body.texNo);
 
     if (!projectId) {
       return res.status(400).json({ success: false, message: "Valid projectId is required." });
-    }
-    if (!texNo) {
-      return res.status(400).json({ success: false, message: "TEX No. is required." });
-    }
-
-    await ensureUniqueWagonIdentifiers({ texNo, wagonNo: "" });
-
-    const existingRow = await WagonDataSheetRow.findOne({
-      projectId,
-      texNo: buildExactMatchRegex(texNo),
-    })
-      .select("_id")
-      .lean();
-
-    if (existingRow) {
-      return res.status(400).json({ success: false, message: "TEX No. already exists in this project." });
     }
 
     const row = await WagonDataSheetRow.create({
       projectId,
       slNo: await getNextSlNo(projectId),
-      texNo,
+      texNo: "",
       wheelDataKey: createInternalWheelDataKey("STAGE"),
       inspectionProgress: {
         stages: createDefaultInspectionStages(),
@@ -428,6 +507,20 @@ router.patch("/rows/:rowId/stages/:stageKey/complete", async (req, res) => {
       });
     }
 
+    if (stageKey === "uf_fit_up") {
+      const texNo = asText(req.body.texNo);
+      if (!texNo) {
+        return res.status(400).json({ success: false, message: "TEX No. is required to complete U/F Fit-Up." });
+      }
+
+      await ensureUniqueWagonIdentifiers({
+        rowId: row._id,
+        texNo,
+        wagonNo: row.wagonNo,
+      });
+      row.texNo = texNo;
+    }
+
     const stages = progress.stages.map((stage) =>
       stage.key === stageKey
         ? {
@@ -437,18 +530,106 @@ router.patch("/rows/:rowId/stages/:stageKey/complete", async (req, res) => {
           }
         : stage
     );
+    const completedStage = stages.find((stage) => stage.key === stageKey);
+    const nextStageIndex = Math.min(progress.currentStageIndex + 1, INSPECTION_STAGES.length);
 
     row.inspectionProgress = {
       stages,
-      currentStageIndex: Math.min(progress.currentStageIndex + 1, INSPECTION_STAGES.length),
+      currentStageIndex: nextStageIndex,
       lastCompletedStageKey: stageKey,
-      lastCompletedOn: stages.find((stage) => stage.key === stageKey)?.completedOn || formatStageDate(),
+      lastCompletedOn: completedStage?.completedOn || formatStageDate(),
     };
+
+    if (stageKey === "container_test") {
+      const currentPdi = getPdiProgress(row.toObject());
+      row.pdiProgress = {
+        stages: currentPdi.stages.length ? currentPdi.stages : createDefaultPdiStages(),
+        currentStageIndex: currentPdi.isActivated ? currentPdi.currentStageIndex : 0,
+        lastCompletedStageKey: currentPdi.lastCompletedStageKey || "",
+        lastCompletedOn: currentPdi.lastCompletedOn || "",
+        isActivated: true,
+      };
+    }
 
     await row.save();
     res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
   } catch (error) {
     console.error("Error completing wagon stage:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+router.patch("/rows/:rowId/pdi-stages/:stageKey/complete", async (req, res) => {
+  try {
+    const { rowId, stageKey } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(rowId)) {
+      return res.status(400).json({ success: false, message: "Valid rowId is required." });
+    }
+
+    const row = await WagonDataSheetRow.findById(rowId);
+    if (!row) {
+      return res.status(404).json({ success: false, message: "Wagon row not found." });
+    }
+
+    const dailyProgress = getInspectionProgress(row.toObject());
+    const pdiProgress = getPdiProgress(row.toObject());
+
+    if (!pdiProgress.isActivated) {
+      return res.status(400).json({ success: false, message: "PDI stages are not activated yet for this TEX No." });
+    }
+    if (!pdiProgress.activeStage) {
+      return res.status(400).json({ success: false, message: "All PDI stages are already completed." });
+    }
+    if (pdiProgress.activeStage.key !== stageKey) {
+      return res.status(400).json({
+        success: false,
+        message: `Only the current PDI stage can be completed. Pending PDI stage: ${pdiProgress.activeStage.label}.`,
+      });
+    }
+
+    const completedOn = asText(req.body.completedOn) || formatStageDate();
+    const stages = pdiProgress.stages.map((stage) =>
+      stage.key === stageKey
+        ? {
+            ...stage,
+            completedOn,
+            completedBy: asSubmittedBy(req.body),
+          }
+        : stage
+    );
+    const nextPdiIndex = Math.min(pdiProgress.currentStageIndex + 1, PDI_STAGES.length);
+
+    row.pdiProgress = {
+      stages,
+      currentStageIndex: nextPdiIndex,
+      lastCompletedStageKey: stageKey,
+      lastCompletedOn: completedOn,
+      isActivated: true,
+    };
+
+    if (nextPdiIndex >= PDI_STAGES.length && dailyProgress.currentStageIndex === INSPECTION_STAGES.length - 1) {
+      const dailyStages = dailyProgress.stages.map((stage) =>
+        stage.key === "dm_line"
+          ? {
+              ...stage,
+              completedOn,
+              completedBy: asSubmittedBy(req.body),
+            }
+          : stage
+      );
+
+      row.inspectionProgress = {
+        stages: dailyStages,
+        currentStageIndex: INSPECTION_STAGES.length,
+        lastCompletedStageKey: "dm_line",
+        lastCompletedOn: completedOn,
+      };
+    }
+
+    await row.save();
+    res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
+  } catch (error) {
+    console.error("Error completing wagon PDI stage:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -484,7 +665,7 @@ router.get("/rows/pending-second-zone", async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const rows = await attachLinkedWheelDataRows(rawRows);
+    const rows = (await attachLinkedWheelDataRows(rawRows)).filter((row) => isPdiActivated(row));
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error("Error fetching pending second zone rows:", error);
