@@ -169,6 +169,7 @@ function WheelDataAutocomplete({
 }
 
 export default function WagonDataSheetFirstZoneForm() {
+  const role = localStorage.getItem("role") || "";
   const submittedByUsername = localStorage.getItem("username") || "";
   const submittedByRole = localStorage.getItem("role") || "";
   const [projects, setProjects] = useState([]);
@@ -253,6 +254,14 @@ export default function WagonDataSheetFirstZoneForm() {
       setSaving(false);
     }
   };
+
+  if (role !== "ground-inspector") {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="info">This Wagon Data Sheet form is available only for inspector accounts.</Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1150, mx: "auto" }}>

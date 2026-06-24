@@ -21,11 +21,109 @@ const normalizeSerialNumber = (value) =>
     .trim()
     .replace(/\s+/g, " ")
     .toUpperCase();
+const INSPECTION_STAGES = [
+  { key: "uf_fit_up", label: "U/F Fit-Up" },
+  { key: "boxing", label: "Boxing" },
+  { key: "manipulator_bmp", label: "Manipulator / BMP" },
+  { key: "reverse_visual", label: "Reverse Visual" },
+  { key: "top_visual_final_inspection", label: "Top Visual / Final Inspection" },
+  { key: "blasting", label: "Blasting" },
+  { key: "wheeling", label: "Wheeling" },
+  { key: "container_test", label: "Container Test" },
+  { key: "dm_line", label: "DM Line" },
+];
 const createInternalWheelDataKey = (prefix) =>
   `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 const asProjectIdOrNull = (value) =>
   mongoose.Types.ObjectId.isValid(value) ? new mongoose.Types.ObjectId(value) : null;
 const buildExactMatchRegex = (value) => new RegExp(`^${escapeRegex(asText(value))}$`, "i");
+const formatStageDate = (date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(date);
+};
+const createDefaultInspectionStages = () =>
+  INSPECTION_STAGES.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    completedOn: "",
+    completedBy: { username: "", role: "" },
+  }));
+const getInspectionProgress = (row) => {
+  const sourceStages = Array.isArray(row?.inspectionProgress?.stages) && row.inspectionProgress.stages.length
+    ? row.inspectionProgress.stages
+    : [];
+  const stageMap = new Map(sourceStages.map((stage) => [stage.key, stage]));
+  const stages = INSPECTION_STAGES.map((stage) => {
+    const existingStage = stageMap.get(stage.key);
+    return {
+      key: stage.key,
+      label: stage.label,
+      completedOn: asText(existingStage?.completedOn),
+      completedBy: existingStage?.completedBy || { username: "", role: "" },
+    };
+  });
+  const completedStages = stages.filter((stage) => stage.completedOn);
+  const requestedIndex = Number.isInteger(row?.inspectionProgress?.currentStageIndex)
+    ? row.inspectionProgress.currentStageIndex
+    : completedStages.length;
+  const currentStageIndex = Math.min(
+    INSPECTION_STAGES.length,
+    Math.max(completedStages.length, requestedIndex, 0)
+  );
+
+  return {
+    stages,
+    currentStageIndex,
+    lastCompletedStageKey: completedStages[completedStages.length - 1]?.key || "",
+    lastCompletedOn: completedStages[completedStages.length - 1]?.completedOn || "",
+    activeStage: currentStageIndex < INSPECTION_STAGES.length ? INSPECTION_STAGES[currentStageIndex] : null,
+    isFullyCompleted: currentStageIndex >= INSPECTION_STAGES.length,
+  };
+};
+const buildStageDashboardRow = (row) => {
+  const progress = getInspectionProgress(row);
+  return {
+    ...row,
+    inspectionProgress: {
+      stages: progress.stages,
+      currentStageIndex: progress.currentStageIndex,
+      lastCompletedStageKey: progress.lastCompletedStageKey,
+      lastCompletedOn: progress.lastCompletedOn,
+    },
+    activeStage: progress.activeStage,
+    isFullyCompleted: progress.isFullyCompleted,
+  };
+};
+const buildStageCounts = (rows) => {
+  const counts = INSPECTION_STAGES.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    pendingCount: 0,
+    completedCount: 0,
+  }));
+
+  rows.forEach((row) => {
+    const progress = getInspectionProgress(row);
+    progress.stages.forEach((stage, index) => {
+      if (stage.completedOn) {
+        counts[index].completedCount += 1;
+      }
+    });
+    if (progress.activeStage) {
+      const activeIndex = INSPECTION_STAGES.findIndex((stage) => stage.key === progress.activeStage.key);
+      if (activeIndex >= 0) {
+        counts[activeIndex].pendingCount += 1;
+      }
+    }
+  });
+
+  return counts;
+};
 const findDuplicateSerialNumber = (values) => {
   const seen = new Set();
 
@@ -127,55 +225,34 @@ const ensureUniqueWagonIdentifiers = async ({ rowId, texNo, wagonNo }) => {
 router.get("/projects", async (_req, res) => {
   try {
     const projects = await WagonDataSheetProject.find().sort({ createdAt: -1 }).lean();
-
     const ids = projects.map((project) => project._id);
-    const rowSummary = await WagonDataSheetRow.aggregate([
-      { $match: { projectId: { $in: ids } } },
-      {
-        $group: {
-          _id: "$projectId",
-          totalRows: { $sum: 1 },
-          completedRows: {
-            $sum: {
-              $cond: [{ $ifNull: ["$firstZone.submittedAt", false] }, 1, 0],
-            },
-          },
-          finalCompletedRows: {
-            $sum: {
-              $cond: [{ $ifNull: ["$finalAssembly.submittedAt", false] }, 1, 0],
-            },
-          },
-          finalPendingRows: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $ifNull: ["$firstZone.submittedAt", false] },
-                    { $not: [{ $ifNull: ["$finalAssembly.submittedAt", false] }] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-        },
-      },
-    ]);
+    const projectRows = ids.length
+      ? await WagonDataSheetRow.find({ projectId: { $in: ids } }).lean()
+      : [];
+    const rowMap = new Map();
 
-    const summaryMap = new Map(rowSummary.map((item) => [String(item._id), item]));
+    projectRows.forEach((row) => {
+      const key = String(row.projectId || "");
+      if (!rowMap.has(key)) {
+        rowMap.set(key, []);
+      }
+      rowMap.get(key).push(row);
+    });
 
     res.json({
       success: true,
       data: projects.map((project) => {
-        const summary = summaryMap.get(String(project._id));
+        const rows = rowMap.get(String(project._id)) || [];
+        const stageCounts = buildStageCounts(rows);
+        const completedRows = rows.filter((row) => getInspectionProgress(row).isFullyCompleted).length;
         return {
           ...project,
-          totalRows: summary?.totalRows || 0,
-          completedRows: summary?.completedRows || 0,
-          pendingRows: (summary?.totalRows || 0) - (summary?.completedRows || 0),
-          finalCompletedRows: summary?.finalCompletedRows || 0,
-          finalPendingRows: summary?.finalPendingRows || 0,
+          totalRows: rows.length,
+          completedRows,
+          pendingRows: rows.length - completedRows,
+          finalCompletedRows: completedRows,
+          finalPendingRows: stageCounts.find((stage) => stage.key === "dm_line")?.pendingCount || 0,
+          stageCounts,
         };
       }),
     });
@@ -226,10 +303,42 @@ router.get("/projects/:projectId/detail", async (req, res) => {
       return res.status(404).json({ success: false, message: "Project not found." });
     }
 
-    const rows = await attachLinkedWheelDataRows(rawRows);
+    const rows = (await attachLinkedWheelDataRows(rawRows)).map(buildStageDashboardRow);
     res.json({ success: true, data: { project, rows } });
   } catch (error) {
     console.error("Error fetching wagon data sheet project detail:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get("/projects/:projectId/stage-dashboard", async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ success: false, message: "Valid projectId is required." });
+    }
+
+    const [project, rows] = await Promise.all([
+      WagonDataSheetProject.findById(projectId).lean(),
+      WagonDataSheetRow.find({ projectId }).sort({ createdAt: 1 }).lean(),
+    ]);
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found." });
+    }
+
+    const dashboardRows = rows.map(buildStageDashboardRow);
+    res.json({
+      success: true,
+      data: {
+        project,
+        stages: INSPECTION_STAGES,
+        stageCounts: buildStageCounts(rows),
+        rows: dashboardRows,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching wagon stage dashboard:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -246,6 +355,101 @@ router.get("/rows", async (req, res) => {
   } catch (error) {
     console.error("Error fetching wagon data sheet rows:", error);
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post("/rows/stage-entry", async (req, res) => {
+  try {
+    const projectId = asProjectIdOrNull(req.body.projectId);
+    const texNo = asText(req.body.texNo);
+
+    if (!projectId) {
+      return res.status(400).json({ success: false, message: "Valid projectId is required." });
+    }
+    if (!texNo) {
+      return res.status(400).json({ success: false, message: "TEX No. is required." });
+    }
+
+    await ensureUniqueWagonIdentifiers({ texNo, wagonNo: "" });
+
+    const existingRow = await WagonDataSheetRow.findOne({
+      projectId,
+      texNo: buildExactMatchRegex(texNo),
+    })
+      .select("_id")
+      .lean();
+
+    if (existingRow) {
+      return res.status(400).json({ success: false, message: "TEX No. already exists in this project." });
+    }
+
+    const row = await WagonDataSheetRow.create({
+      projectId,
+      slNo: await getNextSlNo(projectId),
+      texNo,
+      wheelDataKey: createInternalWheelDataKey("STAGE"),
+      inspectionProgress: {
+        stages: createDefaultInspectionStages(),
+        currentStageIndex: 0,
+        lastCompletedStageKey: "",
+        lastCompletedOn: "",
+      },
+    });
+
+    res.status(201).json({ success: true, data: buildStageDashboardRow(row.toObject()) });
+  } catch (error) {
+    console.error("Error creating wagon stage entry:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+router.patch("/rows/:rowId/stages/:stageKey/complete", async (req, res) => {
+  try {
+    const { rowId, stageKey } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(rowId)) {
+      return res.status(400).json({ success: false, message: "Valid rowId is required." });
+    }
+
+    const row = await WagonDataSheetRow.findById(rowId);
+    if (!row) {
+      return res.status(404).json({ success: false, message: "Wagon row not found." });
+    }
+
+    const progress = getInspectionProgress(row.toObject());
+    const expectedStage = progress.activeStage;
+
+    if (!expectedStage) {
+      return res.status(400).json({ success: false, message: "All stages are already completed." });
+    }
+    if (expectedStage.key !== stageKey) {
+      return res.status(400).json({
+        success: false,
+        message: `Only the current pending stage can be completed. Pending stage: ${expectedStage.label}.`,
+      });
+    }
+
+    const stages = progress.stages.map((stage) =>
+      stage.key === stageKey
+        ? {
+            ...stage,
+            completedOn: asText(req.body.completedOn) || formatStageDate(),
+            completedBy: asSubmittedBy(req.body),
+          }
+        : stage
+    );
+
+    row.inspectionProgress = {
+      stages,
+      currentStageIndex: Math.min(progress.currentStageIndex + 1, INSPECTION_STAGES.length),
+      lastCompletedStageKey: stageKey,
+      lastCompletedOn: stages.find((stage) => stage.key === stageKey)?.completedOn || formatStageDate(),
+    };
+
+    await row.save();
+    res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
+  } catch (error) {
+    console.error("Error completing wagon stage:", error);
+    res.status(400).json({ success: false, message: error.message });
   }
 });
 

@@ -35,6 +35,16 @@ const submissionBySchema = new mongoose.Schema(
   { _id: false }
 );
 
+const inspectionStageSchema = new mongoose.Schema(
+  {
+    key: { type: String, default: "", trim: true },
+    label: { type: String, default: "", trim: true },
+    completedOn: { type: String, default: "", trim: true },
+    completedBy: { type: submissionBySchema, default: () => ({}) },
+  },
+  { _id: false }
+);
+
 const WagonDataSheetRowSchema = new mongoose.Schema(
   {
     projectId: {
@@ -98,6 +108,12 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
       },
       linkedBogiePosition: { type: String, default: "", trim: true },
       linkedAt: { type: Date, default: null },
+    },
+    inspectionProgress: {
+      stages: { type: [inspectionStageSchema], default: [] },
+      currentStageIndex: { type: Number, default: 0 },
+      lastCompletedStageKey: { type: String, default: "", trim: true },
+      lastCompletedOn: { type: String, default: "", trim: true },
     },
   },
   { timestamps: true }

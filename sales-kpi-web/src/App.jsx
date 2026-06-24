@@ -30,6 +30,8 @@ import WagonDataSheetSecondZoneForm from './screens/quality/WagonDataSheetSecond
 import WagonDataSheetFinalDetailsForm from './screens/quality/WagonDataSheetFinalDetailsForm';
 import WagonDataSheetProjectDetail from './screens/quality/WagonDataSheetProjectDetail';
 import WagonDataSheetInspectorHistory from './screens/quality/WagonDataSheetInspectorHistory';
+import WagonDataSheetInspectorDashboard from './screens/quality/WagonDataSheetInspectorDashboard';
+import WagonDataSheetAdminDashboard from './screens/quality/WagonDataSheetAdminDashboard';
 import EquipmentMaintenanceScreen from './screens/maintenance/EquipmentMaintenanceScreen';
 import EquipmentMasterForm from './screens/maintenance/EquipmentMasterForm';
 import MaintenanceDashboard from "./screens/maintenance/MaintenanceDashboard.jsx";
@@ -347,7 +349,7 @@ const LayoutWrapper = ({ children }) => {
   </span>
   {wagonDataSheetOpen && (
     <ul className="nav flex-column ms-3">
-      {!isGroundInspector && (
+      {role === "admin" && (
       <li>
         <Link
           to="/quality/wagon-data-sheet/projects"
@@ -358,33 +360,59 @@ const LayoutWrapper = ({ children }) => {
         </Link>
       </li>
       )}
-      <li>
-        <Link
-          to="/quality/wagon-data-sheet/first-zone"
-          className="nav-link text-white"
-          onClick={handleLinkClick}
-        >
-          First Zone
-        </Link>
-      </li>
-      <li>
-        <Link
-          to="/quality/wagon-data-sheet/second-zone"
-          className="nav-link text-white"
-          onClick={handleLinkClick}
-        >
-          Second Zone
-        </Link>
-      </li>
-      <li>
-        <Link
-          to="/quality/wagon-data-sheet/final-details"
-          className="nav-link text-white"
-          onClick={handleLinkClick}
-        >
-          Final Details
-        </Link>
-      </li>
+      {(role === "admin" || isGroundInspector) && (
+        <li>
+          <Link
+            to="/quality/wagon-data-sheet"
+            className="nav-link text-white"
+            onClick={handleLinkClick}
+          >
+            Wagon Data Sheet Home
+          </Link>
+        </li>
+      )}
+      {(role === "admin" || isGroundInspector) && (
+        <li>
+          <Link
+            to="/quality/wagon-data-sheet/stage-dashboard"
+            className="nav-link text-white"
+            onClick={handleLinkClick}
+          >
+            {isGroundInspector ? "Stage Inspection" : "Stage Dashboard"}
+          </Link>
+        </li>
+      )}
+      {isGroundInspector && (
+        <>
+          <li>
+            <Link
+              to="/quality/wagon-data-sheet/first-zone"
+              className="nav-link text-white"
+              onClick={handleLinkClick}
+            >
+              Zone 1
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/quality/wagon-data-sheet/second-zone"
+              className="nav-link text-white"
+              onClick={handleLinkClick}
+            >
+              Zone 2
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/quality/wagon-data-sheet/final-details"
+              className="nav-link text-white"
+              onClick={handleLinkClick}
+            >
+              Zone 3
+            </Link>
+          </li>
+        </>
+      )}
     </ul>
   )}
 </li>
@@ -671,15 +699,27 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet"
             element={
-              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["ground-inspector"]}>
                 <WagonDataSheetModule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/stage-dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["ground-inspector"]}>
+                {localStorage.getItem("role") === "ground-inspector" ? (
+                  <WagonDataSheetInspectorDashboard />
+                ) : (
+                  <WagonDataSheetAdminDashboard />
+                )}
               </ProtectedRoute>
             }
           />
           <Route
             path="/quality/wagon-data-sheet/projects"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["admin"]}>
                 <WagonDataSheetProjectForm />
               </ProtectedRoute>
             }
@@ -687,7 +727,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/projects/:projectId"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["admin"]}>
                 <WagonDataSheetProjectDetail />
               </ProtectedRoute>
             }
@@ -695,7 +735,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/first-zone"
             element={
-              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["ground-inspector"]}>
                 <WagonDataSheetSecondZoneForm />
               </ProtectedRoute>
             }
@@ -703,7 +743,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/second-zone"
             element={
-              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["ground-inspector"]}>
                 <WagonDataSheetFirstZoneForm />
               </ProtectedRoute>
             }
@@ -711,7 +751,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/final-details"
             element={
-              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["ground-inspector"]}>
                 <WagonDataSheetFinalDetailsForm />
               </ProtectedRoute>
             }
@@ -719,7 +759,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/my-submissions"
             element={
-              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["ground-inspector"]}>
                 <WagonDataSheetInspectorHistory />
               </ProtectedRoute>
             }

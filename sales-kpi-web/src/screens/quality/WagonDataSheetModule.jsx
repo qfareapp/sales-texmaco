@@ -4,8 +4,48 @@ import { useNavigate } from "react-router-dom";
 
 export default function WagonDataSheetModule() {
   const navigate = useNavigate();
-  const role = localStorage.getItem("role");
+  const role = localStorage.getItem("role") || "";
   const isGroundInspector = role === "ground-inspector";
+  const isAdmin = role === "admin";
+
+  const actions = [
+    isAdmin && {
+      label: "Project Setup",
+      color: "primary",
+      onClick: () => navigate("/quality/wagon-data-sheet/projects"),
+    },
+    isAdmin && {
+      label: "Stage Dashboard",
+      color: "success",
+      onClick: () => navigate("/quality/wagon-data-sheet/stage-dashboard"),
+    },
+    isGroundInspector && {
+      label: "Stage Inspection Dashboard",
+      color: "success",
+      onClick: () => navigate("/quality/wagon-data-sheet/stage-dashboard"),
+    },
+    isGroundInspector && {
+      label: "Zone 1 Form",
+      color: "warning",
+      onClick: () => navigate("/quality/wagon-data-sheet/first-zone"),
+    },
+    isGroundInspector && {
+      label: "Zone 2 Form",
+      color: "secondary",
+      onClick: () => navigate("/quality/wagon-data-sheet/second-zone"),
+    },
+    isGroundInspector && {
+      label: "Zone 3 Form",
+      color: "info",
+      onClick: () => navigate("/quality/wagon-data-sheet/final-details"),
+    },
+    isGroundInspector && {
+      label: "My Filled Forms",
+      color: "inherit",
+      variant: "outlined",
+      onClick: () => navigate("/quality/wagon-data-sheet/my-submissions"),
+    },
+  ].filter(Boolean);
 
   return (
     <Box sx={{ p: 3, background: "#eef2ff", minHeight: "100vh" }}>
@@ -13,56 +53,24 @@ export default function WagonDataSheetModule() {
         WAGON DATA SHEET MODULE
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Choose the stage you want to fill.
+        {isGroundInspector
+          ? "Use the zone forms as before, or open the new stage inspection section."
+          : "Open project setup or the stage dashboard for Wagon Data Sheet."}
       </Typography>
 
       <Paper sx={{ p: 3, maxWidth: 900 }}>
         <Stack spacing={2}>
-          {!isGroundInspector && (
+          {actions.map((action) => (
             <Button
-              variant="contained"
-              color="primary"
-              onClick={() => navigate("/quality/wagon-data-sheet/projects")}
+              key={action.label}
+              variant={action.variant || "contained"}
+              color={action.color}
+              onClick={action.onClick}
               sx={{ textTransform: "none", fontWeight: 700, justifyContent: "flex-start" }}
             >
-              📋 Project Setup
+              {action.label}
             </Button>
-          )}
-
-          <Button
-            variant="contained"
-            color="success"
-            onClick={() => navigate("/quality/wagon-data-sheet/first-zone")}
-            sx={{ textTransform: "none", fontWeight: 700, justifyContent: "flex-start" }}
-          >
-            🟩 First Zone Form
-          </Button>
-
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={() => navigate("/quality/wagon-data-sheet/second-zone")}
-            sx={{ textTransform: "none", fontWeight: 700, color: "#111", justifyContent: "flex-start" }}
-          >
-            🟨 Second Zone Form
-          </Button>
-
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => navigate("/quality/wagon-data-sheet/final-details")}
-            sx={{ textTransform: "none", fontWeight: 700, justifyContent: "flex-start" }}
-          >
-            🧾 Final Details Form
-          </Button>
-          <Button
-            variant="outlined"
-            color="info"
-            onClick={() => navigate("/quality/wagon-data-sheet/my-submissions")}
-            sx={{ textTransform: "none", fontWeight: 700, justifyContent: "flex-start" }}
-          >
-            My Filled Forms
-          </Button>
+          ))}
         </Stack>
       </Paper>
     </Box>

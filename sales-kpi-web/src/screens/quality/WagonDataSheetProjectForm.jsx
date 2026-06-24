@@ -211,7 +211,7 @@ export default function WagonDataSheetProjectForm() {
         </Box>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: 7 }}>
-        Blue fields are created once by admin and reused by inspectors in both zones.
+        Create projects here, then use the Wagon Data Sheet dashboard to monitor TEX numbers across all inspection stages.
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
@@ -458,7 +458,7 @@ export default function WagonDataSheetProjectForm() {
           severity="info"
           sx={{ mb: 3, borderRadius: 2 }}
         >
-          Project creation is reserved for admin. Quality inspectors can use the First Zone and Second Zone screens with the available project list.
+          Project creation is reserved for admin. Inspectors can update the stage-wise Wagon Data Sheet only from their inspector account.
         </Alert>
       )}
 
@@ -567,8 +567,8 @@ export default function WagonDataSheetProjectForm() {
                   {/* Stats row */}
                   <Stack direction="row" justifyContent="space-around" divider={<Divider orientation="vertical" flexItem />}>
                     <StatBadge label="Offered" value={project.wagonsOfferedForInspection || "—"} />
-                    <StatBadge label="1st Zone" value={total} color="#0369a1" />
-                    <StatBadge label="Completed" value={completed} color="#15803d" />
+                    <StatBadge label="TEX Rows" value={total} color="#0369a1" />
+                    <StatBadge label="DM Line Done" value={completed} color="#15803d" />
                     <StatBadge label="Pending" value={pending} color={pending > 0 ? "#b45309" : "text.secondary"} />
                   </Stack>
 
@@ -576,7 +576,7 @@ export default function WagonDataSheetProjectForm() {
                   {total > 0 && (
                     <Box>
                       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                        <Typography variant="caption" color="text.secondary">2nd Zone Progress</Typography>
+                        <Typography variant="caption" color="text.secondary">Overall Stage Completion</Typography>
                         <Typography variant="caption" fontWeight={700} color="#15803d">{progress}%</Typography>
                       </Box>
                       <LinearProgress
@@ -592,14 +592,14 @@ export default function WagonDataSheetProjectForm() {
                     </Box>
                   )}
 
-                  {/* Final zone status */}
+                  {/* Final stage status */}
                   {project.finalPendingRows > 0 ? (
                     <Chip
-                      label={`3rd Zone Pending (${project.finalPendingRows})`}
+                      label={`DM Line Pending (${project.finalPendingRows})`}
                       clickable
                       onClick={(event) => {
                         event.stopPropagation();
-                        navigate(`/quality/wagon-data-sheet/final-details?projectId=${project._id}`);
+                        navigate("/quality/wagon-data-sheet");
                       }}
                       sx={{
                         alignSelf: "flex-start",
@@ -611,7 +611,7 @@ export default function WagonDataSheetProjectForm() {
                     />
                   ) : project.finalCompletedRows > 0 ? (
                     <Chip
-                      label="3rd Zone Complete"
+                      label="DM Line Complete"
                       sx={{
                         alignSelf: "flex-start",
                         bgcolor: "#ecfdf5",
@@ -622,7 +622,7 @@ export default function WagonDataSheetProjectForm() {
                     />
                   ) : (
                     <Chip
-                      label="3rd Zone Not Started"
+                      label="Inspection Not Started"
                       sx={{
                         alignSelf: "flex-start",
                         bgcolor: "#f8fafc",

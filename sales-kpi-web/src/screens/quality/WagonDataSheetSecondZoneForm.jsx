@@ -130,6 +130,7 @@ function ComponentRow({ keyName, label, form, handleChange }) {
 }
 
 export default function WagonDataSheetSecondZoneForm() {
+  const role = localStorage.getItem("role") || "";
   const submittedByUsername = localStorage.getItem("username") || "";
   const submittedByRole = localStorage.getItem("role") || "";
   const [form, setForm] = useState(initialForm);
@@ -170,6 +171,14 @@ export default function WagonDataSheetSecondZoneForm() {
       setSaving(false);
     }
   };
+
+  if (role !== "ground-inspector") {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="info">This Wagon Data Sheet form is available only for inspector accounts.</Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, mx: "auto" }}>

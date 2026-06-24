@@ -78,6 +78,7 @@ export default function QualityDashboard() {
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
   const isGroundInspector = role === "ground-inspector";
+  const isAdmin = role === "admin";
 
   const modules = [
     !isGroundInspector && {
@@ -104,11 +105,13 @@ export default function QualityDashboard() {
       color: "orange",
       onClick: () => navigate("/bogie-after-wheel-inspection"),
     },
-    {
+    (isAdmin || isGroundInspector) && {
       key: "wagon-data-sheet",
       icon: "📄",
       title: "Wagon Data Sheet",
-      description: "Enter wheel data, component data, and final assembly details across the three zones.",
+      description: isGroundInspector
+        ? "Add TEX numbers and advance them through each inspection stage."
+        : "Open the admin dashboard to see stage-wise dates and pending inspection counts.",
       color: "green",
       onClick: () => navigate("/quality/wagon-data-sheet"),
     },
@@ -148,7 +151,6 @@ export default function QualityDashboard() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: "auto" }}>
-      {/* ── Page Header ── */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5 }}>
         <Box
           sx={{
@@ -174,10 +176,9 @@ export default function QualityDashboard() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: { xs: 0, sm: 7 } }}>
         {isGroundInspector
           ? "Pick a module below to start an inspection or review what you've already submitted."
-          : "Open inspection forms, reports, and wagon data sheet modules from here."}
+          : "Open inspection forms, reports, and admin dashboards from here."}
       </Typography>
 
-      {/* ── Module Grid ── */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {modules.map((module) => (
           <Grid item xs={12} sm={6} md={4} key={module.key}>
@@ -186,7 +187,6 @@ export default function QualityDashboard() {
         ))}
       </Grid>
 
-      {/* ── Recent Inspection Records ── */}
       <Paper elevation={0} sx={{ borderRadius: 3, border: "1.5px solid #e2e8f0", overflow: "hidden" }}>
         <Box sx={{ px: 3, py: 1.5, bgcolor: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
           <Typography variant="subtitle2" fontWeight={700} color="#374151">
@@ -196,8 +196,8 @@ export default function QualityDashboard() {
         <Box sx={{ p: 3 }}>
           <Typography variant="body2" color="text.secondary">
             {isGroundInspector
-              ? "Choose a quality module first. Opening Wagon Data Sheet will show the three form stages."
-              : "Use the modules above to open inspection forms, reports, and wagon data sheet modules."}
+              ? "Open Wagon Data Sheet to update the current pending stage for each TEX number."
+              : "Open Wagon Data Sheet to review project-wise stage dates and stage pending counts."}
           </Typography>
         </Box>
       </Paper>
