@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -112,6 +112,131 @@ function StageDots({ row, stages, pdiMode = false }) {
           </Box>
         );
       })}
+    </Box>
+  );
+}
+
+// Slide-to-complete: drag the thumb right to confirm action
+function SlideToComplete({ label, onComplete, disabled, color = "#15803d" }) {
+  const trackRef = useRef(null);
+  const startXRef = useRef(0);
+  const maxTravelRef = useRef(0);
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+
+  const THUMB = 44;
+
+  const onDown = (e) => {
+    if (disabled) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    startXRef.current = e.clientX;
+    maxTravelRef.current = trackRef.current
+      ? trackRef.current.getBoundingClientRect().width - THUMB - 8
+      : 200;
+    setDragging(true);
+  };
+
+  const onMove = (e) => {
+    if (!dragging) return;
+    const travel = Math.max(0, Math.min(e.clientX - startXRef.current, maxTravelRef.current));
+    setDragX(travel);
+  };
+
+  const onUp = () => {
+    if (!dragging) return;
+    setDragging(false);
+    if (dragX >= maxTravelRef.current * 0.82) {
+      onComplete();
+    }
+    setDragX(0);
+  };
+
+  const progress = maxTravelRef.current > 0 ? dragX / maxTravelRef.current : 0;
+  const snap = "0.25s cubic-bezier(0.34,1.56,0.64,1)";
+
+  return (
+    <Box
+      ref={trackRef}
+      sx={{
+        position: "relative",
+        height: 52,
+        borderRadius: 26,
+        bgcolor: "#f1f5f9",
+        border: `1.5px solid ${disabled ? "#d1d5db" : color}`,
+        overflow: "hidden",
+        userSelect: "none",
+        opacity: disabled ? 0.55 : 1,
+      }}
+    >
+      {/* Colored fill that grows with drag */}
+      <Box
+        sx={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: dragX + THUMB + 4,
+          minWidth: THUMB + 4,
+          bgcolor: color,
+          borderRadius: "inherit",
+          transition: dragging ? "none" : `width ${snap}`,
+        }}
+      />
+
+      {/* Centered label — shifts color once fill covers it */}
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+          pl: `${THUMB + 12}px`,
+          pr: 2,
+        }}
+      >
+        <Typography
+          fontWeight={800}
+          fontSize="0.83rem"
+          letterSpacing={0.3}
+          noWrap
+          sx={{ color: progress > 0.4 ? "rgba(255,255,255,0.95)" : "#374151", transition: "color 0.15s" }}
+        >
+          {label}
+        </Typography>
+      </Box>
+
+      {/* Draggable thumb circle */}
+      <Box
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        sx={{
+          position: "absolute",
+          left: 4 + dragX,
+          top: 4,
+          width: THUMB,
+          height: THUMB,
+          borderRadius: "50%",
+          bgcolor: "white",
+          boxShadow: dragging ? "0 4px 18px rgba(0,0,0,0.22)" : "0 2px 8px rgba(0,0,0,0.16)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: disabled ? "not-allowed" : "grab",
+          touchAction: "none",
+          transition: dragging ? "none" : `left ${snap}`,
+          zIndex: 2,
+          "&:active": { cursor: "grabbing" },
+        }}
+      >
+        <Typography sx={{ color, fontSize: "1.05rem", letterSpacing: -2, lineHeight: 1, fontWeight: 900, mt: "1px" }}>
+          ›››
+        </Typography>
+      </Box>
     </Box>
   );
 }
@@ -242,25 +367,12 @@ function MobileStageCard({ row, index, stages, onComplete, saving, pdiMode = fal
                 sx={{ bgcolor: stageBg, color: stageColor, fontWeight: 700, fontSize: "0.75rem" }}
               />
             </Box>
-            <Button
-              fullWidth
-              variant="contained"
+            <SlideToComplete
+              label="Slide to complete"
+              onComplete={() => onComplete(row)}
               disabled={saving}
-              onClick={() => onComplete(row)}
-              sx={{
-                bgcolor: btnBg,
-                "&:hover": { bgcolor: btnHover },
-                "&:disabled": { bgcolor: "#d1d5db" },
-                fontWeight: 800,
-                borderRadius: 2,
-                textTransform: "none",
-                py: 1.3,
-                fontSize: "0.92rem",
-                boxShadow: `0 4px 14px ${pdiMode ? "rgba(29,78,216,0.28)" : "rgba(21,128,61,0.3)"}`,
-              }}
-            >
-              ✓ Complete {activeStage.label}
-            </Button>
+              color={btnBg}
+            />
           </>
         ) : null}
       </Box>
@@ -805,10 +917,45 @@ export default function WagonDataSheetInspectorDashboard() {
             </MenuItem>
           ))}
         </TextField>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "flex-end" }}>
-          <StatCard label="Total TEX Nos" value={dashboard.rows?.length || 0} accent="#15803d" />
-          <StatCard label="Daily Pending" value={totalPending} accent={totalPending > 0 ? "#b45309" : "#6b7280"} />
-          <StatCard label="PDI Pending" value={totalPdiPending} accent={totalPdiPending > 0 ? "#1d4ed8" : "#6b7280"} />
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0,
+              borderRadius: 2,
+              border: "1.5px solid #d1fae5",
+              bgcolor: "white",
+              overflow: "hidden",
+              flexShrink: 0,
+            }}
+          >
+            {[
+              { label: "TEX Nos", value: dashboard.rows?.length || 0, color: "#15803d", bg: "#f0fdf4" },
+              { label: "Daily Pending", value: totalPending, color: totalPending > 0 ? "#b45309" : "#6b7280", bg: totalPending > 0 ? "#fffbeb" : "#f9fafb" },
+              { label: "PDI Pending", value: totalPdiPending, color: totalPdiPending > 0 ? "#1d4ed8" : "#6b7280", bg: totalPdiPending > 0 ? "#eff6ff" : "#f9fafb" },
+            ].map(({ label, value, color, bg }, i) => (
+              <Box
+                key={label}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  px: 1.5,
+                  py: 0.9,
+                  bgcolor: bg,
+                  borderLeft: i > 0 ? "1.5px solid #e5e7eb" : "none",
+                }}
+              >
+                <Typography fontWeight={900} fontSize="1.15rem" color={color} sx={{ lineHeight: 1 }}>
+                  {value}
+                </Typography>
+                <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                  {label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
           <Button
             variant="contained"
             onClick={handleCreateWagonInspection}
