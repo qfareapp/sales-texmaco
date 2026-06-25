@@ -92,6 +92,22 @@ const combinedRfidNumbers = (row) =>
     .map((item) => String(item || "").trim())
     .filter(Boolean)
     .join("\n") || "-";
+const linkedBogieAssignments = (row, wheelRow) => {
+  const wheelRowId = String(wheelRow?._id || "");
+  const wheelDataKey = String(wheelRow?.wheelDataKey || "");
+  const assignments = [];
+
+  const bogie1Links = row?.firstZone?.bogie1WheelDataRows || [];
+  const bogie2Links = row?.firstZone?.bogie2WheelDataRows || [];
+
+  const matchesLink = (item) =>
+    String(item?._id || "") === wheelRowId || String(item?.wheelDataKey || "") === wheelDataKey;
+
+  if (bogie1Links.some(matchesLink)) assignments.push("Bogie 1");
+  if (bogie2Links.some(matchesLink)) assignments.push("Bogie 2");
+
+  return assignments.join(", ") || "-";
+};
 
 const applyCellStyle = (ws, ref, style) => {
   if (ws[ref]) ws[ref].s = style;
@@ -385,6 +401,46 @@ export default function WagonDataSheetProjectDetail() {
   const handleDownloadOfferPdf = async () => { if (project) await downloadWagonOfferPdf(project, rows); };
   const handleDownloadElectronicsWorkbook = () => { if (project) downloadWagonElectronicsWorkbook(project, rows); };
   const handleDownloadCocWorkbook = () => { if (project) downloadWagonCocWorkbook(project, rows); };
+  const handleDownloadFirstZoneExcel = () => {
+    if (!project) return;
+
+    const workbookRows = rows.flatMap((row, rowIndex) =>
+      (row.linkedWheelDataRows || []).map((wheelRow, wheelIndex) => ({
+        "SL No.": rowIndex + 1,
+        "TEX No.": safeText(row.texNo),
+        "Wagon No.": safeText(row.wagonNo),
+        "Configuration": safeText(row.wagonConfiguration),
+        "Linked Bogie": linkedBogieAssignments(row, wheelRow),
+        "Wheel Data Link": safeText(wheelRow?.wheelDataKey),
+        "Zone 1 Entry No.": wheelIndex + 1,
+        "Axle Make": safeText(wheelRow?.secondZone?.axle?.make),
+        "Axle Serial Numbers": safeJoinSerials(wheelRow?.secondZone?.axle?.serialNumbers),
+        "Wheel Make": safeText(wheelRow?.secondZone?.wheel?.make),
+        "Wheel Serial Numbers": safeJoinSerials(wheelRow?.secondZone?.wheel?.serialNumbers),
+        "Bearing Make": safeText(wheelRow?.secondZone?.bearing?.make),
+        "Bearing Serial Numbers": safeJoinSerials(wheelRow?.secondZone?.bearing?.serialNumbers),
+        "Submitted By": safeText(wheelRow?.secondZone?.submittedBy?.username),
+        "Submitted At": formatDateTime(wheelRow?.secondZone?.submittedAt),
+      }))
+    );
+
+    const ws = XLSX.utils.json_to_sheet(
+      workbookRows.length > 0 ? workbookRows : [{ Note: "No first zone records linked to this project yet." }]
+    );
+    ws["!cols"] = [
+      { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 16 },
+      { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 24 }, { wch: 16 },
+      { wch: 24 }, { wch: 16 }, { wch: 24 }, { wch: 18 }, { wch: 24 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "First Zone Details");
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    saveAs(
+      new Blob([buffer], { type: "application/octet-stream" }),
+      `First_Zone_Details_${fileSafe(project.projectName)}.xlsx`
+    );
+  };
 
   if (!isQualityModuleAdmin) {
     return (
@@ -395,6 +451,7 @@ export default function WagonDataSheetProjectDetail() {
   }
 
   const reportButtons = [
+    { label: "1st Zone .xlsx", full: "Filled First Zone Form Details.xlsx", handler: handleDownloadFirstZoneExcel },
     { label: "Offer .xlsx",    full: "Wagon Offer Copy.xlsx",              handler: handleDownloadOfferWorkbook },
     { label: "Offer .pdf",     full: "Wagon Offer Copy.pdf",               handler: handleDownloadOfferPdf },
     { label: "Electronics",   full: "Wagon Electronics Data Sheet.xlsx",  handler: handleDownloadElectronicsWorkbook },
