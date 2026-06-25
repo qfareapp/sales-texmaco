@@ -235,11 +235,11 @@ export default function WagonDataSheetAdminDashboard() {
         />
 
         <ReadOnlyStageTable
-          title="BLSS PDI Status"
+          title="PDI Status"
           rows={pdiRows}
           stages={pdiStages}
           counts={dashboard.pdiStageCounts || []}
-          projectName={dashboard.project?.projectName || ""}
+          projectName=""
           pdiMode
         />
       </Box>
