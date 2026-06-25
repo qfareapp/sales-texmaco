@@ -6,15 +6,20 @@ export default function WagonDataSheetModule() {
   const navigate = useNavigate();
   const role = localStorage.getItem("role") || "";
   const isGroundInspector = role === "ground-inspector";
-  const isAdmin = role === "admin";
+  const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
 
   const actions = [
-    isAdmin && {
+    isQualityModuleAdmin && {
+      label: "Admin Overview",
+      color: "info",
+      onClick: () => navigate("/quality/wagon-data-sheet/overview"),
+    },
+    isQualityModuleAdmin && {
       label: "Project Setup",
       color: "primary",
       onClick: () => navigate("/quality/wagon-data-sheet/projects"),
     },
-    isAdmin && {
+    isQualityModuleAdmin && {
       label: "Stage Dashboard",
       color: "success",
       onClick: () => navigate("/quality/wagon-data-sheet/stage-dashboard"),

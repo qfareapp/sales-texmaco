@@ -78,7 +78,7 @@ export default function QualityDashboard() {
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
   const isGroundInspector = role === "ground-inspector";
-  const isAdmin = role === "admin";
+  const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
 
   const modules = [
     !isGroundInspector && {
@@ -105,7 +105,7 @@ export default function QualityDashboard() {
       color: "orange",
       onClick: () => navigate("/bogie-after-wheel-inspection"),
     },
-    (isAdmin || isGroundInspector) && {
+    (isQualityModuleAdmin || isGroundInspector) && {
       key: "wagon-data-sheet",
       icon: "📄",
       title: "Wagon Data Sheet",

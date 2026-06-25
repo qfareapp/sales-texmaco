@@ -126,6 +126,7 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
 
 export default function WagonDataSheetAdminDashboard() {
   const role = localStorage.getItem("role") || "";
+  const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [dashboard, setDashboard] = useState({
@@ -175,10 +176,10 @@ export default function WagonDataSheetAdminDashboard() {
     [dashboard.rows]
   );
 
-  if (role !== "admin") {
+  if (!isQualityModuleAdmin) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="info">This Wagon Data Sheet dashboard is available only for admin accounts.</Alert>
+        <Alert severity="info">This Wagon Data Sheet dashboard is available only for quality admin accounts.</Alert>
       </Box>
     );
   }

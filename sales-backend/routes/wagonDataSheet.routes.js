@@ -213,6 +213,96 @@ const buildPdiCounts = (rows) => {
 
   return counts;
 };
+const parseStageDate = (value) => {
+  const text = asText(value);
+  if (!text) return null;
+  const date = new Date(`${text}T00:00:00+05:30`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+const diffInDays = (fromDate, toDate = new Date()) => {
+  if (!(fromDate instanceof Date) || Number.isNaN(fromDate.getTime())) return null;
+  return Math.max(0, Math.floor((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)));
+};
+const getStageReferenceDate = (row, pdiMode = false) => {
+  const progress = pdiMode ? getPdiProgress(row) : getInspectionProgress(row);
+  const completedDates = progress.stages
+    .map((stage) => parseStageDate(stage.completedOn))
+    .filter(Boolean)
+    .sort((a, b) => b.getTime() - a.getTime());
+
+  if (completedDates.length) {
+    return completedDates[0];
+  }
+  return row?.createdAt ? new Date(row.createdAt) : null;
+};
+const flattenCompletionEvents = (row) => {
+  const dailyEvents = getInspectionProgress(row).stages
+    .filter((stage) => stage.completedOn && asText(stage?.completedBy?.username))
+    .map((stage) => ({
+      type: "daily-stage",
+      stageKey: stage.key,
+      stageLabel: stage.label,
+      date: stage.completedOn,
+      username: asText(stage?.completedBy?.username),
+      role: asText(stage?.completedBy?.role),
+      texNo: asText(row?.texNo),
+      projectId: String(row?.projectId || ""),
+    }));
+
+  const pdiEvents = getPdiProgress(row).stages
+    .filter((stage) => stage.completedOn && asText(stage?.completedBy?.username))
+    .map((stage) => ({
+      type: "pdi-stage",
+      stageKey: stage.key,
+      stageLabel: stage.label,
+      date: stage.completedOn,
+      username: asText(stage?.completedBy?.username),
+      role: asText(stage?.completedBy?.role),
+      texNo: asText(row?.texNo),
+      projectId: String(row?.projectId || ""),
+    }));
+
+  const formEvents = [
+    row?.firstZone?.submittedAt && asText(row?.firstZone?.submittedBy?.username)
+      ? {
+          type: "zone-2-form",
+          stageKey: "zone_2_form",
+          stageLabel: "Zone 2 Form",
+          date: formatStageDate(new Date(row.firstZone.submittedAt)),
+          username: asText(row?.firstZone?.submittedBy?.username),
+          role: asText(row?.firstZone?.submittedBy?.role),
+          texNo: asText(row?.texNo),
+          projectId: String(row?.projectId || ""),
+        }
+      : null,
+    row?.secondZone?.submittedAt && asText(row?.secondZone?.submittedBy?.username)
+      ? {
+          type: "zone-1-form",
+          stageKey: "zone_1_form",
+          stageLabel: "Zone 1 Form",
+          date: formatStageDate(new Date(row.secondZone.submittedAt)),
+          username: asText(row?.secondZone?.submittedBy?.username),
+          role: asText(row?.secondZone?.submittedBy?.role),
+          texNo: asText(row?.texNo),
+          projectId: String(row?.projectId || ""),
+        }
+      : null,
+    row?.finalAssembly?.submittedAt && asText(row?.finalAssembly?.submittedBy?.username)
+      ? {
+          type: "zone-3-form",
+          stageKey: "zone_3_form",
+          stageLabel: "Zone 3 Form",
+          date: formatStageDate(new Date(row.finalAssembly.submittedAt)),
+          username: asText(row?.finalAssembly?.submittedBy?.username),
+          role: asText(row?.finalAssembly?.submittedBy?.role),
+          texNo: asText(row?.texNo),
+          projectId: String(row?.projectId || ""),
+        }
+      : null,
+  ].filter(Boolean);
+
+  return [...dailyEvents, ...pdiEvents, ...formEvents];
+};
 const hasCompletedStage = (row, stageKey) =>
   getInspectionProgress(row).stages.some((stage) => stage.key === stageKey && stage.completedOn);
 const isPdiActivated = (row) => getPdiProgress(row).isActivated;
@@ -435,6 +525,195 @@ router.get("/projects/:projectId/stage-dashboard", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching wagon stage dashboard:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get("/analytics/overview", async (_req, res) => {
+  try {
+    const [projects, rows] = await Promise.all([
+      WagonDataSheetProject.find().sort({ createdAt: -1 }).lean(),
+      WagonDataSheetRow.find({ projectId: { $ne: null } }).sort({ createdAt: 1 }).lean(),
+    ]);
+
+    const projectMap = new Map(projects.map((project) => [String(project._id), project]));
+    const today = new Date();
+    const todayText = formatStageDate(today);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+
+    const rowsWithProgress = rows.map((row) => {
+      const inspection = getInspectionProgress(row);
+      const pdi = getPdiProgress(row);
+      const project = projectMap.get(String(row.projectId || "")) || null;
+      const currentStageAgeDays = inspection.activeStage ? diffInDays(getStageReferenceDate(row, false), today) : null;
+      const currentPdiAgeDays = pdi.activeStage ? diffInDays(getStageReferenceDate(row, true), today) : null;
+      return {
+        ...row,
+        project,
+        inspection,
+        pdi,
+        currentStageAgeDays,
+        currentPdiAgeDays,
+      };
+    });
+
+    const stageCounts = buildStageCounts(rows);
+    const pdiStageCounts = buildPdiCounts(rows);
+    const completionEvents = rowsWithProgress.flatMap(flattenCompletionEvents);
+
+    const overall = {
+      totalProjects: projects.length,
+      totalTexNos: rowsWithProgress.filter((row) => asText(row.texNo)).length,
+      totalWagonInspections: rowsWithProgress.length,
+      dailyInProgress: rowsWithProgress.filter((row) => row.inspection.activeStage).length,
+      pdiInProgress: rowsWithProgress.filter((row) => row.pdi.activeStage).length,
+      fullyCompletedWagons: rowsWithProgress.filter((row) => !row.inspection.activeStage).length,
+      completionPercent: rowsWithProgress.length
+        ? Number(((rowsWithProgress.filter((row) => !row.inspection.activeStage).length / rowsWithProgress.length) * 100).toFixed(1))
+        : 0,
+      reachedDmLine: rowsWithProgress.filter((row) => row.pdi.isActivated).length,
+      waitingInPdi: rowsWithProgress.filter((row) => row.pdi.isActivated && row.pdi.activeStage).length,
+      finalPdiCleared: rowsWithProgress.filter((row) => row.pdi.isFullyCompleted).length,
+      readyForZone2: rowsWithProgress.filter((row) => row.pdi.isActivated).length,
+      zone2Started: rowsWithProgress.filter((row) => row.firstZone?.submittedAt).length,
+      zone2Completed: rowsWithProgress.filter((row) => row.firstZone?.submittedAt).length,
+      fullyDocumented: rowsWithProgress.filter((row) => row.pdi.isFullyCompleted && row.firstZone?.submittedAt && row.finalAssembly?.submittedAt).length,
+      inspectionsCompletedToday: completionEvents.filter((event) => event.date === todayText).length,
+      inspectionsCompletedThisWeek: completionEvents.filter((event) => {
+        const date = parseStageDate(event.date);
+        return date && date >= weekAgo;
+      }).length,
+    };
+
+    const projectPerformance = projects.map((project) => {
+      const projectRows = rowsWithProgress.filter((row) => String(row.projectId || "") === String(project._id));
+      const completed = projectRows.filter((row) => !row.inspection.activeStage).length;
+      const readyForZone2 = projectRows.filter((row) => row.pdi.isActivated).length;
+      return {
+        projectId: String(project._id),
+        projectName: project.projectName || "Untitled Project",
+        contractPoNumber: project.contractPoNumber || "",
+        totalTexNos: projectRows.length,
+        dailyPending: projectRows.filter((row) => row.inspection.activeStage).length,
+        pdiPending: projectRows.filter((row) => row.pdi.activeStage).length,
+        completed,
+        readyForZone2,
+        completionPercent: projectRows.length ? Number(((completed / projectRows.length) * 100).toFixed(1)) : 0,
+      };
+    });
+
+    const cycleDurations = rowsWithProgress
+      .map((row) => {
+        const firstDaily = parseStageDate(row.inspection.stages[0]?.completedOn);
+        const dmComplete = parseStageDate(row.inspection.stages.find((stage) => stage.key === "dm_line")?.completedOn);
+        const firstPdi = parseStageDate(row.pdi.stages[0]?.completedOn);
+        const finalPdi = parseStageDate(row.pdi.lastCompletedOn);
+        return {
+          ufToDmDays: firstDaily && dmComplete ? diffInDays(firstDaily, dmComplete) : null,
+          dmToPdiCloseDays: firstPdi && finalPdi ? diffInDays(firstPdi, finalPdi) : null,
+          totalCycleDays: firstDaily && dmComplete ? diffInDays(firstDaily, dmComplete) : null,
+        };
+      })
+      .filter(Boolean);
+
+    const average = (values) => {
+      const clean = values.filter((value) => Number.isFinite(value));
+      return clean.length ? Number((clean.reduce((sum, value) => sum + value, 0) / clean.length).toFixed(1)) : 0;
+    };
+
+    const pendingRows = rowsWithProgress.filter((row) => row.inspection.activeStage || row.pdi.activeStage);
+    const oldestPendingRow = [...pendingRows]
+      .sort((a, b) => {
+        const aAge = Math.max(a.currentStageAgeDays || 0, a.currentPdiAgeDays || 0);
+        const bAge = Math.max(b.currentStageAgeDays || 0, b.currentPdiAgeDays || 0);
+        return bAge - aAge;
+      })[0] || null;
+
+    const aging = {
+      averageUfToDmDays: average(cycleDurations.map((item) => item.ufToDmDays)),
+      averageDmToPdiCloseDays: average(cycleDurations.map((item) => item.dmToPdiCloseDays)),
+      averageTotalCycleDays: average(cycleDurations.map((item) => item.totalCycleDays)),
+      oldestPending: oldestPendingRow
+        ? {
+            texNo: oldestPendingRow.texNo || "New Wagon",
+            projectName: oldestPendingRow.project?.projectName || "",
+            currentStage: oldestPendingRow.pdi.activeStage?.label || oldestPendingRow.inspection.activeStage?.label || "Completed",
+            ageDays: Math.max(oldestPendingRow.currentStageAgeDays || 0, oldestPendingRow.currentPdiAgeDays || 0),
+          }
+        : null,
+      pendingOver3Days: pendingRows.filter((row) => Math.max(row.currentStageAgeDays || 0, row.currentPdiAgeDays || 0) > 3).length,
+      pendingOver7Days: pendingRows.filter((row) => Math.max(row.currentStageAgeDays || 0, row.currentPdiAgeDays || 0) > 7).length,
+      stalledWagons: pendingRows
+        .filter((row) => Math.max(row.currentStageAgeDays || 0, row.currentPdiAgeDays || 0) > 3)
+        .slice(0, 10)
+        .map((row) => ({
+          texNo: row.texNo || "New Wagon",
+          projectName: row.project?.projectName || "",
+          currentStage: row.pdi.activeStage?.label || row.inspection.activeStage?.label || "Completed",
+          ageDays: Math.max(row.currentStageAgeDays || 0, row.currentPdiAgeDays || 0),
+        })),
+    };
+
+    const inspectorMap = new Map();
+    completionEvents.forEach((event) => {
+      if (!event.username) return;
+      if (!inspectorMap.has(event.username)) {
+        inspectorMap.set(event.username, {
+          username: event.username,
+          role: event.role || "",
+          totalCompletions: 0,
+          dailyStageCompletions: 0,
+          pdiStageCompletions: 0,
+          formSubmissions: 0,
+          completedToday: 0,
+          completedThisWeek: 0,
+        });
+      }
+      const inspector = inspectorMap.get(event.username);
+      inspector.totalCompletions += 1;
+      if (event.type === "daily-stage") inspector.dailyStageCompletions += 1;
+      if (event.type === "pdi-stage") inspector.pdiStageCompletions += 1;
+      if (event.type.includes("form")) inspector.formSubmissions += 1;
+      if (event.date === todayText) inspector.completedToday += 1;
+      const eventDate = parseStageDate(event.date);
+      if (eventDate && eventDate >= weekAgo) inspector.completedThisWeek += 1;
+    });
+
+    const stageCompletionsByInspector = [...inspectorMap.values()].sort((a, b) => b.totalCompletions - a.totalCompletions);
+
+    const texFrequency = new Map();
+    rowsWithProgress.forEach((row) => {
+      const texNo = asText(row.texNo);
+      if (!texNo) return;
+      texFrequency.set(texNo.toUpperCase(), (texFrequency.get(texNo.toUpperCase()) || 0) + 1);
+    });
+
+    const dataQuality = {
+      rowsWithoutTexNo: rowsWithProgress.filter((row) => !asText(row.texNo)).length,
+      duplicateTexNos: [...texFrequency.entries()]
+        .filter(([, count]) => count > 1)
+        .map(([texNo, count]) => ({ texNo, count })),
+      rowsStuckWithoutActiveStage: rowsWithProgress.filter((row) => !row.inspection.activeStage && !row.pdi.isFullyCompleted).length,
+      rowsReachedPdiButNotActivated: rowsWithProgress.filter((row) => row.inspection.activeStage?.key === "dm_line" && !row.pdi.isActivated).length,
+      zone2PendingThoughEligible: rowsWithProgress.filter((row) => row.pdi.isActivated && !row.firstZone?.submittedAt).length,
+      incompleteRequiredForms: rowsWithProgress.filter((row) => row.firstZone?.submittedAt && (!asText(row.wagonConfiguration) || !asText(row.wagonNo))).length,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        overall,
+        stageCounts,
+        pdiStageCounts,
+        projectPerformance,
+        aging,
+        stageCompletionsByInspector,
+        dataQuality,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching wagon data sheet analytics overview:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

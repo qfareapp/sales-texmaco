@@ -221,6 +221,7 @@ function InfoField({ label, value }) {
 
 export default function WagonDataSheetProjectDetail() {
   const role = localStorage.getItem("role");
+  const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
   const navigate = useNavigate();
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
@@ -385,10 +386,10 @@ export default function WagonDataSheetProjectDetail() {
   const handleDownloadElectronicsWorkbook = () => { if (project) downloadWagonElectronicsWorkbook(project, rows); };
   const handleDownloadCocWorkbook = () => { if (project) downloadWagonCocWorkbook(project, rows); };
 
-  if (role !== "admin") {
+  if (!isQualityModuleAdmin) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="info">This detailed wagon data sheet view is available for admin only.</Alert>
+        <Alert severity="info">This detailed wagon data sheet view is available only for quality admin accounts.</Alert>
       </Box>
     );
   }

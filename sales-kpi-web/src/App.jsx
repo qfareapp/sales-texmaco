@@ -32,6 +32,9 @@ import WagonDataSheetProjectDetail from './screens/quality/WagonDataSheetProject
 import WagonDataSheetInspectorHistory from './screens/quality/WagonDataSheetInspectorHistory';
 import WagonDataSheetInspectorDashboard from './screens/quality/WagonDataSheetInspectorDashboard';
 import WagonDataSheetAdminDashboard from './screens/quality/WagonDataSheetAdminDashboard';
+import WagonDataSheetAdminOverview from './screens/quality/WagonDataSheetAdminOverview';
+import WagonInspectorAccountsPage from './screens/quality/WagonInspectorAccountsPage';
+import InspectorPasswordChangePage from './screens/InspectorPasswordChangePage';
 import EquipmentMaintenanceScreen from './screens/maintenance/EquipmentMaintenanceScreen';
 import EquipmentMasterForm from './screens/maintenance/EquipmentMasterForm';
 import MaintenanceDashboard from "./screens/maintenance/MaintenanceDashboard.jsx";
@@ -49,14 +52,20 @@ import { Navigate } from "react-router-dom";
 function ProtectedRoute({ children, allowedRoles }) {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
+  const mustChangePassword = localStorage.getItem("mustChangePassword") === "true";
+  const isMasterAdmin = role === "admin";
 
   // ✅ Step 1: If user is not logged in at all, redirect immediately
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
+  if (mustChangePassword) {
+    return <Navigate to="/change-password" replace />;
+  }
+
   // ✅ Step 2: If logged in but wrong role, deny access
-  if (role !== "admin" && !allowedRoles.includes(role)) {
+  if (!isMasterAdmin && !allowedRoles.includes(role)) {
     return <Navigate to="/login" replace />;
   }
 
@@ -69,10 +78,13 @@ const LayoutWrapper = ({ children }) => {
   const location = useLocation();
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
-  const standalonePaths = ['/login', '/daily-update', '/daily-production'];
+  const standalonePaths = ['/login', '/change-password', '/daily-update', '/daily-production'];
   const isStandalone = standalonePaths.includes(location.pathname);
   const isGroundInspector = role === "ground-inspector";
-  const homePath = isGroundInspector ? "/quality-dashboard" : "/";
+  const isQualityAdmin = role === "quality-admin";
+  const isMasterAdmin = role === "admin";
+  const isQualityOnlyUser = isGroundInspector || isQualityAdmin;
+  const homePath = isQualityOnlyUser ? "/quality-dashboard" : "/";
 
   const [salesOpen, setSalesOpen] = useState(false);
   const [productionOpen, setProductionOpen] = useState(false);
@@ -130,6 +142,7 @@ const LayoutWrapper = ({ children }) => {
                 localStorage.removeItem("token");
                 localStorage.removeItem("role");
                 localStorage.removeItem("username");
+                localStorage.removeItem("mustChangePassword");
               }
               window.location.href = "/login";
             }}
@@ -159,7 +172,7 @@ const LayoutWrapper = ({ children }) => {
       </Link>
     </li>*/}
 
-    {!isGroundInspector && (
+    {!isQualityOnlyUser && (
     <>
     <li className="nav-item mt-3">
       <span
@@ -247,7 +260,7 @@ const LayoutWrapper = ({ children }) => {
     </>
     )}
 
-    {!isGroundInspector && (
+    {!isQualityOnlyUser && (
     <>
     {/* Production Menu */}
     <li className="nav-item mt-3">
@@ -339,7 +352,7 @@ const LayoutWrapper = ({ children }) => {
   </Link>
 </li>
 
-<li>
+<li style={{ display: 'none' }}>
   <span
     onClick={() => setWagonDataSheetOpen(!wagonDataSheetOpen)}
     className="nav-link text-white"
@@ -349,7 +362,18 @@ const LayoutWrapper = ({ children }) => {
   </span>
   {wagonDataSheetOpen && (
     <ul className="nav flex-column ms-3">
-      {role === "admin" && (
+      {(isMasterAdmin || isQualityAdmin) && (
+      <li>
+        <Link
+          to="/quality/wagon-data-sheet/overview"
+          className="nav-link text-white"
+          onClick={handleLinkClick}
+        >
+          Admin Overview
+        </Link>
+      </li>
+      )}
+      {(isMasterAdmin || isQualityAdmin) && (
       <li>
         <Link
           to="/quality/wagon-data-sheet/projects"
@@ -360,7 +384,7 @@ const LayoutWrapper = ({ children }) => {
         </Link>
       </li>
       )}
-      {(role === "admin" || isGroundInspector) && (
+      {(isMasterAdmin || isQualityAdmin || isGroundInspector) && (
         <li>
           <Link
             to="/quality/wagon-data-sheet"
@@ -371,7 +395,7 @@ const LayoutWrapper = ({ children }) => {
           </Link>
         </li>
       )}
-      {(role === "admin" || isGroundInspector) && (
+      {(isMasterAdmin || isQualityAdmin || isGroundInspector) && (
         <li>
           <Link
             to="/quality/wagon-data-sheet/stage-dashboard"
@@ -427,23 +451,99 @@ const LayoutWrapper = ({ children }) => {
   </Link>
 </li>
 )}
-{!isGroundInspector && (
-<li>
-  <Link
-    to="/quality-dashboard"
-    className="nav-link text-white"
-    onClick={handleLinkClick}
-  >
-    📊 Quality Dashboard
-  </Link>
-</li>
-)}
-
         </ul>
       )}
     </li>
+    <li className="nav-item mt-3">
+      <span
+        onClick={() => setWagonDataSheetOpen(!wagonDataSheetOpen)}
+        className="nav-link text-white fw-bold"
+        style={{ cursor: 'pointer' }}
+      >
+        Wagon Data Sheet {wagonDataSheetOpen ? '▲' : '▼'}
+      </span>
+      {wagonDataSheetOpen && (
+        <ul className="nav flex-column ms-3">
+          {(isMasterAdmin || isQualityAdmin) && (
+          <li>
+            <Link
+              to="/quality/wagon-data-sheet/overview"
+              className="nav-link text-white"
+              onClick={handleLinkClick}
+            >
+              Admin Overview
+            </Link>
+          </li>
+          )}
+          {(isMasterAdmin || isQualityAdmin) && (
+          <li>
+            <Link
+              to="/quality/wagon-data-sheet/projects"
+              className="nav-link text-white"
+              onClick={handleLinkClick}
+            >
+              Projects
+            </Link>
+          </li>
+          )}
+          {(isMasterAdmin || isQualityAdmin || isGroundInspector) && (
+            <li>
+              <Link
+                to="/quality/wagon-data-sheet/stage-dashboard"
+                className="nav-link text-white"
+                onClick={handleLinkClick}
+              >
+                {isGroundInspector ? "Stage Inspection" : "Stage Dashboard"}
+              </Link>
+            </li>
+          )}
+          {isGroundInspector && (
+            <>
+              <li>
+                <Link
+                  to="/quality/wagon-data-sheet/first-zone"
+                  className="nav-link text-white"
+                  onClick={handleLinkClick}
+                >
+                  Zone 1
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/quality/wagon-data-sheet/second-zone"
+                  className="nav-link text-white"
+                  onClick={handleLinkClick}
+                >
+                  Zone 2
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/quality/wagon-data-sheet/final-details"
+                  className="nav-link text-white"
+                  onClick={handleLinkClick}
+                >
+                  Zone 3
+                </Link>
+              </li>
+            </>
+          )}
+        </ul>
+      )}
+    </li>
+    {(isMasterAdmin || isQualityAdmin) && (
+    <li className="nav-item mt-3">
+      <Link
+        to="/quality/wagon-data-sheet/inspectors"
+        className="nav-link text-white fw-bold"
+        onClick={handleLinkClick}
+      >
+        Inspector Details
+      </Link>
+    </li>
+    )}
 
-    {!isGroundInspector && (
+    {!isQualityOnlyUser && (
     <>
     {/* ✅ Maintenance Menu (Independent) */}
 <li className="nav-item mt-3">
@@ -491,7 +591,7 @@ const LayoutWrapper = ({ children }) => {
     </>
     )}
 
-{!isGroundInspector && (
+{!isQualityOnlyUser && (
 <>
 <li className="nav-item mt-3">
   <span
@@ -538,6 +638,7 @@ function App() {
         <Routes>
           {/* 🔓 Public Route */}
           <Route path="/login" element={<TexmacoAccessPortal />} />
+          <Route path="/change-password" element={<InspectorPasswordChangePage />} />
 
           {/* 🔒 Sales Module */}
           <Route
@@ -667,7 +768,7 @@ function App() {
           <Route
             path="/quality-dashboard"
             element={
-              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["quality", "quality-admin", "ground-inspector"]}>
                 <QualityDashboard />
               </ProtectedRoute>
             }
@@ -675,7 +776,7 @@ function App() {
           <Route
             path="/bogie-inspection-form"
             element={
-              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["quality", "quality-admin", "ground-inspector"]}>
                 <BogieInspectionForm />
               </ProtectedRoute>
             }
@@ -683,7 +784,7 @@ function App() {
           <Route
             path="/bogie-inspection-report"
             element={
-              <ProtectedRoute allowedRoles={["quality"]}>
+              <ProtectedRoute allowedRoles={["quality", "quality-admin"]}>
                 <BogieInspectionReport />
               </ProtectedRoute>
             }
@@ -691,7 +792,7 @@ function App() {
           <Route
             path="/bogie-after-wheel-inspection"
             element={
-              <ProtectedRoute allowedRoles={["quality", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["quality", "quality-admin", "ground-inspector"]}>
                 <BogiePostWheelInspectionForm />
               </ProtectedRoute>
             }
@@ -699,7 +800,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet"
             element={
-              <ProtectedRoute allowedRoles={["ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["quality-admin", "ground-inspector"]}>
                 <WagonDataSheetModule />
               </ProtectedRoute>
             }
@@ -707,7 +808,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/stage-dashboard"
             element={
-              <ProtectedRoute allowedRoles={["admin", "ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["quality-admin", "ground-inspector"]}>
                 {localStorage.getItem("role") === "ground-inspector" ? (
                   <WagonDataSheetInspectorDashboard />
                 ) : (
@@ -719,15 +820,31 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/projects"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={["quality-admin"]}>
                 <WagonDataSheetProjectForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/overview"
+            element={
+              <ProtectedRoute allowedRoles={["quality-admin"]}>
+                <WagonDataSheetAdminOverview />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/inspectors"
+            element={
+              <ProtectedRoute allowedRoles={["quality-admin"]}>
+                <WagonInspectorAccountsPage />
               </ProtectedRoute>
             }
           />
           <Route
             path="/quality/wagon-data-sheet/projects/:projectId"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={["quality-admin"]}>
                 <WagonDataSheetProjectDetail />
               </ProtectedRoute>
             }

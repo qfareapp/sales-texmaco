@@ -22,8 +22,15 @@ export default function TexmacoAccessPortal() {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("role", res.data.role);
         localStorage.setItem("username", res.data.username || username);
+        localStorage.setItem("mustChangePassword", res.data.mustChangePassword ? "true" : "false");
+
+        if (res.data.mustChangePassword) {
+          window.location.href = "/change-password";
+          return;
+        }
 
         if (res.data.role === "admin") window.location.href = "/";
+        else if (res.data.role === "quality-admin") window.location.href = "/quality-dashboard";
         else if (res.data.role === "sales") window.location.href = "/";
         else if (res.data.role === "production") window.location.href = "/production";
         else if (res.data.role === "quality") window.location.href = "/quality-dashboard";
