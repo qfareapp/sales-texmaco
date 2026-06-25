@@ -108,6 +108,16 @@ const LayoutWrapper = ({ children }) => {
     }
   };
 
+  const handleLogout = () => {
+    if (token) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("username");
+      localStorage.removeItem("mustChangePassword");
+    }
+    window.location.href = "/login";
+  };
+
   return (
     <>
       {/* Navbar */}
@@ -136,16 +146,8 @@ const LayoutWrapper = ({ children }) => {
             {sidebarHidden ? 'Show Menu' : 'Hide Menu'}
           </button>
           <button
-            className="btn btn-sm btn-light ms-2"
-            onClick={() => {
-              if (token) {
-                localStorage.removeItem("token");
-                localStorage.removeItem("role");
-                localStorage.removeItem("username");
-                localStorage.removeItem("mustChangePassword");
-              }
-              window.location.href = "/login";
-            }}
+            className="btn btn-sm btn-light ms-2 d-none d-lg-inline-block"
+            onClick={handleLogout}
           >
             {token ? "Logout" : "Login"}
           </button>
@@ -621,6 +623,23 @@ const LayoutWrapper = ({ children }) => {
 
 
   </ul>
+  <div
+    className="d-lg-none"
+    style={{
+      position: 'sticky',
+      bottom: 0,
+      padding: '12px 16px 16px',
+      background: '#212529',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+    }}
+  >
+    <button
+      className="btn btn-sm btn-light w-100"
+      onClick={handleLogout}
+    >
+      {token ? "Logout" : "Login"}
+    </button>
+  </div>
 </div>
 )}
     
