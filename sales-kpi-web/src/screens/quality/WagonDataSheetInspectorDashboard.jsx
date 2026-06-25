@@ -1060,7 +1060,7 @@ export default function WagonDataSheetInspectorDashboard() {
             actionLabel="Complete"
             onComplete={handleCompletePdiStage}
             saving={saving}
-            projectName={dashboard.project?.projectName || ""}
+            projectName=""
             highlightedId={pdiHighlightId}
           />
         )}
