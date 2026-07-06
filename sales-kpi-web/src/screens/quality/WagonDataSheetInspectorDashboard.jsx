@@ -164,11 +164,6 @@ function StageDotsStatus({ row, stages, pdiMode = false }) {
               justifyContent: "center",
             }}
           >
-            {stageData?.status === "completed" && (
-              <Typography sx={{ color: "white", fontSize: "0.58rem", fontWeight: 900, lineHeight: 1 }}>
-                âœ“
-              </Typography>
-            )}
             {stageData?.status === "skipped" && (
               <Typography sx={{ color: "white", fontSize: "0.72rem", fontWeight: 900, lineHeight: 1 }}>
                 !
