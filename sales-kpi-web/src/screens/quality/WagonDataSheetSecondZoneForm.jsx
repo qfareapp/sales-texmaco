@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -12,10 +13,14 @@ import api from "../../api";
 
 const initialForm = {
   wheelDataKey: "",
+  wheelDia: "",
+  wheelOrigin: "",
   axleMake: "",
   axleSerialNumbers: "",
+  axleHeatNumbers: [],
   wheelMake: "",
   wheelSerialNumbers: "",
+  wheelHeatNumbers: [],
   bearingMake: "",
   bearingSerialNumbers: "",
 };
@@ -74,6 +79,10 @@ function SectionHeader({ label, color = "#b45309" }) {
 }
 
 function ComponentRow({ keyName, label, form, handleChange }) {
+  const serialNumbers = parseSerialNumbers(form[`${keyName}SerialNumbers`]);
+  const heatFieldName = `${keyName}HeatNumbers`;
+  const supportsHeatNumbers = keyName === "axle" || keyName === "wheel";
+
   return (
     <Box
       sx={{
@@ -124,6 +133,22 @@ function ComponentRow({ keyName, label, form, handleChange }) {
           helperText="One per line. Values must be unique within this field."
           sx={{ bgcolor: "white", borderRadius: 1 }}
         />
+        {supportsHeatNumbers && serialNumbers.length > 0 ? (
+          <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+            {serialNumbers.map((serialNumber, index) => (
+              <TextField
+                key={`${serialNumber}-${index}`}
+                label={`Heat No. for ${serialNumber}`}
+                value={form[heatFieldName]?.[index] || ""}
+                onChange={handleChange(heatFieldName, index)}
+                fullWidth
+                size="small"
+                helperText="Optional"
+                sx={{ bgcolor: "white", borderRadius: 1 }}
+              />
+            ))}
+          </Stack>
+        ) : null}
       </Box>
     </Box>
   );
@@ -137,9 +162,36 @@ export default function WagonDataSheetSecondZoneForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
+  const heatNumberFieldsBySerialField = {
+    axleSerialNumbers: "axleHeatNumbers",
+    wheelSerialNumbers: "wheelHeatNumbers",
+  };
 
-  const handleChange = (field) => (event) =>
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
+  const handleChange = (field, index = null) => (event) =>
+    setForm((prev) => {
+      const nextValue = event.target.value;
+
+      if (heatNumberFieldsBySerialField[field]) {
+        const serialNumbers = parseSerialNumbers(nextValue);
+        const heatFieldName = heatNumberFieldsBySerialField[field];
+        const nextHeatNumbers = serialNumbers.map(
+          (_, heatIndex) => prev[heatFieldName]?.[heatIndex] || ""
+        );
+        return {
+          ...prev,
+          [field]: nextValue,
+          [heatFieldName]: nextHeatNumbers,
+        };
+      }
+
+      if ((field === "axleHeatNumbers" || field === "wheelHeatNumbers") && index !== null) {
+        const nextHeatNumbers = [...(prev[field] || [])];
+        nextHeatNumbers[index] = nextValue;
+        return { ...prev, [field]: nextHeatNumbers };
+      }
+
+      return { ...prev, [field]: nextValue };
+    });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -247,6 +299,42 @@ export default function WagonDataSheetSecondZoneForm() {
                 helperText="Enter the unique wheel data number. This will appear in second-zone bogie wheel-data dropdowns."
                 sx={{ bgcolor: "white", borderRadius: 1 }}
               />
+            </Box>
+            <Box
+              sx={{
+                mb: 3,
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 2,
+              }}
+            >
+              <TextField
+                select
+                label="Wheel Dia"
+                value={form.wheelDia}
+                onChange={handleChange("wheelDia")}
+                fullWidth
+                size="small"
+                sx={{ bgcolor: "white", borderRadius: 1 }}
+              >
+                <MenuItem value="">Select wheel dia</MenuItem>
+                <MenuItem value="1000">1000</MenuItem>
+                <MenuItem value="840">840</MenuItem>
+                <MenuItem value="800">800</MenuItem>
+              </TextField>
+              <TextField
+                select
+                label="Make"
+                value={form.wheelOrigin}
+                onChange={handleChange("wheelOrigin")}
+                fullWidth
+                size="small"
+                sx={{ bgcolor: "white", borderRadius: 1 }}
+              >
+                <MenuItem value="">Select make</MenuItem>
+                <MenuItem value="India">India</MenuItem>
+                <MenuItem value="China">China</MenuItem>
+              </TextField>
             </Box>
 
             <SectionHeader label="Components" color="#b45309" />

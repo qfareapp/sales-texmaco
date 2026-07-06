@@ -399,6 +399,17 @@ const asSerialNumbers = (value, fieldLabel = "Serial numbers") => {
 
   return serialNumbers;
 };
+const asAlignedOptionalValues = (value, expectedLength, limit = 8) => {
+  const targetLength = Math.max(0, Math.min(Number(expectedLength) || 0, limit));
+  const source = Array.isArray(value) ? value : [];
+  const normalized = source.slice(0, targetLength).map((item) => String(item || "").trim());
+
+  while (normalized.length < targetLength) {
+    normalized.push("");
+  }
+
+  return normalized;
+};
 const asObjectIdList = (value, limit = 8) => {
   const source = Array.isArray(value) ? value : [];
   return source
@@ -1576,19 +1587,26 @@ router.post("/rows/second-zone", async (req, res) => {
       });
     }
 
+    const axleSerialNumbers = asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers");
+    const wheelSerialNumbers = asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers");
+
     const row = await WagonDataSheetRow.create({
       projectId,
       wheelDataKey,
       slNo: await getNextSlNo(projectId),
       secondZone: {
+        wheelDia: asText(req.body.wheelDia),
+        wheelOrigin: asText(req.body.wheelOrigin),
         axle: {
           make: asText(req.body.axleMake),
-          serialNumbers: asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers"),
+          serialNumbers: axleSerialNumbers,
         },
+        axleHeatNumbers: asAlignedOptionalValues(req.body.axleHeatNumbers, axleSerialNumbers.length),
         wheel: {
           make: asText(req.body.wheelMake),
-          serialNumbers: asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers"),
+          serialNumbers: wheelSerialNumbers,
         },
+        wheelHeatNumbers: asAlignedOptionalValues(req.body.wheelHeatNumbers, wheelSerialNumbers.length),
         bearing: {
           make: asText(req.body.bearingMake),
           serialNumbers: asSerialNumbers(req.body.bearingSerialNumbers, "Bearing serial numbers"),

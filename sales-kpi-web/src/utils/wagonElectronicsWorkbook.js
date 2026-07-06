@@ -38,6 +38,24 @@ const linkedSerials = (row, key) =>
     (row?.linkedWheelDataRows || []).flatMap((item) => item?.secondZone?.[key]?.serialNumbers || []),
     " "
   );
+const linkedValues = (row, field) =>
+  combineValues(
+    [...new Set((row?.linkedWheelDataRows || []).map((item) => item?.secondZone?.[field]).filter(Boolean))],
+    " "
+  );
+const linkedHeatPairs = (row, key, heatField) =>
+  combineValues(
+    (row?.linkedWheelDataRows || []).flatMap((item) => {
+      const serialNumbers = item?.secondZone?.[key]?.serialNumbers || [];
+      const heatNumbers = item?.secondZone?.[heatField] || [];
+      return serialNumbers.map((serialNumber, index) => {
+        const serialText = text(serialNumber);
+        const heatText = text(heatNumbers[index]);
+        return heatText ? `${serialText} (${heatText})` : serialText;
+      });
+    }),
+    " "
+  );
 const bogieCell = (row) =>
   combineValues(
     [
@@ -119,7 +137,11 @@ export function downloadWagonElectronicsWorkbook(project, rows) {
     "D.V MAKE:\nESCORT ",
     "SAB MAKE: \nGeneral Store",
     "AXLE NO. ",
+    "AXLE HEAT NO.",
     "WHEEL NO.",
+    "WHEEL HEAT NO.",
+    "WHEEL DIA",
+    "WHEEL MAKE",
     "BEARING NO.",
     "TARE WEIGHT (TONNE)",
     "TXR FIT",
@@ -138,7 +160,11 @@ export function downloadWagonElectronicsWorkbook(project, rows) {
     dvCell(row),
     textOrDash(row?.firstZone?.sabMake),
     linkedSerials(row, "axle"),
+    linkedHeatPairs(row, "axle", "axleHeatNumbers"),
     linkedSerials(row, "wheel"),
+    linkedHeatPairs(row, "wheel", "wheelHeatNumbers"),
+    linkedValues(row, "wheelDia"),
+    linkedValues(row, "wheelOrigin"),
     linkedSerials(row, "bearing"),
     textOrDash(row?.finalAssembly?.tareWeight),
     formatDate(row?.finalAssembly?.txrFitDate),
@@ -149,7 +175,7 @@ export function downloadWagonElectronicsWorkbook(project, rows) {
 
   const ws = XLSX.utils.aoa_to_sheet([[titleText(project)], [], ...headerRow, ...bodyRows]);
 
-  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 15 } }];
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 19 } }];
   ws["!cols"] = [
     { wch: 8.1 },
     { wch: 10.3 },
@@ -161,6 +187,10 @@ export function downloadWagonElectronicsWorkbook(project, rows) {
     { wch: 12 },
     { wch: 14 },
     { wch: 18 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 14 },
     { wch: 18 },
     { wch: 9 },
     { wch: 13.5 },
@@ -175,10 +205,10 @@ export function downloadWagonElectronicsWorkbook(project, rows) {
     ...bodyRows.map(() => ({ hpt: 126 })),
   ];
 
-  applyRangeStyle(ws, 0, 0, 0, 15, styles.title);
-  applyRangeStyle(ws, 2, 2, 0, 15, styles.header);
+  applyRangeStyle(ws, 0, 0, 0, 19, styles.title);
+  applyRangeStyle(ws, 2, 2, 0, 19, styles.header);
   if (bodyRows.length > 0) {
-    applyRangeStyle(ws, 3, 2 + bodyRows.length, 0, 15, styles.body);
+    applyRangeStyle(ws, 3, 2 + bodyRows.length, 0, 19, styles.body);
   }
 
   const wb = XLSX.utils.book_new();

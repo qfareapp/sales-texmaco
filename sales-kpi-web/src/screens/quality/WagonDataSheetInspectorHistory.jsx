@@ -13,6 +13,22 @@ import api from "../../api";
 
 const textOrDash = (value) => (value ? String(value) : "-");
 const joinValues = (values) => (Array.isArray(values) && values.filter(Boolean).length ? values.filter(Boolean).join(", ") : "-");
+const joinAxleHeatPairs = (row) =>
+  (row?.secondZone?.axle?.serialNumbers || [])
+    .map((serialNumber, index) => {
+      const heatNumber = String(row?.secondZone?.axleHeatNumbers?.[index] || "").trim();
+      return heatNumber ? `${serialNumber} (${heatNumber})` : serialNumber;
+    })
+    .filter(Boolean)
+    .join(", ") || "-";
+const joinWheelHeatPairs = (row) =>
+  (row?.secondZone?.wheel?.serialNumbers || [])
+    .map((serialNumber, index) => {
+      const heatNumber = String(row?.secondZone?.wheelHeatNumbers?.[index] || "").trim();
+      return heatNumber ? `${serialNumber} (${heatNumber})` : serialNumber;
+    })
+    .filter(Boolean)
+    .join(", ") || "-";
 const formatTimestamp = (value) => {
   if (!value) {
     return "-";
@@ -285,8 +301,10 @@ export default function WagonDataSheetInspectorHistory() {
             ["Wheel Data Key", row?.wheelDataKey],
             ["Axle Make", row?.secondZone?.axle?.make],
             ["Axle Serial Nos.", joinValues(row?.secondZone?.axle?.serialNumbers)],
+            ["Axle Heat Nos.", joinAxleHeatPairs(row)],
             ["Wheel Make", row?.secondZone?.wheel?.make],
             ["Wheel Serial Nos.", joinValues(row?.secondZone?.wheel?.serialNumbers)],
+            ["Wheel Heat Nos.", joinWheelHeatPairs(row)],
             ["Bearing Make", row?.secondZone?.bearing?.make],
             ["Bearing Serial Nos.", joinValues(row?.secondZone?.bearing?.serialNumbers)],
           ],

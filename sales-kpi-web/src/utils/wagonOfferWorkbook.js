@@ -58,6 +58,27 @@ const linkedComponentValues = (row, key, field) => {
 
   return values.length ? values.join(field === "make" ? "  " : " ") : "-";
 };
+const linkedSecondZoneValues = (row, field) => {
+  const values = [...new Set(
+    (row?.linkedWheelDataRows || [])
+      .map((item) => text(item?.secondZone?.[field]))
+      .filter(Boolean)
+  )];
+  return values.length ? values.join("  ") : "-";
+};
+const linkedHeatPairs = (row, key, heatField) => {
+  const values = (row?.linkedWheelDataRows || []).flatMap((item) => {
+    const serialNumbers = item?.secondZone?.[key]?.serialNumbers || [];
+    const heatNumbers = item?.secondZone?.[heatField] || [];
+    return serialNumbers.map((serialNumber, index) => {
+      const serialText = text(serialNumber);
+      const heatText = text(heatNumbers[index]);
+      return heatText ? `${serialText} (${heatText})` : serialText;
+    });
+  }).filter(Boolean);
+
+  return values.length ? values.join("  ") : "-";
+};
 const wagonIdentifier = (row) => textOrDash(row?.wagonNo);
 const contractPoSummary = (project) => {
   const parts = [text(project.contractPoNumber)];
@@ -139,15 +160,15 @@ export function downloadWagonOfferWorkbook(project, rows) {
   };
 
   const metadataRows = [
-    ["Contract/P.O. No. and date and D.P. (Upto)", "", "", "", "", "", "", "", contractPoSummary(project)],
-    ["Total Quantity/type of Wagon in PO", "", "", "", "", "", "", "", totalQuantitySummary(project)],
-    ["Contract/P.O. placed by", "", "", "", "", "", "", "", textOrDash(project.contractPlacedBy)],
-    ["Name of the wagon manufacturer", "", "", "", "", "", "", "", textOrDash(project.wagonManufacturer)],
-    ["Type of Wagon offered", "", "", "", "", "", "", "", textOrDash(project.wagonTypeOffered || project.wagonTypeInPo)],
-    ["No of Wagons offered  for Inspection (Up to 20 wagons)", "", "", "", "", "", "", "", offeredSummary(project, rows)],
+    ["Contract/P.O. No. and date and D.P. (Upto)", "", "", "", "", "", "", "", "", "", "", "", contractPoSummary(project)],
+    ["Total Quantity/type of Wagon in PO", "", "", "", "", "", "", "", "", "", "", "", totalQuantitySummary(project)],
+    ["Contract/P.O. placed by", "", "", "", "", "", "", "", "", "", "", "", textOrDash(project.contractPlacedBy)],
+    ["Name of the wagon manufacturer", "", "", "", "", "", "", "", "", "", "", "", textOrDash(project.wagonManufacturer)],
+    ["Type of Wagon offered", "", "", "", "", "", "", "", "", "", "", "", textOrDash(project.wagonTypeOffered || project.wagonTypeInPo)],
+    ["No of Wagons offered  for Inspection (Up to 20 wagons)", "", "", "", "", "", "", "", "", "", "", "", offeredSummary(project, rows)],
     ["Details of offered Wagons"],
-    ["S.N.", "Wagon  No.", "Bogie", "", "Coupler", "", "DV", "", "Bearing", "", "Brake Cylinder", "", "Draft Gear", "", "CRF Make", "TEX No."],
-    ["", "", "Make", "Sr. No.", "Make", "Sr. No.", "Make", "Sr. No.", "Make", "Sr. No.", "Make", "Sr. No.", "Make", "Sr. No.", "", ""],
+    ["S.N.", "Wagon  No.", "Bogie", "", "Coupler", "", "DV", "", "Bearing", "", "Brake Cylinder", "", "Draft Gear", "", "CRF Make", "TEX No.", "Wheel Dia", "Wheel Make", "Axle Heat Nos.", "Wheel Heat Nos."],
+    ["", "", "Make", "Sr. No.", "Make", "Sr. No.", "Make", "Sr. No.", "Make", "Sr. No.", "Make", "Sr. No.", "Make", "Sr. No.", "", "", "", "", "", ""],
   ];
 
   const bodyRows = rows.map((row, index) => {
@@ -176,6 +197,10 @@ export function downloadWagonOfferWorkbook(project, rows) {
       joinSerialNumbers(draftGearSerialNumbers),
       textOrDash(row?.firstZone?.crfMake),
       textOrDash(row?.texNo),
+      linkedSecondZoneValues(row, "wheelDia"),
+      linkedSecondZoneValues(row, "wheelOrigin"),
+      linkedHeatPairs(row, "axle", "axleHeatNumbers"),
+      linkedHeatPairs(row, "wheel", "wheelHeatNumbers"),
     ];
   });
 
@@ -183,18 +208,18 @@ export function downloadWagonOfferWorkbook(project, rows) {
 
   ws["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
-    { s: { r: 0, c: 8 }, e: { r: 0, c: 14 } },
+    { s: { r: 0, c: 8 }, e: { r: 0, c: 18 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
-    { s: { r: 1, c: 8 }, e: { r: 1, c: 14 } },
+    { s: { r: 1, c: 8 }, e: { r: 1, c: 18 } },
     { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
-    { s: { r: 2, c: 8 }, e: { r: 2, c: 14 } },
+    { s: { r: 2, c: 8 }, e: { r: 2, c: 18 } },
     { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
-    { s: { r: 3, c: 8 }, e: { r: 3, c: 14 } },
+    { s: { r: 3, c: 8 }, e: { r: 3, c: 18 } },
     { s: { r: 4, c: 0 }, e: { r: 4, c: 7 } },
-    { s: { r: 4, c: 8 }, e: { r: 4, c: 14 } },
+    { s: { r: 4, c: 8 }, e: { r: 4, c: 18 } },
     { s: { r: 5, c: 0 }, e: { r: 5, c: 7 } },
-    { s: { r: 5, c: 8 }, e: { r: 5, c: 14 } },
-    { s: { r: 6, c: 0 }, e: { r: 6, c: 15 } },
+    { s: { r: 5, c: 8 }, e: { r: 5, c: 18 } },
+    { s: { r: 6, c: 0 }, e: { r: 6, c: 19 } },
     { s: { r: 7, c: 0 }, e: { r: 8, c: 0 } },
     { s: { r: 7, c: 1 }, e: { r: 8, c: 1 } },
     { s: { r: 7, c: 2 }, e: { r: 7, c: 3 } },
@@ -205,6 +230,10 @@ export function downloadWagonOfferWorkbook(project, rows) {
     { s: { r: 7, c: 12 }, e: { r: 7, c: 13 } },
     { s: { r: 7, c: 14 }, e: { r: 8, c: 14 } },
     { s: { r: 7, c: 15 }, e: { r: 8, c: 15 } },
+    { s: { r: 7, c: 16 }, e: { r: 8, c: 16 } },
+    { s: { r: 7, c: 17 }, e: { r: 8, c: 17 } },
+    { s: { r: 7, c: 18 }, e: { r: 8, c: 18 } },
+    { s: { r: 7, c: 19 }, e: { r: 8, c: 19 } },
   ];
 
   ws["!cols"] = [
@@ -224,6 +253,10 @@ export function downloadWagonOfferWorkbook(project, rows) {
     { wch: 8 },
     { wch: 7.8 },
     { wch: 12 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 22 },
+    { wch: 24 },
   ];
 
   ws["!rows"] = [
@@ -240,12 +273,12 @@ export function downloadWagonOfferWorkbook(project, rows) {
   ];
 
   applyRangeStyle(ws, 0, 5, 0, 7, styles.metaLabel);
-  applyRangeStyle(ws, 0, 5, 8, 14, styles.metaValue);
-  applyRangeStyle(ws, 6, 6, 0, 15, styles.metaLabel);
-  applyRangeStyle(ws, 7, 7, 0, 15, styles.header);
-  applyRangeStyle(ws, 8, 8, 0, 15, styles.subHeader);
+  applyRangeStyle(ws, 0, 5, 8, 18, styles.metaValue);
+  applyRangeStyle(ws, 6, 6, 0, 19, styles.metaLabel);
+  applyRangeStyle(ws, 7, 7, 0, 19, styles.header);
+  applyRangeStyle(ws, 8, 8, 0, 19, styles.subHeader);
   if (bodyRows.length > 0) {
-    applyRangeStyle(ws, 9, 8 + bodyRows.length, 0, 15, styles.bodyCenter);
+    applyRangeStyle(ws, 9, 8 + bodyRows.length, 0, 19, styles.bodyCenter);
   }
 
   const wb = XLSX.utils.book_new();

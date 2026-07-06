@@ -54,6 +54,22 @@ const bogieSerialSummary = (row) =>
 
 const safeText = (value) => (value ? String(value) : "-");
 const safeJoinSerials = (value) => (Array.isArray(value) && value.length ? value.join(", ") : "-");
+const safeJoinAxleHeatPairs = (row) =>
+  (row?.secondZone?.axle?.serialNumbers || [])
+    .map((serialNumber, index) => {
+      const heatNumber = String(row?.secondZone?.axleHeatNumbers?.[index] || "").trim();
+      return heatNumber ? `${serialNumber} (${heatNumber})` : serialNumber;
+    })
+    .filter(Boolean)
+    .join(", ") || "-";
+const safeJoinWheelHeatPairs = (row) =>
+  (row?.secondZone?.wheel?.serialNumbers || [])
+    .map((serialNumber, index) => {
+      const heatNumber = String(row?.secondZone?.wheelHeatNumbers?.[index] || "").trim();
+      return heatNumber ? `${serialNumber} (${heatNumber})` : serialNumber;
+    })
+    .filter(Boolean)
+    .join(", ") || "-";
 const formatDateTime = (value) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -73,6 +89,22 @@ const safeLinkedWheelMakes = (row, key) => {
 };
 const safeLinkedWheelSerials = (row, key) => {
   const values = (row?.linkedWheelDataRows || []).flatMap((item) => item?.secondZone?.[key]?.serialNumbers || []).filter(Boolean);
+  return values.length ? values.join(", ") : "-";
+};
+const safeLinkedWheelValues = (row, field) => {
+  const values = [...new Set((row?.linkedWheelDataRows || []).map((item) => item?.secondZone?.[field]).filter(Boolean))];
+  return values.length ? values.join(", ") : "-";
+};
+const safeLinkedWheelHeatPairs = (row, key, heatField) => {
+  const values = (row?.linkedWheelDataRows || []).flatMap((item) => {
+    const serialNumbers = item?.secondZone?.[key]?.serialNumbers || [];
+    const heatNumbers = item?.secondZone?.[heatField] || [];
+    return serialNumbers.map((serialNumber, index) => {
+      const serialText = String(serialNumber || "").trim();
+      const heatText = String(heatNumbers[index] || "").trim();
+      return heatText ? `${serialText} (${heatText})` : serialText;
+    });
+  }).filter(Boolean);
   return values.length ? values.join(", ") : "-";
 };
 const safeBogieSerialSummary = (row) =>
@@ -326,8 +358,11 @@ export default function WagonDataSheetProjectDetail() {
       "AR MAKE", "AR SL. NO.",
       "SAB MAKE", "ATL MAKE", "CRF MAKE",
       "BOGIE / WHEEL DATA LINK",
+      "WHEEL DIA", "WHEEL ORIGIN",
       "AXLE MAKE", "AXLE SL. NO.",
+      "AXLE HEAT NOS.",
       "WHEEL MAKE", "WHEEL SL. NO.",
+      "WHEEL HEAT NOS.",
       "BEARING MAKE", "BEARING SL. NO.",
       "TARE WEIGHT", "MFG. DATE", "TXR FIT DATE", "RFID NO.",
       "DM NO.", "DM DATE", "ROH DATE", "RETURN / POH DATE",
@@ -354,10 +389,14 @@ export default function WagonDataSheetProjectDetail() {
       safeText(row.firstZone?.atlMake),
       safeText(row.firstZone?.crfMake),
       safeLinkedWheelKeyMapping(row),
+      safeLinkedWheelValues(row, "wheelDia"),
+      safeLinkedWheelValues(row, "wheelOrigin"),
       safeLinkedWheelMakes(row, "axle"),
       safeLinkedWheelSerials(row, "axle"),
+      safeLinkedWheelHeatPairs(row, "axle", "axleHeatNumbers"),
       safeLinkedWheelMakes(row, "wheel"),
       safeLinkedWheelSerials(row, "wheel"),
+      safeLinkedWheelHeatPairs(row, "wheel", "wheelHeatNumbers"),
       safeLinkedWheelMakes(row, "bearing"),
       safeLinkedWheelSerials(row, "bearing"),
       safeText(finalValue(row, "tareWeight")),
@@ -371,7 +410,7 @@ export default function WagonDataSheetProjectDetail() {
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([...headerRows, ...tableHeader, ...tableRows]);
-    ws["!cols"] = Array.from({ length: 34 }, (_value, index) => ({ wch: index === 19 || index === 29 ? 34 : 18 }));
+    ws["!cols"] = Array.from({ length: 38 }, (_value, index) => ({ wch: index === 19 ? 34 : 18 }));
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
     ws["!rows"] = [{ hpt: 22 }];
 
@@ -380,13 +419,13 @@ export default function WagonDataSheetProjectDetail() {
     applyRangeStyle(ws, 10, 10, 0, 3, styles.projectHeader);
     applyRangeStyle(ws, 10, 10, 4, 18, styles.zone1Header);
     applyRangeStyle(ws, 10, 10, 19, 19, styles.zone2LinkHeader);
-    applyRangeStyle(ws, 10, 10, 20, 25, styles.zone2Header);
-    applyRangeStyle(ws, 10, 10, 26, 33, styles.zone3Header);
-    applyRangeStyle(ws, 11, 11, 4, 25, styles.subHeader);
+    applyRangeStyle(ws, 10, 10, 20, 29, styles.zone2Header);
+    applyRangeStyle(ws, 10, 10, 30, 37, styles.zone3Header);
+    applyRangeStyle(ws, 11, 11, 4, 29, styles.subHeader);
 
     const dataStartRow = 12;
     const dataEndRow = dataStartRow + Math.max(tableRows.length - 1, 0);
-    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 33, styles.body);
+    applyRangeStyle(ws, dataStartRow, dataEndRow, 0, 37, styles.body);
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Wagon Data Sheet");
@@ -413,10 +452,14 @@ export default function WagonDataSheetProjectDetail() {
         "Linked Bogie": linkedBogieAssignments(row, wheelRow),
         "Wheel Data Link": safeText(wheelRow?.wheelDataKey),
         "Zone 1 Entry No.": wheelIndex + 1,
+        "Wheel Dia": safeText(wheelRow?.secondZone?.wheelDia),
+        "Wheel Origin": safeText(wheelRow?.secondZone?.wheelOrigin),
         "Axle Make": safeText(wheelRow?.secondZone?.axle?.make),
         "Axle Serial Numbers": safeJoinSerials(wheelRow?.secondZone?.axle?.serialNumbers),
+        "Axle Heat Nos.": safeJoinAxleHeatPairs(wheelRow),
         "Wheel Make": safeText(wheelRow?.secondZone?.wheel?.make),
         "Wheel Serial Numbers": safeJoinSerials(wheelRow?.secondZone?.wheel?.serialNumbers),
+        "Wheel Heat Nos.": safeJoinWheelHeatPairs(wheelRow),
         "Bearing Make": safeText(wheelRow?.secondZone?.bearing?.make),
         "Bearing Serial Numbers": safeJoinSerials(wheelRow?.secondZone?.bearing?.serialNumbers),
         "Submitted By": safeText(wheelRow?.secondZone?.submittedBy?.username),
@@ -429,8 +472,9 @@ export default function WagonDataSheetProjectDetail() {
     );
     ws["!cols"] = [
       { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 16 },
-      { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 24 }, { wch: 16 },
-      { wch: 24 }, { wch: 16 }, { wch: 24 }, { wch: 18 }, { wch: 24 },
+      { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 24 },
+      { wch: 24 }, { wch: 16 }, { wch: 24 }, { wch: 24 }, { wch: 18 },
+      { wch: 24 }, { wch: 20 },
     ];
 
     const wb = XLSX.utils.book_new();

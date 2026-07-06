@@ -22,9 +22,13 @@ const initialForm = {
   wagonConfiguration: "",
   bogieMake: "",
   bogie1SerialNumber: "",
+  bogie1WheelDiaFilter: "",
+  bogie1WheelOriginFilter: "",
   bogie1WheelDataRowId1: "",
   bogie1WheelDataRowId2: "",
   bogie2SerialNumber: "",
+  bogie2WheelDiaFilter: "",
+  bogie2WheelOriginFilter: "",
   bogie2WheelDataRowId1: "",
   bogie2WheelDataRowId2: "",
   couplerMake: "",
@@ -123,12 +127,139 @@ function ComponentRow({ keyName, label, form, handleChange }) {
   );
 }
 
-const wheelDataLabel = (row) => {
+const wheelDataFilterLabel = (row) => {
   const axle = row?.secondZone?.axle?.make || "-";
   const wheel = row?.secondZone?.wheel?.make || "-";
   const bearing = row?.secondZone?.bearing?.make || "-";
-  return `${row.wheelDataKey || "-"} · Axle: ${axle} · Wheel: ${wheel} · Bearing: ${bearing}`;
+  const wheelDia = row?.secondZone?.wheelDia || "-";
+  const wheelOrigin = row?.secondZone?.wheelOrigin || "-";
+  return `${row.wheelDataKey || "-"} | Dia: ${wheelDia} | Make: ${wheelOrigin} | Axle: ${axle} | Wheel: ${wheel} | Bearing: ${bearing}`;
 };
+
+function BogiePanel({
+  index,
+  accentColor,
+  serialLabel,
+  serialValue,
+  onSerialChange,
+  wheelDiaValue,
+  onWheelDiaChange,
+  wheelMakeValue,
+  onWheelMakeChange,
+  links,
+}) {
+  const fieldSx = { bgcolor: "#fafbfa", borderRadius: 1 };
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2.5,
+        borderRadius: 3,
+        border: "1px solid",
+        borderColor: `${accentColor}40`,
+        bgcolor: "white",
+        transition: "box-shadow 0.2s ease, border-color 0.2s ease",
+        "&:hover": { boxShadow: "0 6px 20px rgba(0,0,0,0.08)", borderColor: accentColor },
+      }}
+    >
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2.5 }}>
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            bgcolor: accentColor,
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 700,
+            fontSize: 15,
+            flexShrink: 0,
+          }}
+        >
+          {index}
+        </Box>
+        <Box>
+          <Typography fontWeight={700} lineHeight={1.2}>
+            Bogie {index}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Serial &amp; wheel data linking
+          </Typography>
+        </Box>
+      </Stack>
+
+      <TextField
+        label={serialLabel}
+        value={serialValue}
+        onChange={onSerialChange}
+        fullWidth
+        size="small"
+        sx={{ mb: 2.5, ...fieldSx }}
+      />
+
+      <Typography
+        variant="overline"
+        sx={{ color: "text.secondary", letterSpacing: 0.5, display: "block", mb: 1 }}
+      >
+        Filters (optional)
+      </Typography>
+      <Stack spacing={1.5} sx={{ mb: 0.5 }}>
+        <TextField
+          select
+          label="Wheel Dia Filter"
+          value={wheelDiaValue}
+          onChange={onWheelDiaChange}
+          fullWidth
+          size="small"
+          sx={fieldSx}
+        >
+          <MenuItem value="">All wheel dia</MenuItem>
+          <MenuItem value="1000">1000</MenuItem>
+          <MenuItem value="840">840</MenuItem>
+          <MenuItem value="800">800</MenuItem>
+        </TextField>
+        <TextField
+          select
+          label="Wheel Make Filter"
+          value={wheelMakeValue}
+          onChange={onWheelMakeChange}
+          fullWidth
+          size="small"
+          sx={fieldSx}
+        >
+          <MenuItem value="">All wheel make</MenuItem>
+          <MenuItem value="India">India</MenuItem>
+          <MenuItem value="China">China</MenuItem>
+        </TextField>
+      </Stack>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2.5 }}>
+        Narrows the linked wheel data suggestions below
+      </Typography>
+
+      <Typography
+        variant="overline"
+        sx={{ color: "text.secondary", letterSpacing: 0.5, display: "block", mb: 1 }}
+      >
+        Linked Wheel Data
+      </Typography>
+      <Stack spacing={2}>
+        {links.map((link, linkIndex) => (
+          <WheelDataAutocomplete
+            key={link.label || linkIndex}
+            label={link.label}
+            value={link.value}
+            onChange={link.onChange}
+            options={link.options}
+            helperText={`Select ${link.label.toLowerCase()} entry`}
+          />
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
 
 function WheelDataAutocomplete({
   label,
@@ -144,7 +275,7 @@ function WheelDataAutocomplete({
       options={options}
       value={selectedOption}
       onChange={(_event, option) => onChange(option?._id || "")}
-      getOptionLabel={(option) => wheelDataLabel(option)}
+      getOptionLabel={(option) => wheelDataFilterLabel(option)}
       isOptionEqualToValue={(option, currentValue) => option._id === currentValue._id}
       filterOptions={(availableOptions, state) => {
         const search = String(state.inputValue || "").trim().toLowerCase();
@@ -153,7 +284,7 @@ function WheelDataAutocomplete({
         }
 
         return availableOptions.filter((option) =>
-          wheelDataLabel(option).toLowerCase().includes(search)
+          wheelDataFilterLabel(option).toLowerCase().includes(search)
         );
       }}
       renderInput={(params) => (
@@ -247,8 +378,23 @@ export default function WagonDataSheetFirstZoneForm() {
     }));
   };
 
-  const getWheelOptions = (currentValue) =>
-    availableWheelData.filter((row) => !selectedWheelIds.includes(row._id) || row._id === currentValue);
+  const getWheelOptions = (currentValue, wheelDiaFilter = "", wheelOriginFilter = "") =>
+    availableWheelData.filter((row) => {
+      const matchesSelectedState = !selectedWheelIds.includes(row._id) || row._id === currentValue;
+      if (!matchesSelectedState) {
+        return false;
+      }
+
+      if (row._id === currentValue) {
+        return true;
+      }
+
+      const matchesWheelDia = !wheelDiaFilter || String(row?.secondZone?.wheelDia || "") === wheelDiaFilter;
+      const matchesWheelOrigin =
+        !wheelOriginFilter || String(row?.secondZone?.wheelOrigin || "") === wheelOriginFilter;
+
+      return matchesWheelDia && matchesWheelOrigin;
+    });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -436,65 +582,75 @@ export default function WagonDataSheetFirstZoneForm() {
 
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
-                  <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: "1px solid #b7deb8", bgcolor: "white" }}>
-                    <Typography fontWeight={700} sx={{ mb: 2 }}>
-                      Bogie 1
-                    </Typography>
-                    <Stack spacing={2}>
-                      <TextField
-                        label="Bogie 1 Serial No."
-                        value={form.bogie1SerialNumber}
-                        onChange={handleChange("bogie1SerialNumber")}
-                        fullWidth
-                        size="small"
-                      />
-                      <WheelDataAutocomplete
-                        label="Wheel Data Link 1"
-                        value={form.bogie1WheelDataRowId1}
-                        onChange={handleWheelDataSelect("bogie1WheelDataRowId1")}
-                        options={getWheelOptions(form.bogie1WheelDataRowId1)}
-                        helperText="Select first linked wheel data entry"
-                      />
-                      <WheelDataAutocomplete
-                        label="Wheel Data Link 2"
-                        value={form.bogie1WheelDataRowId2}
-                        onChange={handleWheelDataSelect("bogie1WheelDataRowId2")}
-                        options={getWheelOptions(form.bogie1WheelDataRowId2)}
-                        helperText="Select second linked wheel data entry"
-                      />
-                    </Stack>
-                  </Paper>
+                  <BogiePanel
+                    index={1}
+                    accentColor="#2e7d32"
+                    serialLabel="Bogie 1 Serial No."
+                    serialValue={form.bogie1SerialNumber}
+                    onSerialChange={handleChange("bogie1SerialNumber")}
+                    wheelDiaValue={form.bogie1WheelDiaFilter}
+                    onWheelDiaChange={handleChange("bogie1WheelDiaFilter")}
+                    wheelMakeValue={form.bogie1WheelOriginFilter}
+                    onWheelMakeChange={handleChange("bogie1WheelOriginFilter")}
+                    links={[
+                      {
+                        label: "Axle 1 Wheel Data",
+                        value: form.bogie1WheelDataRowId1,
+                        onChange: handleWheelDataSelect("bogie1WheelDataRowId1"),
+                        options: getWheelOptions(
+                          form.bogie1WheelDataRowId1,
+                          form.bogie1WheelDiaFilter,
+                          form.bogie1WheelOriginFilter
+                        ),
+                      },
+                      {
+                        label: "Axle 2 Wheel Data",
+                        value: form.bogie1WheelDataRowId2,
+                        onChange: handleWheelDataSelect("bogie1WheelDataRowId2"),
+                        options: getWheelOptions(
+                          form.bogie1WheelDataRowId2,
+                          form.bogie1WheelDiaFilter,
+                          form.bogie1WheelOriginFilter
+                        ),
+                      },
+                    ]}
+                  />
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                  <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: "1px solid #b7deb8", bgcolor: "white" }}>
-                    <Typography fontWeight={700} sx={{ mb: 2 }}>
-                      Bogie 2
-                    </Typography>
-                    <Stack spacing={2}>
-                      <TextField
-                        label="Bogie 2 Serial No."
-                        value={form.bogie2SerialNumber}
-                        onChange={handleChange("bogie2SerialNumber")}
-                        fullWidth
-                        size="small"
-                      />
-                      <WheelDataAutocomplete
-                        label="Wheel Data Link 3"
-                        value={form.bogie2WheelDataRowId1}
-                        onChange={handleWheelDataSelect("bogie2WheelDataRowId1")}
-                        options={getWheelOptions(form.bogie2WheelDataRowId1)}
-                        helperText="Select third linked wheel data entry"
-                      />
-                      <WheelDataAutocomplete
-                        label="Wheel Data Link 4"
-                        value={form.bogie2WheelDataRowId2}
-                        onChange={handleWheelDataSelect("bogie2WheelDataRowId2")}
-                        options={getWheelOptions(form.bogie2WheelDataRowId2)}
-                        helperText="Select fourth linked wheel data entry"
-                      />
-                    </Stack>
-                  </Paper>
+                  <BogiePanel
+                    index={2}
+                    accentColor="#00695c"
+                    serialLabel="Bogie 2 Serial No."
+                    serialValue={form.bogie2SerialNumber}
+                    onSerialChange={handleChange("bogie2SerialNumber")}
+                    wheelDiaValue={form.bogie2WheelDiaFilter}
+                    onWheelDiaChange={handleChange("bogie2WheelDiaFilter")}
+                    wheelMakeValue={form.bogie2WheelOriginFilter}
+                    onWheelMakeChange={handleChange("bogie2WheelOriginFilter")}
+                    links={[
+                      {
+                        label: "Axle 1 Wheel Data",
+                        value: form.bogie2WheelDataRowId1,
+                        onChange: handleWheelDataSelect("bogie2WheelDataRowId1"),
+                        options: getWheelOptions(
+                          form.bogie2WheelDataRowId1,
+                          form.bogie2WheelDiaFilter,
+                          form.bogie2WheelOriginFilter
+                        ),
+                      },
+                      {
+                        label: "Axle 2 Wheel Data",
+                        value: form.bogie2WheelDataRowId2,
+                        onChange: handleWheelDataSelect("bogie2WheelDataRowId2"),
+                        options: getWheelOptions(
+                          form.bogie2WheelDataRowId2,
+                          form.bogie2WheelDiaFilter,
+                          form.bogie2WheelOriginFilter
+                        ),
+                      },
+                    ]}
+                  />
                 </Grid>
               </Grid>
             </Stack>

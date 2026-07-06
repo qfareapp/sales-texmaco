@@ -82,8 +82,12 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
       submittedAt: { type: Date, default: null },
     },
     secondZone: {
+      wheelDia: { type: String, default: "", trim: true },
+      wheelOrigin: { type: String, default: "", trim: true },
       axle: { type: makeSerialSchema, default: () => ({}) },
+      axleHeatNumbers: { type: [{ type: String, trim: true }], default: [] },
       wheel: { type: makeSerialSchema, default: () => ({}) },
+      wheelHeatNumbers: { type: [{ type: String, trim: true }], default: [] },
       bearing: { type: makeSerialSchema, default: () => ({}) },
       submittedBy: { type: submissionBySchema, default: () => ({}) },
       submittedAt: { type: Date, default: null },
