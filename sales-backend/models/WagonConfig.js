@@ -19,6 +19,20 @@ const WagonConfigSchema = new mongoose.Schema({
       ]
     }
   ],
+  inspectionStageRules: [
+    {
+      key: String,
+      allowSkip: { type: Boolean, default: false },
+      isOptional: { type: Boolean, default: false }
+    }
+  ],
+  pdiStageRules: [
+    {
+      key: String,
+      allowSkip: { type: Boolean, default: false },
+      isOptional: { type: Boolean, default: false }
+    }
+  ],
   dmItems: [
     {
       sapCode: String,

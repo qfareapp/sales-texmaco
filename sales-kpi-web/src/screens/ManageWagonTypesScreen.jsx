@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../api';
+import { inspectionStages, pdiStages } from './quality/wagonInspectionStageConfig';
 
 const CUSTOM_STAGE_VALUE = '__custom__';
 
@@ -14,6 +15,12 @@ const itemColumns = [
 ];
 
 const createStage = () => ({ name: '', mode: 'select', customName: '' });
+const createRule = (stage) => ({
+  key: stage.key,
+  label: stage.label,
+  allowSkip: false,
+  isOptional: false
+});
 const createItem = () => ({
   sapCode: '', sectionGroup: '', description: '',
   qtyPerWagon: '', uom: '', requiredNos: ''
@@ -59,6 +66,21 @@ const normalizeSavedStages = (stages, availableStageNames) =>
       })
     : [];
 
+const normalizeRuleSet = (savedRules, stageDefs) => {
+  const savedMap = new Map(
+    (Array.isArray(savedRules) ? savedRules : [])
+      .filter((rule) => rule?.key)
+      .map((rule) => [rule.key, rule])
+  );
+
+  return stageDefs.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    allowSkip: Boolean(savedMap.get(stage.key)?.allowSkip),
+    isOptional: Boolean(savedMap.get(stage.key)?.isOptional)
+  }));
+};
+
 const normalizePayloadItems = (items) =>
   items.filter(isFilledItem).map((item) => ({
     sapCode: item.sapCode.trim(), sectionGroup: item.sectionGroup.trim(),
@@ -98,6 +120,31 @@ const ConfigStagesTable = ({ stages }) => {
           <span style={{ opacity: 0.65, marginRight: 4 }}>{i + 1}.</span>{stage.name}
         </span>
       ))}
+    </div>
+  );
+};
+
+const ConfigRuleTable = ({ title, rules }) => {
+  const visibleRules = (rules || []).filter((rule) => rule.allowSkip || rule.isOptional);
+  return (
+    <div>
+      <div className="fw-semibold mb-2" style={{ fontSize: 13, color: '#334155' }}>{title}</div>
+      {visibleRules.length === 0 ? (
+        <p className="text-muted small mb-0">No skip rules configured.</p>
+      ) : (
+        <div className="d-flex flex-column gap-2">
+          {visibleRules.map((rule) => (
+            <div key={rule.key} className="d-flex align-items-center justify-content-between rounded px-3 py-2"
+              style={{ background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 13 }}>
+              <span>{rule.label}</span>
+              <div className="d-flex gap-2">
+                {rule.allowSkip && <span className="badge rounded-pill" style={{ background: '#ffedd5', color: '#c2410c' }}>Skip allowed</span>}
+                {rule.isOptional && <span className="badge rounded-pill" style={{ background: '#e0f2fe', color: '#075985' }}>Optional</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -214,6 +261,8 @@ const ManageWagonTypesScreen = () => {
   const [stageOptions, setStageOptions] = useState([]);
   const [dmItems, setDmItems] = useState([createItem()]);
   const [nonDmItems, setNonDmItems] = useState([createItem()]);
+  const [inspectionRules, setInspectionRules] = useState(() => inspectionStages.map(createRule));
+  const [pdiRules, setPdiRules] = useState(() => pdiStages.map(createRule));
   const [configs, setConfigs] = useState([]);
   const [editId, setEditId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -259,6 +308,8 @@ const ManageWagonTypesScreen = () => {
   const resetForm = () => {
     setWagonType(''); setStages([]); setDmItems([createItem()]);
     setNonDmItems([createItem()]); setEditId(null);
+    setInspectionRules(inspectionStages.map(createRule));
+    setPdiRules(pdiStages.map(createRule));
     setDmUploadError(''); setNonDmUploadError('');
     setFormOpen(false);
   };
@@ -267,6 +318,16 @@ const ManageWagonTypesScreen = () => {
     const payload = {
       wagonType: wagonType.trim(),
       stages: stages.map((s) => ({ name: String(s.mode === 'custom' ? s.customName : s.name).trim() })).filter((s) => s.name),
+      inspectionStageRules: inspectionRules.map((rule) => ({
+        key: rule.key,
+        allowSkip: Boolean(rule.allowSkip),
+        isOptional: Boolean(rule.isOptional)
+      })),
+      pdiStageRules: pdiRules.map((rule) => ({
+        key: rule.key,
+        allowSkip: Boolean(rule.allowSkip),
+        isOptional: Boolean(rule.isOptional)
+      })),
       dmItems: normalizePayloadItems(dmItems),
       nonDmItems: normalizePayloadItems(nonDmItems)
     };
@@ -279,6 +340,8 @@ const ManageWagonTypesScreen = () => {
     setEditId(config._id);
     setWagonType(config.wagonType || '');
     setStages(normalizeSavedStages(config.stages, stageOptions));
+    setInspectionRules(normalizeRuleSet(config.inspectionStageRules, inspectionStages));
+    setPdiRules(normalizeRuleSet(config.pdiStageRules, pdiStages));
     setDmItems(normalizeSavedItems(config.dmItems));
     setNonDmItems(normalizeSavedItems(config.nonDmItems));
     setDmUploadError(''); setNonDmUploadError('');
@@ -327,6 +390,11 @@ const ManageWagonTypesScreen = () => {
   };
 
   const isEditing = Boolean(editId);
+  const handleRuleToggle = (setter, rules, key, field) => {
+    setter(rules.map((rule) => (
+      rule.key === key ? { ...rule, [field]: !rule[field] } : rule
+    )));
+  };
 
   return (
     <div style={{ fontFamily: "'Poppins', sans-serif" }}>
@@ -436,6 +504,50 @@ const ManageWagonTypesScreen = () => {
             </button>
           </div>
 
+          <div className="mb-4">
+            <div className="d-flex align-items-center gap-2 mb-3">
+              <div style={{ width: 4, height: 20, borderRadius: 2, background: '#f97316' }} />
+              <h6 className="mb-0 fw-bold" style={{ color: '#1e293b' }}>Inspection Skip Rules</h6>
+            </div>
+            <div className="row g-3">
+              {[{ title: 'Daily Status', rules: inspectionRules, setter: setInspectionRules }, { title: 'PDI Status', rules: pdiRules, setter: setPdiRules }].map((group) => (
+                <div className="col-12 col-xl-6" key={group.title}>
+                  <div className="border rounded p-3 h-100" style={{ background: '#fff', borderColor: '#e2e8f0' }}>
+                    <div className="fw-semibold mb-3" style={{ color: '#334155', fontSize: 14 }}>{group.title}</div>
+                    <div className="d-flex flex-column gap-2">
+                      {group.rules.map((rule) => (
+                        <div key={rule.key} className="d-flex align-items-center justify-content-between flex-wrap gap-2 rounded px-3 py-2"
+                          style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                          <span style={{ fontSize: 13, color: '#0f172a' }}>{rule.label}</span>
+                          <div className="d-flex gap-3 align-items-center">
+                            <label className="form-check form-switch mb-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                checked={rule.allowSkip}
+                                onChange={() => handleRuleToggle(group.setter, group.rules, rule.key, 'allowSkip')}
+                              />
+                              <span className="form-check-label" style={{ fontSize: 12 }}>Allow skip</span>
+                            </label>
+                            <label className="form-check form-switch mb-0">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                checked={rule.isOptional}
+                                onChange={() => handleRuleToggle(group.setter, group.rules, rule.key, 'isOptional')}
+                              />
+                              <span className="form-check-label" style={{ fontSize: 12 }}>Optional</span>
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* ── DM Items ── */}
           <ItemsSection
             title="Direct Material (DM) Items"
@@ -524,6 +636,13 @@ const ManageWagonTypesScreen = () => {
             <div className="card-body px-4 py-3">
               <CollapsibleSection title="Stages" defaultOpen count={config.stages?.length || 0}>
                 <ConfigStagesTable stages={config.stages} />
+              </CollapsibleSection>
+
+              <CollapsibleSection title="Inspection Skip Rules">
+                <div className="d-flex flex-column gap-3">
+                  <ConfigRuleTable title="Daily Status" rules={normalizeRuleSet(config.inspectionStageRules, inspectionStages)} />
+                  <ConfigRuleTable title="PDI Status" rules={normalizeRuleSet(config.pdiStageRules, pdiStages)} />
+                </div>
               </CollapsibleSection>
 
               <CollapsibleSection title="DM Items" count={config.dmItems?.length || 0}>

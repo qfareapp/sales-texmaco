@@ -34,6 +34,17 @@ const derivePartsFromItems = (doc = {}) => {
   return Array.from(merged.values());
 };
 
+const normalizeStageRules = (rules = []) =>
+  Array.isArray(rules)
+    ? rules
+        .map((rule) => ({
+          key: String(rule?.key || '').trim(),
+          allowSkip: Boolean(rule?.allowSkip),
+          isOptional: Boolean(rule?.isOptional)
+        }))
+        .filter((rule) => rule.key)
+    : [];
+
 const normalizeStages = (stages = []) =>
   Array.isArray(stages)
     ? stages
@@ -70,6 +81,8 @@ const serializeConfig = (doc) => ({
   wagonType: doc.wagonType,
   parts: derivePartsFromItems(doc),
   stages: normalizeStages(doc.stages),
+  inspectionStageRules: normalizeStageRules(doc.inspectionStageRules),
+  pdiStageRules: normalizeStageRules(doc.pdiStageRules),
   dmItems: normalizeItems(doc.dmItems),
   nonDmItems: normalizeItems(doc.nonDmItems),
   createdAt: doc.createdAt,
@@ -79,7 +92,7 @@ const serializeConfig = (doc) => ({
 // CREATE/UPDATE a wagon config
 router.post('/', async (req, res) => {
   try {
-    let { wagonType, stages, dmItems, nonDmItems } = req.body;
+    let { wagonType, stages, inspectionStageRules, pdiStageRules, dmItems, nonDmItems } = req.body;
 
     if (!wagonType) {
       return res.status(400).json({ error: 'wagonType is required' });
@@ -88,6 +101,8 @@ router.post('/', async (req, res) => {
     wagonType = String(wagonType).trim();
 
     stages = normalizeStages(stages);
+    inspectionStageRules = normalizeStageRules(inspectionStageRules);
+    pdiStageRules = normalizeStageRules(pdiStageRules);
     dmItems = normalizeItems(dmItems);
     nonDmItems = normalizeItems(nonDmItems);
 
@@ -106,7 +121,7 @@ router.post('/', async (req, res) => {
 
     const saved = await WagonConfig.findOneAndUpdate(
       { wagonType },
-      { wagonType, parts: [], stages, dmItems, nonDmItems },
+      { wagonType, parts: [], stages, inspectionStageRules, pdiStageRules, dmItems, nonDmItems },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 

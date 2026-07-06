@@ -22,6 +22,46 @@ export const pdiStages = [
   { key: "lettring_clear_by_tpi", label: "Lettring Clear by TPI" },
 ];
 
+export const stageStatusLabel = (stage) => {
+  if (!stage) return "";
+  if (stage.status === "completed") return formatStageDate(stage.completedOn);
+  if (stage.status === "skipped") return stage.isOptional ? "Skipped" : "Skipped - revisit";
+  return "Pending";
+};
+
+export const stageStatusPalette = (stage, active = false, pdiMode = false) => {
+  if (stage?.status === "completed") {
+    return {
+      bg: "#f0fdf4",
+      border: "#86efac",
+      text: "#166534",
+      dot: "#16a34a",
+    };
+  }
+
+  if (stage?.status === "skipped") {
+    return {
+      bg: "#fff7ed",
+      border: "#fdba74",
+      text: "#c2410c",
+      dot: "#f97316",
+    };
+  }
+
+  if (active) {
+    return pdiMode
+      ? { bg: "#eff6ff", border: "#93c5fd", text: "#1d4ed8", dot: "#1d4ed8" }
+      : { bg: "#fffbeb", border: "#fcd34d", text: "#b45309", dot: "#b45309" };
+  }
+
+  return {
+    bg: "#f8fafc",
+    border: "#e5e7eb",
+    text: "#94a3b8",
+    dot: "#d1d5db",
+  };
+};
+
 export const formatStageDate = (value) => {
   if (!value) return "";
 

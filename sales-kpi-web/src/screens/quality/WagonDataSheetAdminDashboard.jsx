@@ -17,7 +17,12 @@ import {
 } from "@mui/material";
 import api from "../../api";
 import { buildProjectLabel } from "./wagonDataSheetConfig";
-import { formatStageDate, inspectionStages, pdiStages } from "./wagonInspectionStageConfig";
+import {
+  inspectionStages,
+  pdiStages,
+  stageStatusLabel,
+  stageStatusPalette,
+} from "./wagonInspectionStageConfig";
 
 function CountChip({ label, value, bg, color }) {
   return <Chip label={`${label}: ${value || 0}`} sx={{ bgcolor: bg, color, fontWeight: 800 }} />;
@@ -79,19 +84,19 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                     const activeStage = pdiMode ? row.activePdiStage : row.activeStage;
                     const stageData = stageList.find((item) => item.key === stage.key);
                     const isActive = activeStage?.key === stage.key;
-                    const isDone = Boolean(stageData?.completedOn);
+                    const palette = stageStatusPalette(stageData, isActive, pdiMode);
                     return (
                       <TableCell
                         key={stage.key}
                         align="center"
                         sx={{
-                          bgcolor: isActive ? "#fffbeb" : "inherit",
-                          color: isDone ? "#166534" : isActive ? "#b45309" : "#d1d5db",
-                          fontWeight: isDone ? 700 : 600,
+                          bgcolor: palette.bg,
+                          color: palette.text,
+                          fontWeight: stageData?.status ? 700 : 600,
                           fontSize: "0.78rem",
                         }}
                       >
-                        {isDone ? formatStageDate(stageData.completedOn) : isActive ? "Pending" : ""}
+                        {stageData ? stageStatusLabel(stageData) : ""}
                       </TableCell>
                     );
                   })}
@@ -99,6 +104,8 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                     {pdiMode ? (
                       row.activePdiStage ? (
                         <Chip label={`Pending: ${row.activePdiStage.label}`} size="small" sx={{ bgcolor: "#dbeafe", color: "#1d4ed8", fontWeight: 800 }} />
+                      ) : row.pdiProgress?.stages?.some((stage) => stage.status === "skipped") ? (
+                        <Chip label="Skipped stages pending" size="small" sx={{ bgcolor: "#ffedd5", color: "#c2410c", fontWeight: 800 }} />
                       ) : row.isPdiActivated ? (
                         <Chip label="PDI Complete" size="small" sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 800 }} />
                       ) : (
@@ -110,6 +117,8 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                       ) : (
                         <Chip label={`Pending: ${row.activeStage.label}`} size="small" sx={{ bgcolor: "#fff7ed", color: "#b45309", fontWeight: 800 }} />
                       )
+                    ) : row.inspectionProgress?.stages?.some((stage) => stage.status === "skipped") ? (
+                      <Chip label="Skipped stages pending" size="small" sx={{ bgcolor: "#ffedd5", color: "#c2410c", fontWeight: 800 }} />
                     ) : (
                       <Chip label="All Stages Done" size="small" sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 800 }} />
                     )}
@@ -167,7 +176,7 @@ export default function WagonDataSheetAdminDashboard() {
   const totals = useMemo(() => {
     const dailyPending = (dashboard.stageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0);
     const pdiPending = (dashboard.pdiStageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0);
-    const completed = (dashboard.rows || []).filter((row) => !row.activeStage).length;
+    const completed = (dashboard.rows || []).filter((row) => row.isFullyCompleted).length;
     return { dailyPending, pdiPending, completed };
   }, [dashboard]);
 

@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const WagonDataSheetProject = require("../models/WagonDataSheetProject");
 const WagonDataSheetRow = require("../models/WagonDataSheetRow");
+const WagonConfig = require("../models/WagonConfig");
 
 const router = express.Router();
 
@@ -43,6 +44,11 @@ const PDI_STAGES = [
   { key: "painting_clear_by_tpi", label: "Painting Clear by TPI" },
   { key: "lettring_clear_by_tpi", label: "Lettring Clear by TPI" },
 ];
+const STAGE_STATUS = {
+  PENDING: "pending",
+  COMPLETED: "completed",
+  SKIPPED: "skipped",
+};
 const createInternalWheelDataKey = (prefix) =>
   `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 const asProjectIdOrNull = (value) =>
@@ -57,90 +63,141 @@ const formatStageDate = (date = new Date()) => {
   });
   return formatter.format(date);
 };
-const createDefaultInspectionStages = () =>
-  INSPECTION_STAGES.map((stage) => ({
-    key: stage.key,
-    label: stage.label,
-    completedOn: "",
-    completedBy: { username: "", role: "" },
-  }));
-const createDefaultPdiStages = () =>
-  PDI_STAGES.map((stage) => ({
-    key: stage.key,
-    label: stage.label,
-    completedOn: "",
-    completedBy: { username: "", role: "" },
-  }));
-const getInspectionProgress = (row) => {
-  const sourceStages = Array.isArray(row?.inspectionProgress?.stages) && row.inspectionProgress.stages.length
-    ? row.inspectionProgress.stages
-    : [];
-  const stageMap = new Map(sourceStages.map((stage) => [stage.key, stage]));
-  const stages = INSPECTION_STAGES.map((stage) => {
-    const existingStage = stageMap.get(stage.key);
+const normalizeStageStatus = (stage = {}) => {
+  const explicitStatus = asText(stage.status).toLowerCase();
+  if (Object.values(STAGE_STATUS).includes(explicitStatus)) {
+    return explicitStatus;
+  }
+  if (asText(stage.completedOn)) return STAGE_STATUS.COMPLETED;
+  if (asText(stage.skippedOn)) return STAGE_STATUS.SKIPPED;
+  return STAGE_STATUS.PENDING;
+};
+const normalizeStageRuleMap = (rules = []) =>
+  new Map(
+    (Array.isArray(rules) ? rules : [])
+      .map((rule) => ({
+        key: asText(rule?.key),
+        allowSkip: Boolean(rule?.allowSkip),
+        isOptional: Boolean(rule?.isOptional),
+      }))
+      .filter((rule) => rule.key)
+      .map((rule) => [rule.key, rule])
+  );
+const buildStageDefinitions = (baseStages, rules = []) => {
+  const ruleMap = normalizeStageRuleMap(rules);
+  return baseStages.map((stage) => {
+    const rule = ruleMap.get(stage.key);
     return {
-      key: stage.key,
-      label: stage.label,
-      completedOn: asText(existingStage?.completedOn),
-      completedBy: existingStage?.completedBy || { username: "", role: "" },
+      ...stage,
+      allowSkip: Boolean(rule?.allowSkip),
+      isOptional: Boolean(rule?.isOptional),
     };
   });
-  const completedStages = stages.filter((stage) => stage.completedOn);
-  const requestedIndex = Number.isInteger(row?.inspectionProgress?.currentStageIndex)
-    ? row.inspectionProgress.currentStageIndex
-    : completedStages.length;
-  const currentStageIndex = Math.min(
-    INSPECTION_STAGES.length,
-    Math.max(completedStages.length, requestedIndex, 0)
-  );
-
+};
+const isStageResolved = (stage) =>
+  stage?.status === STAGE_STATUS.COMPLETED ||
+  (stage?.status === STAGE_STATUS.SKIPPED && stage?.isOptional);
+const getStageActionDate = (stage) => asText(stage?.completedOn) || asText(stage?.skippedOn);
+const normalizeStageEntry = (existingStage, stageDefinition) => {
+  const status = normalizeStageStatus(existingStage);
   return {
-    stages,
-    currentStageIndex,
-    lastCompletedStageKey: completedStages[completedStages.length - 1]?.key || "",
-    lastCompletedOn: completedStages[completedStages.length - 1]?.completedOn || "",
-    activeStage: currentStageIndex < INSPECTION_STAGES.length ? INSPECTION_STAGES[currentStageIndex] : null,
-    isFullyCompleted: currentStageIndex >= INSPECTION_STAGES.length,
+    key: stageDefinition.key,
+    label: stageDefinition.label,
+    status,
+    allowSkip: stageDefinition.allowSkip,
+    isOptional: stageDefinition.isOptional,
+    completedOn: asText(existingStage?.completedOn),
+    completedBy: existingStage?.completedBy || { username: "", role: "" },
+    skippedOn: asText(existingStage?.skippedOn),
+    skippedBy: existingStage?.skippedBy || { username: "", role: "" },
+    skipReason: asText(existingStage?.skipReason),
   };
 };
-const getPdiProgress = (row) => {
-  const sourceStages = Array.isArray(row?.pdiProgress?.stages) && row.pdiProgress.stages.length
-    ? row.pdiProgress.stages
-    : [];
+const getLastCompletedStage = (stages) =>
+  stages
+    .filter((stage) => stage.status === STAGE_STATUS.COMPLETED && stage.completedOn)
+    .sort((a, b) => parseStageDate(b.completedOn)?.getTime?.() - parseStageDate(a.completedOn)?.getTime?.())[0] || null;
+const findNextPendingIndex = (stages, startIndex = 0) => {
+  for (let index = Math.max(0, startIndex); index < stages.length; index += 1) {
+    if (!isStageResolved(stages[index])) {
+      return index;
+    }
+  }
+  return stages.length;
+};
+const buildProgress = ({ row, progressKey, baseStages, rules = [], activatedByDefault = true }) => {
+  const sourceProgress = row?.[progressKey] || {};
+  const sourceStages = Array.isArray(sourceProgress.stages) && sourceProgress.stages.length ? sourceProgress.stages : [];
+  const stageDefinitions = buildStageDefinitions(baseStages, rules);
   const stageMap = new Map(sourceStages.map((stage) => [stage.key, stage]));
-  const stages = PDI_STAGES.map((stage) => {
-    const existingStage = stageMap.get(stage.key);
-    return {
-      key: stage.key,
-      label: stage.label,
-      completedOn: asText(existingStage?.completedOn),
-      completedBy: existingStage?.completedBy || { username: "", role: "" },
-    };
-  });
-  const completedStages = stages.filter((stage) => stage.completedOn);
-  const isActivated = Boolean(row?.pdiProgress?.isActivated);
-  const requestedIndex = Number.isInteger(row?.pdiProgress?.currentStageIndex)
-    ? row.pdiProgress.currentStageIndex
-    : isActivated
-    ? completedStages.length
+  const stages = stageDefinitions.map((stageDefinition) =>
+    normalizeStageEntry(stageMap.get(stageDefinition.key), stageDefinition)
+  );
+  const isActivated = progressKey === "pdiProgress" ? Boolean(sourceProgress?.isActivated) : true;
+  const requestedIndex = Number.isInteger(sourceProgress?.currentStageIndex)
+    ? sourceProgress.currentStageIndex
+    : activatedByDefault
+    ? 0
     : -1;
-  const currentStageIndex = !isActivated
+  const currentStageIndex = !isActivated && progressKey === "pdiProgress"
     ? -1
-    : Math.min(PDI_STAGES.length, Math.max(completedStages.length, requestedIndex, 0));
+    : findNextPendingIndex(stages, requestedIndex >= 0 ? requestedIndex : 0);
+  const activeStage = currentStageIndex >= 0 && currentStageIndex < stages.length ? stages[currentStageIndex] : null;
+  const unresolvedStages = stages.filter((stage) => !isStageResolved(stage));
+  const skippedStages = stages.filter((stage) => stage.status === STAGE_STATUS.SKIPPED);
+  const lastCompletedStage = getLastCompletedStage(stages);
 
   return {
     stages,
     currentStageIndex,
-    lastCompletedStageKey: completedStages[completedStages.length - 1]?.key || "",
-    lastCompletedOn: completedStages[completedStages.length - 1]?.completedOn || "",
-    activeStage: currentStageIndex >= 0 && currentStageIndex < PDI_STAGES.length ? PDI_STAGES[currentStageIndex] : null,
-    isFullyCompleted: isActivated && currentStageIndex >= PDI_STAGES.length,
+    lastCompletedStageKey: lastCompletedStage?.key || "",
+    lastCompletedOn: lastCompletedStage?.completedOn || "",
+    activeStage,
+    unresolvedStages,
+    skippedStages,
+    isFullyCompleted: isActivated ? unresolvedStages.length === 0 : false,
     isActivated,
   };
 };
+const getInspectionProgress = (row, rules = []) =>
+  buildProgress({
+    row,
+    progressKey: "inspectionProgress",
+    baseStages: INSPECTION_STAGES,
+    rules,
+  });
+const getPdiProgress = (row, rules = []) =>
+  buildProgress({
+    row,
+    progressKey: "pdiProgress",
+    baseStages: PDI_STAGES,
+    rules,
+    activatedByDefault: false,
+  });
+const getRowRuleSets = (row = {}) => ({
+  inspectionRules: (row?.inspectionProgress?.stages || []).map((stage) => ({
+    key: stage?.key,
+    allowSkip: Boolean(stage?.allowSkip),
+    isOptional: Boolean(stage?.isOptional),
+  })),
+  pdiRules: (row?.pdiProgress?.stages || []).map((stage) => ({
+    key: stage?.key,
+    allowSkip: Boolean(stage?.allowSkip),
+    isOptional: Boolean(stage?.isOptional),
+  })),
+});
+const createDefaultInspectionStages = (rules = []) =>
+  buildStageDefinitions(INSPECTION_STAGES, rules).map((stage) =>
+    normalizeStageEntry({}, stage)
+  );
+const createDefaultPdiStages = (rules = []) =>
+  buildStageDefinitions(PDI_STAGES, rules).map((stage) =>
+    normalizeStageEntry({}, stage)
+  );
 const buildStageDashboardRow = (row) => {
-  const progress = getInspectionProgress(row);
-  const pdiProgress = getPdiProgress(row);
+  const { inspectionRules, pdiRules } = getRowRuleSets(row);
+  const progress = getInspectionProgress(row, inspectionRules);
+  const pdiProgress = getPdiProgress(row, pdiRules);
   return {
     ...row,
     inspectionProgress: {
@@ -172,9 +229,10 @@ const buildStageCounts = (rows) => {
   }));
 
   rows.forEach((row) => {
-    const progress = getInspectionProgress(row);
+    const { inspectionRules } = getRowRuleSets(row);
+    const progress = getInspectionProgress(row, inspectionRules);
     progress.stages.forEach((stage, index) => {
-      if (stage.completedOn) {
+      if (stage.status === STAGE_STATUS.COMPLETED) {
         counts[index].completedCount += 1;
       }
     });
@@ -197,9 +255,10 @@ const buildPdiCounts = (rows) => {
   }));
 
   rows.forEach((row) => {
-    const pdiProgress = getPdiProgress(row);
+    const { pdiRules } = getRowRuleSets(row);
+    const pdiProgress = getPdiProgress(row, pdiRules);
     pdiProgress.stages.forEach((stage, index) => {
-      if (stage.completedOn) {
+      if (stage.status === STAGE_STATUS.COMPLETED) {
         counts[index].completedCount += 1;
       }
     });
@@ -224,9 +283,10 @@ const diffInDays = (fromDate, toDate = new Date()) => {
   return Math.max(0, Math.floor((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)));
 };
 const getStageReferenceDate = (row, pdiMode = false) => {
-  const progress = pdiMode ? getPdiProgress(row) : getInspectionProgress(row);
+  const { inspectionRules, pdiRules } = getRowRuleSets(row);
+  const progress = pdiMode ? getPdiProgress(row, pdiRules) : getInspectionProgress(row, inspectionRules);
   const completedDates = progress.stages
-    .map((stage) => parseStageDate(stage.completedOn))
+    .map((stage) => parseStageDate(getStageActionDate(stage)))
     .filter(Boolean)
     .sort((a, b) => b.getTime() - a.getTime());
 
@@ -236,8 +296,9 @@ const getStageReferenceDate = (row, pdiMode = false) => {
   return row?.createdAt ? new Date(row.createdAt) : null;
 };
 const flattenCompletionEvents = (row) => {
-  const dailyEvents = getInspectionProgress(row).stages
-    .filter((stage) => stage.completedOn && asText(stage?.completedBy?.username))
+  const { inspectionRules, pdiRules } = getRowRuleSets(row);
+  const dailyEvents = getInspectionProgress(row, inspectionRules).stages
+    .filter((stage) => stage.status === STAGE_STATUS.COMPLETED && stage.completedOn && asText(stage?.completedBy?.username))
     .map((stage) => ({
       type: "daily-stage",
       stageKey: stage.key,
@@ -249,8 +310,8 @@ const flattenCompletionEvents = (row) => {
       projectId: String(row?.projectId || ""),
     }));
 
-  const pdiEvents = getPdiProgress(row).stages
-    .filter((stage) => stage.completedOn && asText(stage?.completedBy?.username))
+  const pdiEvents = getPdiProgress(row, pdiRules).stages
+    .filter((stage) => stage.status === STAGE_STATUS.COMPLETED && stage.completedOn && asText(stage?.completedBy?.username))
     .map((stage) => ({
       type: "pdi-stage",
       stageKey: stage.key,
@@ -304,8 +365,10 @@ const flattenCompletionEvents = (row) => {
   return [...dailyEvents, ...pdiEvents, ...formEvents];
 };
 const hasCompletedStage = (row, stageKey) =>
-  getInspectionProgress(row).stages.some((stage) => stage.key === stageKey && stage.completedOn);
-const isPdiActivated = (row) => getPdiProgress(row).isActivated;
+  getInspectionProgress(row, getRowRuleSets(row).inspectionRules).stages.some(
+    (stage) => stage.key === stageKey && stage.status === STAGE_STATUS.COMPLETED
+  );
+const isPdiActivated = (row) => getPdiProgress(row, getRowRuleSets(row).pdiRules).isActivated;
 const findDuplicateSerialNumber = (values) => {
   const seen = new Set();
 
@@ -364,6 +427,76 @@ const attachLinkedWheelDataRows = async (rows) => {
     ],
   }));
 };
+const getProjectWagonType = (project = {}) =>
+  asText(project?.wagonTypeOffered) || asText(project?.wagonTypeInPo);
+const findWagonConfigByType = async (wagonType) => {
+  const safeType = asText(wagonType);
+  if (!safeType) return null;
+  return WagonConfig.findOne({ wagonType: buildExactMatchRegex(safeType) }).lean();
+};
+const buildRuleSetsFromConfig = (config = {}) => ({
+  inspectionRules: Array.isArray(config?.inspectionStageRules) ? config.inspectionStageRules : [],
+  pdiRules: Array.isArray(config?.pdiStageRules) ? config.pdiStageRules : [],
+});
+const hydrateStageRules = (row = {}, ruleSets = {}) => {
+  const applyRules = (stages = [], rules = []) => {
+    if (!Array.isArray(stages) || !stages.length) return stages;
+    const ruleMap = normalizeStageRuleMap(rules);
+    return stages.map((stage) => {
+      const rule = ruleMap.get(asText(stage?.key));
+      return {
+        ...stage,
+        allowSkip: Object.prototype.hasOwnProperty.call(stage || {}, "allowSkip")
+          ? Boolean(stage.allowSkip)
+          : Boolean(rule?.allowSkip),
+        isOptional: Object.prototype.hasOwnProperty.call(stage || {}, "isOptional")
+          ? Boolean(stage.isOptional)
+          : Boolean(rule?.isOptional),
+      };
+    });
+  };
+
+  return {
+    ...row,
+    inspectionProgress: row?.inspectionProgress
+      ? {
+          ...row.inspectionProgress,
+          stages: applyRules(row.inspectionProgress.stages, ruleSets.inspectionRules),
+        }
+      : row?.inspectionProgress,
+    pdiProgress: row?.pdiProgress
+      ? {
+          ...row.pdiProgress,
+          stages: applyRules(row.pdiProgress.stages, ruleSets.pdiRules),
+        }
+      : row?.pdiProgress,
+  };
+};
+const syncProgressPayload = (progress, isPdi = false) => ({
+  stages: progress.stages.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    status: stage.status,
+    allowSkip: Boolean(stage.allowSkip),
+    isOptional: Boolean(stage.isOptional),
+    completedOn: stage.completedOn || "",
+    completedBy: stage.completedBy || { username: "", role: "" },
+    skippedOn: stage.skippedOn || "",
+    skippedBy: stage.skippedBy || { username: "", role: "" },
+    skipReason: stage.skipReason || "",
+  })),
+  currentStageIndex: progress.currentStageIndex,
+  lastCompletedStageKey: progress.lastCompletedStageKey || "",
+  lastCompletedOn: progress.lastCompletedOn || "",
+  ...(isPdi ? { isActivated: progress.isActivated } : {}),
+});
+const getStageByKey = (progress, stageKey) =>
+  (progress?.stages || []).find((stage) => stage.key === stageKey) || null;
+const canStageBeCompleted = (stage, activeStage) =>
+  Boolean(stage) &&
+  (stage.status === STAGE_STATUS.SKIPPED || activeStage?.key === stage.key);
+const canTemporarilySkipStage = (stage) =>
+  Boolean(stage) && stage.key !== "uf_fit_up";
 
 const getNextSlNo = async (projectId) => {
   const existingRows = await WagonDataSheetRow.find({ projectId }).select("slNo").lean();
@@ -408,9 +541,13 @@ router.get("/projects", async (_req, res) => {
   try {
     const projects = await WagonDataSheetProject.find().sort({ createdAt: -1 }).lean();
     const ids = projects.map((project) => project._id);
-    const projectRows = ids.length
-      ? await WagonDataSheetRow.find({ projectId: { $in: ids } }).lean()
-      : [];
+    const [projectRows, wagonConfigs] = await Promise.all([
+      ids.length ? WagonDataSheetRow.find({ projectId: { $in: ids } }).lean() : [],
+      WagonConfig.find().lean(),
+    ]);
+    const configMap = new Map(
+      wagonConfigs.map((config) => [asText(config?.wagonType).toUpperCase(), buildRuleSetsFromConfig(config)])
+    );
     const rowMap = new Map();
 
     projectRows.forEach((row) => {
@@ -424,10 +561,11 @@ router.get("/projects", async (_req, res) => {
     res.json({
       success: true,
       data: projects.map((project) => {
-        const rows = rowMap.get(String(project._id)) || [];
+        const ruleSets = configMap.get(getProjectWagonType(project).toUpperCase()) || {};
+        const rows = (rowMap.get(String(project._id)) || []).map((row) => hydrateStageRules(row, ruleSets));
         const stageCounts = buildStageCounts(rows);
         const pdiCounts = buildPdiCounts(rows);
-        const completedRows = rows.filter((row) => getInspectionProgress(row).isFullyCompleted).length;
+        const completedRows = rows.filter((row) => getInspectionProgress(row, getRowRuleSets(row).inspectionRules).isFullyCompleted).length;
         return {
           ...project,
           totalRows: rows.length,
@@ -487,7 +625,11 @@ router.get("/projects/:projectId/detail", async (req, res) => {
       return res.status(404).json({ success: false, message: "Project not found." });
     }
 
-    const rows = (await attachLinkedWheelDataRows(rawRows)).map(buildStageDashboardRow);
+    const wagonConfig = await findWagonConfigByType(getProjectWagonType(project));
+    const ruleSets = buildRuleSetsFromConfig(wagonConfig);
+    const rows = (await attachLinkedWheelDataRows(rawRows))
+      .map((row) => hydrateStageRules(row, ruleSets))
+      .map(buildStageDashboardRow);
     res.json({ success: true, data: { project, rows } });
   } catch (error) {
     console.error("Error fetching wagon data sheet project detail:", error);
@@ -511,15 +653,18 @@ router.get("/projects/:projectId/stage-dashboard", async (req, res) => {
       return res.status(404).json({ success: false, message: "Project not found." });
     }
 
-    const dashboardRows = rows.map(buildStageDashboardRow);
+    const wagonConfig = await findWagonConfigByType(getProjectWagonType(project));
+    const ruleSets = buildRuleSetsFromConfig(wagonConfig);
+    const hydratedRows = rows.map((row) => hydrateStageRules(row, ruleSets));
+    const dashboardRows = hydratedRows.map(buildStageDashboardRow);
     res.json({
       success: true,
       data: {
         project,
         stages: INSPECTION_STAGES,
         pdiStages: PDI_STAGES,
-        stageCounts: buildStageCounts(rows),
-        pdiStageCounts: buildPdiCounts(rows),
+        stageCounts: buildStageCounts(hydratedRows),
+        pdiStageCounts: buildPdiCounts(hydratedRows),
         rows: dashboardRows,
       },
     });
@@ -531,25 +676,33 @@ router.get("/projects/:projectId/stage-dashboard", async (req, res) => {
 
 router.get("/analytics/overview", async (_req, res) => {
   try {
-    const [projects, rows] = await Promise.all([
+    const [projects, rows, wagonConfigs] = await Promise.all([
       WagonDataSheetProject.find().sort({ createdAt: -1 }).lean(),
       WagonDataSheetRow.find({ projectId: { $ne: null } }).sort({ createdAt: 1 }).lean(),
+      WagonConfig.find().lean(),
     ]);
 
     const projectMap = new Map(projects.map((project) => [String(project._id), project]));
+    const configMap = new Map(
+      wagonConfigs.map((config) => [asText(config?.wagonType).toUpperCase(), buildRuleSetsFromConfig(config)])
+    );
     const today = new Date();
     const todayText = formatStageDate(today);
     const weekAgo = new Date(today);
     weekAgo.setDate(today.getDate() - 7);
 
     const rowsWithProgress = rows.map((row) => {
-      const inspection = getInspectionProgress(row);
-      const pdi = getPdiProgress(row);
       const project = projectMap.get(String(row.projectId || "")) || null;
-      const currentStageAgeDays = inspection.activeStage ? diffInDays(getStageReferenceDate(row, false), today) : null;
-      const currentPdiAgeDays = pdi.activeStage ? diffInDays(getStageReferenceDate(row, true), today) : null;
+      const hydratedRow = hydrateStageRules(
+        row,
+        configMap.get(getProjectWagonType(project).toUpperCase()) || {}
+      );
+      const inspection = getInspectionProgress(hydratedRow, getRowRuleSets(hydratedRow).inspectionRules);
+      const pdi = getPdiProgress(hydratedRow, getRowRuleSets(hydratedRow).pdiRules);
+      const currentStageAgeDays = inspection.activeStage ? diffInDays(getStageReferenceDate(hydratedRow, false), today) : null;
+      const currentPdiAgeDays = pdi.activeStage ? diffInDays(getStageReferenceDate(hydratedRow, true), today) : null;
       return {
-        ...row,
+        ...hydratedRow,
         project,
         inspection,
         pdi,
@@ -558,8 +711,8 @@ router.get("/analytics/overview", async (_req, res) => {
       };
     });
 
-    const stageCounts = buildStageCounts(rows);
-    const pdiStageCounts = buildPdiCounts(rows);
+    const stageCounts = buildStageCounts(rowsWithProgress);
+    const pdiStageCounts = buildPdiCounts(rowsWithProgress);
     const completionEvents = rowsWithProgress.flatMap(flattenCompletionEvents);
 
     const overall = {
@@ -568,9 +721,9 @@ router.get("/analytics/overview", async (_req, res) => {
       totalWagonInspections: rowsWithProgress.length,
       dailyInProgress: rowsWithProgress.filter((row) => row.inspection.activeStage).length,
       pdiInProgress: rowsWithProgress.filter((row) => row.pdi.activeStage).length,
-      fullyCompletedWagons: rowsWithProgress.filter((row) => !row.inspection.activeStage).length,
+      fullyCompletedWagons: rowsWithProgress.filter((row) => row.inspection.isFullyCompleted).length,
       completionPercent: rowsWithProgress.length
-        ? Number(((rowsWithProgress.filter((row) => !row.inspection.activeStage).length / rowsWithProgress.length) * 100).toFixed(1))
+        ? Number(((rowsWithProgress.filter((row) => row.inspection.isFullyCompleted).length / rowsWithProgress.length) * 100).toFixed(1))
         : 0,
       reachedDmLine: rowsWithProgress.filter((row) => row.pdi.isActivated).length,
       waitingInPdi: rowsWithProgress.filter((row) => row.pdi.isActivated && row.pdi.activeStage).length,
@@ -588,7 +741,7 @@ router.get("/analytics/overview", async (_req, res) => {
 
     const projectPerformance = projects.map((project) => {
       const projectRows = rowsWithProgress.filter((row) => String(row.projectId || "") === String(project._id));
-      const completed = projectRows.filter((row) => !row.inspection.activeStage).length;
+      const completed = projectRows.filter((row) => row.inspection.isFullyCompleted).length;
       const readyForZone2 = projectRows.filter((row) => row.pdi.isActivated).length;
       return {
         projectId: String(project._id),
@@ -622,7 +775,9 @@ router.get("/analytics/overview", async (_req, res) => {
       return clean.length ? Number((clean.reduce((sum, value) => sum + value, 0) / clean.length).toFixed(1)) : 0;
     };
 
-    const pendingRows = rowsWithProgress.filter((row) => row.inspection.activeStage || row.pdi.activeStage);
+    const pendingRows = rowsWithProgress.filter(
+      (row) => !row.inspection.isFullyCompleted || (row.pdi.isActivated && !row.pdi.isFullyCompleted)
+    );
     const oldestPendingRow = [...pendingRows]
       .sort((a, b) => {
         const aAge = Math.max(a.currentStageAgeDays || 0, a.currentPdiAgeDays || 0);
@@ -741,16 +896,30 @@ router.post("/rows/stage-entry", async (req, res) => {
       return res.status(400).json({ success: false, message: "Valid projectId is required." });
     }
 
+    const project = await WagonDataSheetProject.findById(projectId).lean();
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found." });
+    }
+    const wagonConfig = await findWagonConfigByType(getProjectWagonType(project));
+    const { inspectionRules, pdiRules } = buildRuleSetsFromConfig(wagonConfig);
+
     const row = await WagonDataSheetRow.create({
       projectId,
       slNo: await getNextSlNo(projectId),
       texNo: "",
       wheelDataKey: createInternalWheelDataKey("STAGE"),
       inspectionProgress: {
-        stages: createDefaultInspectionStages(),
+        stages: createDefaultInspectionStages(inspectionRules),
         currentStageIndex: 0,
         lastCompletedStageKey: "",
         lastCompletedOn: "",
+      },
+      pdiProgress: {
+        stages: createDefaultPdiStages(pdiRules),
+        currentStageIndex: -1,
+        lastCompletedStageKey: "",
+        lastCompletedOn: "",
+        isActivated: false,
       },
     });
 
@@ -773,16 +942,22 @@ router.patch("/rows/:rowId/stages/:stageKey/complete", async (req, res) => {
       return res.status(404).json({ success: false, message: "Wagon row not found." });
     }
 
-    const progress = getInspectionProgress(row.toObject());
+    const progress = getInspectionProgress(row.toObject(), getRowRuleSets(row.toObject()).inspectionRules);
+    const targetStage = getStageByKey(progress, stageKey);
     const expectedStage = progress.activeStage;
 
-    if (!expectedStage) {
-      return res.status(400).json({ success: false, message: "All stages are already completed." });
+    if (!targetStage) {
+      return res.status(400).json({ success: false, message: "Selected stage was not found." });
     }
-    if (expectedStage.key !== stageKey) {
+    if (!expectedStage && targetStage.status !== STAGE_STATUS.SKIPPED) {
+      return res.status(400).json({ success: false, message: "All active stages are already resolved. Complete a skipped stage instead." });
+    }
+    if (!canStageBeCompleted(targetStage, expectedStage)) {
       return res.status(400).json({
         success: false,
-        message: `Only the current pending stage can be completed. Pending stage: ${expectedStage.label}.`,
+        message: targetStage.status === STAGE_STATUS.PENDING
+          ? `Only the current pending stage can be completed. Pending stage: ${expectedStage?.label || "None"}.`
+          : "Only skipped or current pending stages can be completed.",
       });
     }
 
@@ -800,34 +975,53 @@ router.patch("/rows/:rowId/stages/:stageKey/complete", async (req, res) => {
       row.texNo = texNo;
     }
 
+    const completedOn = asText(req.body.completedOn) || formatStageDate();
     const stages = progress.stages.map((stage) =>
       stage.key === stageKey
         ? {
             ...stage,
-            completedOn: asText(req.body.completedOn) || formatStageDate(),
+            status: STAGE_STATUS.COMPLETED,
+            completedOn,
             completedBy: asSubmittedBy(req.body),
+            skippedOn: "",
+            skippedBy: { username: "", role: "" },
+            skipReason: "",
           }
         : stage
     );
-    const completedStage = stages.find((stage) => stage.key === stageKey);
-    const nextStageIndex = Math.min(progress.currentStageIndex + 1, INSPECTION_STAGES.length);
+    const nextProgress = getInspectionProgress(
+      {
+        ...row.toObject(),
+        inspectionProgress: {
+          ...row.inspectionProgress?.toObject?.(),
+          stages,
+          currentStageIndex: expectedStage?.key === stageKey
+            ? Math.min(progress.currentStageIndex + 1, INSPECTION_STAGES.length)
+            : progress.currentStageIndex,
+        },
+      },
+      getRowRuleSets(row.toObject()).inspectionRules
+    );
 
-    row.inspectionProgress = {
-      stages,
-      currentStageIndex: nextStageIndex,
-      lastCompletedStageKey: stageKey,
-      lastCompletedOn: completedStage?.completedOn || formatStageDate(),
-    };
+    row.inspectionProgress = syncProgressPayload(nextProgress);
 
     if (stageKey === "container_test") {
-      const currentPdi = getPdiProgress(row.toObject());
-      row.pdiProgress = {
-        stages: currentPdi.stages.length ? currentPdi.stages : createDefaultPdiStages(),
-        currentStageIndex: currentPdi.isActivated ? currentPdi.currentStageIndex : 0,
-        lastCompletedStageKey: currentPdi.lastCompletedStageKey || "",
-        lastCompletedOn: currentPdi.lastCompletedOn || "",
-        isActivated: true,
-      };
+      const currentPdi = getPdiProgress(row.toObject(), getRowRuleSets(row.toObject()).pdiRules);
+      const activatedPdi = getPdiProgress(
+        {
+          ...row.toObject(),
+          pdiProgress: {
+            ...row.pdiProgress?.toObject?.(),
+            stages: currentPdi.stages.length ? currentPdi.stages : createDefaultPdiStages(),
+            currentStageIndex: currentPdi.isActivated ? currentPdi.currentStageIndex : 0,
+            lastCompletedStageKey: currentPdi.lastCompletedStageKey || "",
+            lastCompletedOn: currentPdi.lastCompletedOn || "",
+            isActivated: true,
+          },
+        },
+        getRowRuleSets(row.toObject()).pdiRules
+      );
+      row.pdiProgress = syncProgressPayload(activatedPdi, true);
     }
 
     await row.save();
@@ -850,19 +1044,27 @@ router.patch("/rows/:rowId/pdi-stages/:stageKey/complete", async (req, res) => {
       return res.status(404).json({ success: false, message: "Wagon row not found." });
     }
 
-    const dailyProgress = getInspectionProgress(row.toObject());
-    const pdiProgress = getPdiProgress(row.toObject());
+    const dailyRules = getRowRuleSets(row.toObject()).inspectionRules;
+    const pdiRules = getRowRuleSets(row.toObject()).pdiRules;
+    const dailyProgress = getInspectionProgress(row.toObject(), dailyRules);
+    const pdiProgress = getPdiProgress(row.toObject(), pdiRules);
+    const targetStage = getStageByKey(pdiProgress, stageKey);
 
     if (!pdiProgress.isActivated) {
       return res.status(400).json({ success: false, message: "PDI stages are not activated yet for this TEX No." });
     }
-    if (!pdiProgress.activeStage) {
-      return res.status(400).json({ success: false, message: "All PDI stages are already completed." });
+    if (!targetStage) {
+      return res.status(400).json({ success: false, message: "Selected PDI stage was not found." });
     }
-    if (pdiProgress.activeStage.key !== stageKey) {
+    if (!pdiProgress.activeStage && targetStage.status !== STAGE_STATUS.SKIPPED) {
+      return res.status(400).json({ success: false, message: "All active PDI stages are resolved. Complete a skipped PDI stage instead." });
+    }
+    if (!canStageBeCompleted(targetStage, pdiProgress.activeStage)) {
       return res.status(400).json({
         success: false,
-        message: `Only the current PDI stage can be completed. Pending PDI stage: ${pdiProgress.activeStage.label}.`,
+        message: targetStage.status === STAGE_STATUS.PENDING
+          ? `Only the current PDI stage can be completed. Pending PDI stage: ${pdiProgress.activeStage?.label || "None"}.`
+          : "Only skipped or current pending PDI stages can be completed.",
       });
     }
 
@@ -871,44 +1073,216 @@ router.patch("/rows/:rowId/pdi-stages/:stageKey/complete", async (req, res) => {
       stage.key === stageKey
         ? {
             ...stage,
+            status: STAGE_STATUS.COMPLETED,
             completedOn,
             completedBy: asSubmittedBy(req.body),
+            skippedOn: "",
+            skippedBy: { username: "", role: "" },
+            skipReason: "",
           }
         : stage
     );
-    const nextPdiIndex = Math.min(pdiProgress.currentStageIndex + 1, PDI_STAGES.length);
+    const nextPdiProgress = getPdiProgress(
+      {
+        ...row.toObject(),
+        pdiProgress: {
+          ...row.pdiProgress?.toObject?.(),
+          stages,
+          currentStageIndex: pdiProgress.activeStage?.key === stageKey
+            ? Math.min(pdiProgress.currentStageIndex + 1, PDI_STAGES.length)
+            : pdiProgress.currentStageIndex,
+          isActivated: true,
+        },
+      },
+      pdiRules
+    );
 
-    row.pdiProgress = {
-      stages,
-      currentStageIndex: nextPdiIndex,
-      lastCompletedStageKey: stageKey,
-      lastCompletedOn: completedOn,
-      isActivated: true,
-    };
+    row.pdiProgress = syncProgressPayload(nextPdiProgress, true);
 
-    if (nextPdiIndex >= PDI_STAGES.length && dailyProgress.currentStageIndex === INSPECTION_STAGES.length - 1) {
+    if (nextPdiProgress.isFullyCompleted) {
       const dailyStages = dailyProgress.stages.map((stage) =>
-        stage.key === "dm_line"
+        stage.key === "dm_line" && stage.status !== STAGE_STATUS.COMPLETED
           ? {
               ...stage,
+              status: STAGE_STATUS.COMPLETED,
               completedOn,
               completedBy: asSubmittedBy(req.body),
+              skippedOn: "",
+              skippedBy: { username: "", role: "" },
+              skipReason: "",
             }
           : stage
       );
-
-      row.inspectionProgress = {
-        stages: dailyStages,
-        currentStageIndex: INSPECTION_STAGES.length,
-        lastCompletedStageKey: "dm_line",
-        lastCompletedOn: completedOn,
-      };
+      const syncedDaily = getInspectionProgress(
+        {
+          ...row.toObject(),
+          inspectionProgress: {
+            ...row.inspectionProgress?.toObject?.(),
+            stages: dailyStages,
+            currentStageIndex: Math.max(dailyProgress.currentStageIndex, INSPECTION_STAGES.length),
+          },
+        },
+        dailyRules
+      );
+      row.inspectionProgress = syncProgressPayload(syncedDaily);
     }
 
     await row.save();
     res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
   } catch (error) {
     console.error("Error completing wagon PDI stage:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+router.patch("/rows/:rowId/stages/:stageKey/skip", async (req, res) => {
+  try {
+    const { rowId, stageKey } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(rowId)) {
+      return res.status(400).json({ success: false, message: "Valid rowId is required." });
+    }
+
+    const row = await WagonDataSheetRow.findById(rowId);
+    if (!row) {
+      return res.status(404).json({ success: false, message: "Wagon row not found." });
+    }
+
+    const inspectionRules = getRowRuleSets(row.toObject()).inspectionRules;
+    const progress = getInspectionProgress(row.toObject(), inspectionRules);
+    const activeStage = progress.activeStage;
+
+    if (!activeStage) {
+      return res.status(400).json({ success: false, message: "There is no active daily stage to skip." });
+    }
+    if (activeStage.key !== stageKey) {
+      return res.status(400).json({
+        success: false,
+        message: `Only the current pending stage can be skipped. Pending stage: ${activeStage.label}.`,
+      });
+    }
+    if (!canTemporarilySkipStage(activeStage)) {
+      return res.status(400).json({ success: false, message: `${activeStage.label} cannot be skipped.` });
+    }
+
+    const skippedOn = asText(req.body.skippedOn) || formatStageDate();
+    const stages = progress.stages.map((stage) =>
+      stage.key === stageKey
+        ? {
+            ...stage,
+            status: STAGE_STATUS.SKIPPED,
+            skippedOn,
+            skippedBy: asSubmittedBy(req.body),
+            skipReason: asText(req.body.skipReason) || "Skipped for later completion",
+            completedOn: "",
+            completedBy: { username: "", role: "" },
+          }
+        : stage
+    );
+    const nextProgress = getInspectionProgress(
+      {
+        ...row.toObject(),
+        inspectionProgress: {
+          ...row.inspectionProgress?.toObject?.(),
+          stages,
+          currentStageIndex: Math.min(progress.currentStageIndex + 1, INSPECTION_STAGES.length),
+        },
+      },
+      inspectionRules
+    );
+    row.inspectionProgress = syncProgressPayload(nextProgress);
+
+    if (stageKey === "container_test") {
+      const pdiRules = getRowRuleSets(row.toObject()).pdiRules;
+      const currentPdi = getPdiProgress(row.toObject(), pdiRules);
+      const activatedPdi = getPdiProgress(
+        {
+          ...row.toObject(),
+          pdiProgress: {
+            ...row.pdiProgress?.toObject?.(),
+            stages: currentPdi.stages.length ? currentPdi.stages : createDefaultPdiStages(),
+            currentStageIndex: currentPdi.isActivated ? currentPdi.currentStageIndex : 0,
+            lastCompletedStageKey: currentPdi.lastCompletedStageKey || "",
+            lastCompletedOn: currentPdi.lastCompletedOn || "",
+            isActivated: true,
+          },
+        },
+        pdiRules
+      );
+      row.pdiProgress = syncProgressPayload(activatedPdi, true);
+    }
+
+    await row.save();
+    res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
+  } catch (error) {
+    console.error("Error skipping wagon stage:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+router.patch("/rows/:rowId/pdi-stages/:stageKey/skip", async (req, res) => {
+  try {
+    const { rowId, stageKey } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(rowId)) {
+      return res.status(400).json({ success: false, message: "Valid rowId is required." });
+    }
+
+    const row = await WagonDataSheetRow.findById(rowId);
+    if (!row) {
+      return res.status(404).json({ success: false, message: "Wagon row not found." });
+    }
+
+    const pdiRules = getRowRuleSets(row.toObject()).pdiRules;
+    const progress = getPdiProgress(row.toObject(), pdiRules);
+    const activeStage = progress.activeStage;
+
+    if (!progress.isActivated) {
+      return res.status(400).json({ success: false, message: "PDI stages are not activated yet for this TEX No." });
+    }
+    if (!activeStage) {
+      return res.status(400).json({ success: false, message: "There is no active PDI stage to skip." });
+    }
+    if (activeStage.key !== stageKey) {
+      return res.status(400).json({
+        success: false,
+        message: `Only the current pending PDI stage can be skipped. Pending PDI stage: ${activeStage.label}.`,
+      });
+    }
+    if (!canTemporarilySkipStage(activeStage)) {
+      return res.status(400).json({ success: false, message: `${activeStage.label} cannot be skipped.` });
+    }
+
+    const skippedOn = asText(req.body.skippedOn) || formatStageDate();
+    const stages = progress.stages.map((stage) =>
+      stage.key === stageKey
+        ? {
+            ...stage,
+            status: STAGE_STATUS.SKIPPED,
+            skippedOn,
+            skippedBy: asSubmittedBy(req.body),
+            skipReason: asText(req.body.skipReason) || "Skipped for later completion",
+            completedOn: "",
+            completedBy: { username: "", role: "" },
+          }
+        : stage
+    );
+    const nextProgress = getPdiProgress(
+      {
+        ...row.toObject(),
+        pdiProgress: {
+          ...row.pdiProgress?.toObject?.(),
+          stages,
+          currentStageIndex: Math.min(progress.currentStageIndex + 1, PDI_STAGES.length),
+          isActivated: true,
+        },
+      },
+      pdiRules
+    );
+    row.pdiProgress = syncProgressPayload(nextProgress, true);
+
+    await row.save();
+    res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
+  } catch (error) {
+    console.error("Error skipping wagon PDI stage:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
