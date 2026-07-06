@@ -41,6 +41,18 @@ const parseSerialNumbers = (value) =>
     .map((item) => String(item || "").trim())
     .filter(Boolean)
     .slice(0, 8);
+const parseSerialNumberSlots = (value) => {
+  const slots = String(value || "")
+    .split(/\r?\n|,/)
+    .map((item) => String(item || "").trim())
+    .slice(0, 8);
+
+  if (slots.length === 1 && !slots[0]) {
+    return [];
+  }
+
+  return slots;
+};
 const findDuplicateSerialNumber = (value) => {
   const serialNumbers = parseSerialNumbers(value);
   const seen = new Set();
@@ -79,7 +91,7 @@ function SectionHeader({ label, color = "#b45309" }) {
 }
 
 function ComponentRow({ keyName, label, form, handleChange }) {
-  const serialNumbers = parseSerialNumbers(form[`${keyName}SerialNumbers`]);
+  const serialNumberSlots = parseSerialNumberSlots(form[`${keyName}SerialNumbers`]);
   const heatFieldName = `${keyName}HeatNumbers`;
   const supportsHeatNumbers = keyName === "axle" || keyName === "wheel";
 
@@ -133,12 +145,12 @@ function ComponentRow({ keyName, label, form, handleChange }) {
           helperText="One per line. Values must be unique within this field."
           sx={{ bgcolor: "white", borderRadius: 1 }}
         />
-        {supportsHeatNumbers && serialNumbers.length > 0 ? (
+        {supportsHeatNumbers && serialNumberSlots.length > 0 ? (
           <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-            {serialNumbers.map((serialNumber, index) => (
+            {serialNumberSlots.map((serialNumber, index) => (
               <TextField
-                key={`${serialNumber}-${index}`}
-                label={`Heat No. for ${serialNumber}`}
+                key={`${keyName}-heat-${index}`}
+                label={serialNumber ? `Heat No. for ${serialNumber}` : `Heat No. for ${label} Serial No. ${index + 1}`}
                 value={form[heatFieldName]?.[index] || ""}
                 onChange={handleChange(heatFieldName, index)}
                 fullWidth
@@ -172,7 +184,7 @@ export default function WagonDataSheetSecondZoneForm() {
       const nextValue = event.target.value;
 
       if (heatNumberFieldsBySerialField[field]) {
-        const serialNumbers = parseSerialNumbers(nextValue);
+        const serialNumbers = parseSerialNumberSlots(nextValue);
         const heatFieldName = heatNumberFieldsBySerialField[field];
         const nextHeatNumbers = serialNumbers.map(
           (_, heatIndex) => prev[heatFieldName]?.[heatIndex] || ""
