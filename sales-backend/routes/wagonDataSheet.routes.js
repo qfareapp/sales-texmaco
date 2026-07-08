@@ -1574,16 +1574,25 @@ router.post("/rows/second-zone", async (req, res) => {
   try {
     const projectId = asProjectIdOrNull(req.body.projectId);
     const wheelDataKey = normalizeWheelDataKey(req.body.wheelDataKey);
+    const wheelDia = asText(req.body.wheelDia);
+    const wheelOrigin = asText(req.body.wheelOrigin);
 
     if (!wheelDataKey) {
       return res.status(400).json({ success: false, message: "Wheel data key is required." });
     }
 
-    const existingRow = await WagonDataSheetRow.findOne({ projectId, wheelDataKey }).select("_id").lean();
+    const existingRow = await WagonDataSheetRow.findOne({
+      projectId,
+      wheelDataKey,
+      "secondZone.wheelDia": buildExactMatchRegex(wheelDia),
+      "secondZone.wheelOrigin": buildExactMatchRegex(wheelOrigin),
+    })
+      .select("_id")
+      .lean();
     if (existingRow) {
       return res.status(400).json({
         success: false,
-        message: `Duplicate entry. Wheel data key ${wheelDataKey} already exists.`,
+        message: `Duplicate entry. Wheel Data Link ${wheelDataKey} with wheel dia ${wheelDia || "-"} and make ${wheelOrigin || "-"} already exists.`,
       });
     }
 
@@ -1595,8 +1604,8 @@ router.post("/rows/second-zone", async (req, res) => {
       wheelDataKey,
       slNo: await getNextSlNo(projectId),
       secondZone: {
-        wheelDia: asText(req.body.wheelDia),
-        wheelOrigin: asText(req.body.wheelOrigin),
+        wheelDia,
+        wheelOrigin,
         axle: {
           make: asText(req.body.axleMake),
           serialNumbers: axleSerialNumbers,

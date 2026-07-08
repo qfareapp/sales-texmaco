@@ -136,6 +136,9 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-WagonDataSheetRowSchema.index({ projectId: 1, wheelDataKey: 1 }, { unique: true });
+WagonDataSheetRowSchema.index(
+  { projectId: 1, wheelDataKey: 1, "secondZone.wheelDia": 1, "secondZone.wheelOrigin": 1 },
+  { unique: true }
+);
 
 module.exports = mongoose.model("WagonDataSheetRow", WagonDataSheetRowSchema);

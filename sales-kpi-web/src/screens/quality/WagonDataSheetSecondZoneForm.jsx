@@ -308,7 +308,7 @@ export default function WagonDataSheetSecondZoneForm() {
                 fullWidth
                 required
                 size="small"
-                helperText="Enter the unique wheel data number. This will appear in second-zone bogie wheel-data dropdowns."
+                helperText="The combination of Wheel Data Link, Wheel Dia, and Make must be unique. The same link can be reused with a different dia or make."
                 sx={{ bgcolor: "white", borderRadius: 1 }}
               />
             </Box>
