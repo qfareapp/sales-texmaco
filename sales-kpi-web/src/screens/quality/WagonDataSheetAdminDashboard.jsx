@@ -53,7 +53,7 @@ function CompletedStageTooltip({ stageData }) {
     <Tooltip
       arrow
       placement="top"
-      enterTouchDelay={2000}
+      enterTouchDelay={0}
       leaveTouchDelay={3000}
       title={
         <Box sx={{ py: 0.5 }}>
