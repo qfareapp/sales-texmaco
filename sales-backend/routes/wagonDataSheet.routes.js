@@ -100,17 +100,18 @@ const isStageResolved = (stage) =>
 const getStageActionDate = (stage) => asText(stage?.completedOn) || asText(stage?.skippedOn);
 const normalizeStageEntry = (existingStage, stageDefinition) => {
   const status = normalizeStageStatus(existingStage);
-  return {
-    key: stageDefinition.key,
-    label: stageDefinition.label,
-    status,
-    allowSkip: stageDefinition.allowSkip,
-    isOptional: stageDefinition.isOptional,
-    completedOn: asText(existingStage?.completedOn),
-    completedBy: existingStage?.completedBy || { username: "", role: "" },
-    skippedOn: asText(existingStage?.skippedOn),
-    skippedBy: existingStage?.skippedBy || { username: "", role: "" },
-    skipReason: asText(existingStage?.skipReason),
+    return {
+      key: stageDefinition.key,
+      label: stageDefinition.label,
+      status,
+      allowSkip: stageDefinition.allowSkip,
+      isOptional: stageDefinition.isOptional,
+      completedOn: asText(existingStage?.completedOn),
+      completedAt: existingStage?.completedAt || null,
+      completedBy: existingStage?.completedBy || { username: "", role: "" },
+      skippedOn: asText(existingStage?.skippedOn),
+      skippedBy: existingStage?.skippedBy || { username: "", role: "" },
+      skipReason: asText(existingStage?.skipReason),
   };
 };
 const getLastCompletedStage = (stages) =>
@@ -491,6 +492,7 @@ const syncProgressPayload = (progress, isPdi = false) => ({
     allowSkip: Boolean(stage.allowSkip),
     isOptional: Boolean(stage.isOptional),
     completedOn: stage.completedOn || "",
+    completedAt: stage.completedAt || null,
     completedBy: stage.completedBy || { username: "", role: "" },
     skippedOn: stage.skippedOn || "",
     skippedBy: stage.skippedBy || { username: "", role: "" },
@@ -987,12 +989,14 @@ router.patch("/rows/:rowId/stages/:stageKey/complete", async (req, res) => {
     }
 
     const completedOn = asText(req.body.completedOn) || formatStageDate();
+    const completedAt = new Date();
     const stages = progress.stages.map((stage) =>
       stage.key === stageKey
         ? {
             ...stage,
             status: STAGE_STATUS.COMPLETED,
             completedOn,
+            completedAt,
             completedBy: asSubmittedBy(req.body),
             skippedOn: "",
             skippedBy: { username: "", role: "" },
@@ -1080,12 +1084,14 @@ router.patch("/rows/:rowId/pdi-stages/:stageKey/complete", async (req, res) => {
     }
 
     const completedOn = asText(req.body.completedOn) || formatStageDate();
+    const completedAt = new Date();
     const stages = pdiProgress.stages.map((stage) =>
       stage.key === stageKey
         ? {
             ...stage,
             status: STAGE_STATUS.COMPLETED,
             completedOn,
+            completedAt,
             completedBy: asSubmittedBy(req.body),
             skippedOn: "",
             skippedBy: { username: "", role: "" },
@@ -1117,6 +1123,7 @@ router.patch("/rows/:rowId/pdi-stages/:stageKey/complete", async (req, res) => {
               ...stage,
               status: STAGE_STATUS.COMPLETED,
               completedOn,
+              completedAt,
               completedBy: asSubmittedBy(req.body),
               skippedOn: "",
               skippedBy: { username: "", role: "" },
@@ -1182,6 +1189,7 @@ router.patch("/rows/:rowId/stages/:stageKey/skip", async (req, res) => {
             ...stage,
             status: STAGE_STATUS.SKIPPED,
             skippedOn,
+            completedAt: null,
             skippedBy: asSubmittedBy(req.body),
             skipReason: asText(req.body.skipReason) || "Skipped for later completion",
             completedOn: "",
@@ -1269,6 +1277,7 @@ router.patch("/rows/:rowId/pdi-stages/:stageKey/skip", async (req, res) => {
             ...stage,
             status: STAGE_STATUS.SKIPPED,
             skippedOn,
+            completedAt: null,
             skippedBy: asSubmittedBy(req.body),
             skipReason: asText(req.body.skipReason) || "Skipped for later completion",
             completedOn: "",

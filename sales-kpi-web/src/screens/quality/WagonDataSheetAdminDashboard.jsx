@@ -13,11 +13,13 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import api from "../../api";
 import { buildProjectLabel } from "./wagonDataSheetConfig";
 import {
+  formatStageDate,
   inspectionStages,
   pdiStages,
   stageStatusLabel,
@@ -26,6 +28,60 @@ import {
 
 function CountChip({ label, value, bg, color }) {
   return <Chip label={`${label}: ${value || 0}`} sx={{ bgcolor: bg, color, fontWeight: 800 }} />;
+}
+
+const formatStageTime = (value) => {
+  if (!value) return "Time unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Time unavailable";
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+};
+
+function CompletedStageTooltip({ stageData }) {
+  const username = stageData?.completedBy?.username || "Unknown inspector";
+  const role = stageData?.completedBy?.role || "Unknown role";
+  const completedDate = formatStageDate(stageData?.completedOn);
+  const completedTime = formatStageTime(stageData?.completedAt);
+
+  return (
+    <Tooltip
+      arrow
+      placement="top"
+      enterTouchDelay={2000}
+      leaveTouchDelay={3000}
+      title={
+        <Box sx={{ py: 0.5 }}>
+          <Typography variant="caption" sx={{ display: "block", fontWeight: 700, color: "inherit" }}>
+            Inspector: {username}
+          </Typography>
+          <Typography variant="caption" sx={{ display: "block", color: "inherit" }}>
+            Role: {role}
+          </Typography>
+          <Typography variant="caption" sx={{ display: "block", color: "inherit" }}>
+            Completed: {completedDate || "Date unavailable"} at {completedTime}
+          </Typography>
+        </Box>
+      }
+    >
+      <Box
+        component="span"
+        sx={{
+          display: "inline-block",
+          width: "100%",
+          cursor: "help",
+          WebkitTouchCallout: "none",
+        }}
+      >
+        {stageStatusLabel(stageData)}
+      </Box>
+    </Tooltip>
+  );
 }
 
 function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode = false }) {
@@ -96,7 +152,7 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                           fontSize: "0.78rem",
                         }}
                       >
-                        {stageData ? stageStatusLabel(stageData) : ""}
+                        {stageData?.status === "completed" ? <CompletedStageTooltip stageData={stageData} /> : stageData ? stageStatusLabel(stageData) : ""}
                       </TableCell>
                     );
                   })}

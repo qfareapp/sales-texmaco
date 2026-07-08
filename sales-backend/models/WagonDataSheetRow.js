@@ -43,6 +43,7 @@ const inspectionStageSchema = new mongoose.Schema(
     allowSkip: { type: Boolean, default: false },
     isOptional: { type: Boolean, default: false },
     completedOn: { type: String, default: "", trim: true },
+    completedAt: { type: Date, default: null },
     completedBy: { type: submissionBySchema, default: () => ({}) },
     skippedOn: { type: String, default: "", trim: true },
     skippedBy: { type: submissionBySchema, default: () => ({}) },
