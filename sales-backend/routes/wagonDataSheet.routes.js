@@ -1379,8 +1379,8 @@ router.patch("/rows/:rowId/stages/:stageKey/reset", async (req, res) => {
       return res.status(400).json({ success: false, message: "Only completed daily stages can be reset." });
     }
 
-    const nextDailyStages = dailyProgress.stages.map((stage, index) =>
-      index >= targetIndex ? resetStageEntry(stage) : stage
+    const nextDailyStages = dailyProgress.stages.map((stage) =>
+      stage.key === stageKey ? resetStageEntry(stage) : stage
     );
     const nextDailyProgress = getInspectionProgress(
       {
@@ -1394,26 +1394,6 @@ router.patch("/rows/:rowId/stages/:stageKey/reset", async (req, res) => {
       inspectionRules
     );
     row.inspectionProgress = syncProgressPayload(nextDailyProgress);
-
-    const containerTestIndex = INSPECTION_STAGES.findIndex((stage) => stage.key === "container_test");
-    if (targetIndex <= containerTestIndex || stageKey === "dm_line") {
-      const currentPdi = getPdiProgress(rowObject, pdiRules);
-      const resetPdiProgress = getPdiProgress(
-        {
-          ...rowObject,
-          pdiProgress: {
-            ...row.pdiProgress?.toObject?.(),
-            stages: currentPdi.stages.map(resetStageEntry),
-            currentStageIndex: 0,
-            lastCompletedStageKey: "",
-            lastCompletedOn: "",
-            isActivated: false,
-          },
-        },
-        pdiRules
-      );
-      row.pdiProgress = syncProgressPayload(resetPdiProgress, true);
-    }
 
     await row.save();
     res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
@@ -1448,8 +1428,8 @@ router.patch("/rows/:rowId/pdi-stages/:stageKey/reset", async (req, res) => {
       return res.status(400).json({ success: false, message: "Only completed PDI stages can be reset." });
     }
 
-    const nextPdiStages = pdiProgress.stages.map((stage, index) =>
-      index >= targetIndex ? resetStageEntry(stage) : stage
+    const nextPdiStages = pdiProgress.stages.map((stage) =>
+      stage.key === stageKey ? resetStageEntry(stage) : stage
     );
     const nextPdiProgress = getPdiProgress(
       {
@@ -1464,24 +1444,6 @@ router.patch("/rows/:rowId/pdi-stages/:stageKey/reset", async (req, res) => {
       pdiRules
     );
     row.pdiProgress = syncProgressPayload(nextPdiProgress, true);
-
-    const dailyProgress = getInspectionProgress(rowObject, inspectionRules);
-    const nextDailyStages = dailyProgress.stages.map((stage) =>
-      stage.key === "dm_line" ? resetStageEntry(stage) : stage
-    );
-    const dmLineIndex = INSPECTION_STAGES.findIndex((stage) => stage.key === "dm_line");
-    const nextDailyProgress = getInspectionProgress(
-      {
-        ...rowObject,
-        inspectionProgress: {
-          ...row.inspectionProgress?.toObject?.(),
-          stages: nextDailyStages,
-          currentStageIndex: Math.min(dailyProgress.currentStageIndex, dmLineIndex),
-        },
-      },
-      inspectionRules
-    );
-    row.inspectionProgress = syncProgressPayload(nextDailyProgress);
 
     await row.save();
     res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });

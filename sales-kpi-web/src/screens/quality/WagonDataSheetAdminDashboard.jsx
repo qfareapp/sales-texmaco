@@ -400,7 +400,7 @@ export default function WagonDataSheetAdminDashboard() {
         <DialogTitle>Reset Completed Stage?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will change the completed stage back to pending. Later linked stages may also be reopened.
+            This will change only the selected completed stage back to pending.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
