@@ -326,6 +326,15 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
   const btnHover = pdiMode ? "#1e40af" : "#166534";
   const backBorder = pdiMode ? "#60a5fa" : "#f59e0b";
   const backText = pdiMode ? "#1d4ed8" : "#b45309";
+  const nextStageSummary = isPdiContinue
+    ? "Next: Open in PDI Status"
+    : activeStage
+    ? `Next: ${activeStage.label}`
+    : skippedStages.length
+    ? `Skipped: ${skippedStages.length}`
+    : allDone
+    ? (pdiMode ? "PDI complete" : "All stages done")
+    : "No pending stage";
 
   return (
     <Paper
@@ -357,7 +366,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
           cursor: "pointer",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, flex: 1 }}>
           <Box
             sx={{
               minWidth: 26,
@@ -374,9 +383,14 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
               {row.slNo || index + 1}
             </Typography>
           </Box>
-          <Typography fontWeight={800} fontSize="1.02rem" color="#111827">
-            {row.texNo || `Wagon #${row.slNo || index + 1}`}
-          </Typography>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography fontWeight={800} fontSize="1.02rem" color="#111827" noWrap>
+              {row.texNo || `Wagon #${row.slNo || index + 1}`}
+            </Typography>
+            <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: "block" }} noWrap>
+              {nextStageSummary}
+            </Typography>
+          </Box>
         </Box>
         {allDone ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
