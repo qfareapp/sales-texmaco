@@ -359,7 +359,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
           px: 2,
           py: 1.25,
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
           bgcolor: highlighted ? "#eff6ff" : headerBg,
           borderBottom: `1px solid ${borderColor}`,
@@ -387,7 +387,12 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
             <Typography fontWeight={800} fontSize="1.02rem" color="#111827" noWrap>
               {row.texNo || `Wagon #${row.slNo || index + 1}`}
             </Typography>
-            <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: "block" }} noWrap>
+            <Typography
+              variant="caption"
+              fontWeight={600}
+              color="text.secondary"
+              sx={{ display: "block", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.25, mt: 0.25 }}
+            >
               {nextStageSummary}
             </Typography>
           </Box>
