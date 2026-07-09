@@ -302,7 +302,7 @@ function SlideToComplete({ label, onComplete, disabled, color = "#15803d" }) {
 }
 
 // Mobile card — compact with single CTA + collapsible history
-function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMode = false, onGoToPdi, highlighted = false }) {
+function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkippedStage, saving, pdiMode = false, onGoToPdi, highlighted = false }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [skippedOpen, setSkippedOpen] = useState(false);
 
@@ -434,7 +434,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
                 "&:hover": { borderColor: backText, bgcolor: pdiMode ? "#eff6ff" : "#fffbeb" },
               }}
             >
-              {skippedOpen ? "Hide Back Stages" : `Back to Skipped (${skippedStages.length})`}
+              {skippedOpen ? "Hide Skipped Stages" : `Skipped Stages (${skippedStages.length})`}
             </Button>
           )}
           </>
@@ -492,7 +492,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
                     "&:hover": { borderColor: backText, bgcolor: pdiMode ? "#eff6ff" : "#fffbeb" },
                   }}
                 >
-                  {skippedOpen ? "Close Back" : "Back"}
+                  {skippedOpen ? "Hide Skipped Stages" : "Skipped Stages"}
                 </Button>
               )}
             </Stack>
@@ -513,7 +513,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
               "&:hover": { borderColor: backText, bgcolor: pdiMode ? "#eff6ff" : "#fffbeb" },
             }}
           >
-            {skippedOpen ? "Hide Back Stages" : `Back to Skipped (${skippedStages.length})`}
+            {skippedOpen ? "Hide Skipped Stages" : `Skipped Stages (${skippedStages.length})`}
           </Button>
         ) : null}
         {skippedOpen && skippedStages.length > 0 && (
@@ -527,7 +527,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
                 <Button
                   key={`skipped-${stage.key}`}
                   variant="outlined"
-                  onClick={() => onComplete(row, stage)}
+                  onClick={() => onSelectSkippedStage(row, stage, pdiMode)}
                   disabled={saving}
                   sx={{
                     justifyContent: "space-between",
@@ -616,7 +616,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
 
 // -- StageTable: content only (no outer Paper — lives inside the tabbed Paper) --
 
-function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, saving, projectName, pdiMode = false, onGoToPdi, highlightedId }) {
+function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, onSelectSkippedStage, saving, projectName, pdiMode = false, onGoToPdi, highlightedId }) {
   const pendingColor = pdiMode ? "#1d4ed8" : "#b45309";
 
   return (
@@ -723,6 +723,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
                   stages={stages}
                   onComplete={onComplete}
                   onSkip={onSkip}
+                  onSelectSkippedStage={onSelectSkippedStage}
                   saving={saving}
                   pdiMode={pdiMode}
                   onGoToPdi={onGoToPdi}
@@ -863,7 +864,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
                                   variant="outlined"
                                   size="small"
                                   disabled={saving}
-                                  onClick={() => onComplete(row, stage)}
+                                  onClick={() => onSelectSkippedStage(row, stage, true)}
                                   sx={{ textTransform: "none", borderColor: "#fdba74", color: "#c2410c", fontWeight: 700, fontSize: "0.72rem" }}
                                 >
                                   Complete {stageShort[stage.key] || stage.label}
@@ -917,7 +918,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
                                 variant="outlined"
                                 size="small"
                                 disabled={saving}
-                                onClick={() => onComplete(row, stage)}
+                                onClick={() => onSelectSkippedStage(row, stage, false)}
                                 sx={{ textTransform: "none", borderColor: "#fdba74", color: "#c2410c", fontWeight: 700, fontSize: "0.72rem" }}
                               >
                                 Complete {stageShort[stage.key] || stage.label}
@@ -938,7 +939,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
                                 variant="outlined"
                                 size="small"
                                 disabled={saving}
-                                onClick={() => onComplete(row, stage)}
+                                onClick={() => onSelectSkippedStage(row, stage, pdiMode)}
                                 sx={{ textTransform: "none", borderColor: "#fdba74", color: "#c2410c", fontWeight: 700, fontSize: "0.72rem" }}
                               >
                                 Complete {stageShort[stage.key] || stage.label}
@@ -985,6 +986,7 @@ export default function WagonDataSheetInspectorDashboard() {
   const [selectedUfRow, setSelectedUfRow] = useState(null);
   const [activeTab, setActiveTab] = useState("daily"); // "daily" | "pdi"
   const [pdiHighlightId, setPdiHighlightId] = useState(null);
+  const [skippedStageDialog, setSkippedStageDialog] = useState(null);
 
   const loadProjects = async () => {
     const { data } = await api.get("/wagon-data-sheet/projects");
@@ -1153,6 +1155,22 @@ export default function WagonDataSheetInspectorDashboard() {
     }
   };
 
+  const handleSelectSkippedStage = (row, stage, pdiMode = false) => {
+    if (!row || !stage?.key) return;
+    setSkippedStageDialog({ row, stage, pdiMode });
+  };
+
+  const handleCompleteSkippedStageFromDialog = async () => {
+    if (!skippedStageDialog?.row || !skippedStageDialog?.stage) return;
+    const { row, stage, pdiMode } = skippedStageDialog;
+    setSkippedStageDialog(null);
+    if (pdiMode) {
+      await handleCompletePdiStage(row, stage);
+      return;
+    }
+    await handleCompleteStage(row, stage);
+  };
+
   if (role !== "ground-inspector") {
     return (
       <Box sx={{ p: 3 }}>
@@ -1268,14 +1286,7 @@ export default function WagonDataSheetInspectorDashboard() {
               width: { xs: "100%", sm: "auto" },
             }}
           >
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1.1 }}>
-              <Typography component="span" sx={{ fontSize: "1.05rem", lineHeight: 1, mb: 0.35 }}>
-                🚃
-              </Typography>
-              <Typography component="span" sx={{ fontSize: "0.9rem", fontWeight: 800 }}>
-                + Create New Wagon Inspection
-              </Typography>
-            </Box>
+            + Create New Wagon Inspection
           </Button>
         </Stack>
       </Paper>
@@ -1348,6 +1359,7 @@ export default function WagonDataSheetInspectorDashboard() {
             actionLabel="Complete"
             onComplete={handleCompleteStage}
             onSkip={handleSkipStage}
+            onSelectSkippedStage={handleSelectSkippedStage}
             saving={saving}
             projectName={dashboard.project?.projectName || ""}
             onGoToPdi={handleGoToPdi}
@@ -1362,6 +1374,7 @@ export default function WagonDataSheetInspectorDashboard() {
             actionLabel="Complete"
             onComplete={handleCompletePdiStage}
             onSkip={handleSkipPdiStage}
+            onSelectSkippedStage={handleSelectSkippedStage}
             saving={saving}
             projectName=""
             highlightedId={pdiHighlightId}
@@ -1400,6 +1413,37 @@ export default function WagonDataSheetInspectorDashboard() {
             sx={{ textTransform: "none", fontWeight: 800, bgcolor: "#15803d", "&:hover": { bgcolor: "#166534" }, borderRadius: 1.5, px: 3 }}
           >
             {saving ? "Saving…" : "Confirm & Complete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(skippedStageDialog)} onClose={() => !saving && setSkippedStageDialog(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 800 }}>Complete Skipped Stage</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Slide to complete this skipped stage.
+            </Typography>
+            <Chip
+              label={skippedStageDialog?.stage?.label || ""}
+              sx={{
+                alignSelf: "flex-start",
+                bgcolor: skippedStageDialog?.pdiMode ? "#dbeafe" : "#fffbeb",
+                color: skippedStageDialog?.pdiMode ? "#1d4ed8" : "#92400e",
+                fontWeight: 700,
+              }}
+            />
+            <SlideToComplete
+              label="Slide to complete"
+              onComplete={handleCompleteSkippedStageFromDialog}
+              disabled={saving}
+              color={skippedStageDialog?.pdiMode ? "#1d4ed8" : "#15803d"}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setSkippedStageDialog(null)} color="inherit" disabled={saving} sx={{ textTransform: "none", fontWeight: 600 }}>
+            Cancel
           </Button>
         </DialogActions>
       </Dialog>
