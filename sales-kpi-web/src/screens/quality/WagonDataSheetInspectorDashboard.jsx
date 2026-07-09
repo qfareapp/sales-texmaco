@@ -310,18 +310,19 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
   const { activeStage, stageList, completedCount, skippedStages, isComplete } = getStageState(row, pdiMode);
   const allDone = isComplete;
   const isPdiContinue = !pdiMode && activeStage?.key === "dm_line" && row.isPdiActivated && !row.isPdiCompleted;
+  const greenState = allDone || isPdiContinue;
 
-  const accentColor = pdiMode ? "#1d4ed8" : "#b45309";
+  const accentColor = greenState ? "#15803d" : pdiMode ? "#1d4ed8" : "#b45309";
   const borderColor = highlighted
     ? "#1d4ed8"
-    : allDone
+    : greenState
     ? "#86efac"
     : pdiMode
     ? "#93c5fd"
     : "#fcd34d";
-  const headerBg = allDone ? "#f0fdf4" : pdiMode ? "#eff6ff" : "#fffbeb";
-  const stageBg = pdiMode ? "#dbeafe" : "#fef9c3";
-  const stageColor = pdiMode ? "#1e40af" : "#92400e";
+  const headerBg = greenState ? "#f0fdf4" : pdiMode ? "#eff6ff" : "#fffbeb";
+  const stageBg = greenState ? "#dcfce7" : pdiMode ? "#dbeafe" : "#fef9c3";
+  const stageColor = greenState ? "#166534" : pdiMode ? "#1e40af" : "#92400e";
   const btnBg = pdiMode ? "#1d4ed8" : "#15803d";
   const btnHover = pdiMode ? "#1e40af" : "#166534";
   const backBorder = pdiMode ? "#60a5fa" : "#f59e0b";
@@ -342,7 +343,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
       sx={{
         borderRadius: 2.5,
         border: `${highlighted ? "2px" : "1.5px"} solid ${borderColor}`,
-        bgcolor: allDone ? "#f0fdf4" : "white",
+        bgcolor: greenState ? "#f0fdf4" : "white",
         overflow: "hidden",
         ...(highlighted && {
           animation: "highlightPulse 0.9s ease 3",
@@ -373,7 +374,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
               height: 26,
               px: 0.75,
               borderRadius: 1,
-              bgcolor: highlighted ? "#1d4ed8" : allDone ? "#15803d" : accentColor,
+              bgcolor: highlighted ? "#1d4ed8" : accentColor,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
