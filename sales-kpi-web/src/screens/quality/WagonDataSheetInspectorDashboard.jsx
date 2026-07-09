@@ -305,6 +305,7 @@ function SlideToComplete({ label, onComplete, disabled, color = "#15803d" }) {
 function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkippedStage, saving, pdiMode = false, onGoToPdi, highlighted = false }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [skippedOpen, setSkippedOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const { activeStage, stageList, completedCount, skippedStages, isComplete } = getStageState(row, pdiMode);
   const allDone = isComplete;
@@ -343,8 +344,8 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
         }),
       }}
     >
-      {/* -- Card header -- */}
       <Box
+        onClick={() => setDetailsOpen((value) => !value)}
         sx={{
           px: 2,
           py: 1.25,
@@ -353,6 +354,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
           justifyContent: "space-between",
           bgcolor: highlighted ? "#eff6ff" : headerBg,
           borderBottom: `1px solid ${borderColor}`,
+          cursor: "pointer",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
@@ -377,18 +379,29 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
           </Typography>
         </Box>
         {allDone ? (
-          <Chip
-            size="small"
-            label={pdiMode ? "PDI Done" : "All Done"}
-            sx={{ bgcolor: "#16a34a", color: "white", fontWeight: 700, fontSize: "0.7rem" }}
-          />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Chip
+              size="small"
+              label={pdiMode ? "PDI Done" : "All Done"}
+              sx={{ bgcolor: "#16a34a", color: "white", fontWeight: 700, fontSize: "0.7rem" }}
+            />
+            <Typography sx={{ color: "#6b7280", fontSize: "1rem", fontWeight: 800, lineHeight: 1 }}>
+              {detailsOpen ? "˄" : "˅"}
+            </Typography>
+          </Box>
         ) : (
-          <Typography variant="caption" fontWeight={700} color="text.secondary">
-            {completedCount}/{stages.length} done
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="caption" fontWeight={700} color="text.secondary">
+              {completedCount}/{stages.length} done
+            </Typography>
+            <Typography sx={{ color: "#6b7280", fontSize: "1rem", fontWeight: 800, lineHeight: 1 }}>
+              {detailsOpen ? "˄" : "˅"}
+            </Typography>
+          </Box>
         )}
       </Box>
 
+      <Collapse in={detailsOpen}>
       {/* -- Progress dots -- */}
       <Box sx={{ px: 2, pt: 1.5, pb: 0.75 }}>
         <StageDotsStatus row={row} stages={stages} pdiMode={pdiMode} />
@@ -610,6 +623,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, onSelectSkipp
           </Stack>
         </Collapse>
       </Box>
+      </Collapse>
     </Paper>
   );
 }
