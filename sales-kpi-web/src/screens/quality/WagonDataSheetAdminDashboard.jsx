@@ -2,7 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  CircularProgress,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   MenuItem,
   Paper,
   Stack,
@@ -43,7 +49,7 @@ const formatStageTime = (value) => {
   });
 };
 
-function CompletedStageTooltip({ stageData }) {
+function CompletedStageTooltip({ stageData, onReset, resetting = false }) {
   const username = stageData?.completedBy?.username || "Unknown inspector";
   const role = stageData?.completedBy?.role || "Unknown role";
   const completedDate = formatStageDate(stageData?.completedOn);
@@ -72,19 +78,46 @@ function CompletedStageTooltip({ stageData }) {
       <Box
         component="span"
         sx={{
-          display: "inline-block",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 0.5,
           width: "100%",
           cursor: "help",
           WebkitTouchCallout: "none",
         }}
       >
-        {stageStatusLabel(stageData)}
+        <Box component="span">{stageStatusLabel(stageData)}</Box>
+        {onReset ? (
+          <Box
+            component="button"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onReset();
+            }}
+            disabled={resetting}
+            title="Reset to pending"
+            sx={{
+              border: "none",
+              background: "transparent",
+              color: "#b91c1c",
+              fontSize: "0.65rem",
+              lineHeight: 1,
+              p: 0,
+              minWidth: "auto",
+              cursor: resetting ? "wait" : "pointer",
+            }}
+          >
+            {resetting ? <CircularProgress size={10} thickness={6} color="inherit" /> : "↺"}
+          </Box>
+        ) : null}
       </Box>
     </Tooltip>
   );
 }
 
-function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode = false }) {
+function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode = false, onResetStage, resettingStageKey }) {
   return (
     <Paper elevation={0} sx={{ borderRadius: 3, border: "1.5px solid #e5e7eb", overflow: "hidden" }}>
       <Box sx={{ px: 2.5, py: 1.25, bgcolor: "#111827", color: "white" }}>
@@ -111,7 +144,7 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
           <TableBody>
             <TableRow>
               <TableCell colSpan={2} sx={{ fontWeight: 800, bgcolor: "#fefce8", color: "#78350f" }}>
-                Total qty. -&gt;
+                Total pending -&gt;
               </TableCell>
               {stages.map((stage) => {
                 const count = (counts || []).find((item) => item.key === stage.key)?.pendingCount || 0;
@@ -122,6 +155,20 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                 );
               })}
               <TableCell sx={{ bgcolor: "#fefce8" }} />
+            </TableRow>
+            <TableRow>
+              <TableCell colSpan={2} sx={{ fontWeight: 800, bgcolor: "#ecfdf5", color: "#166534" }}>
+                Total completed -&gt;
+              </TableCell>
+              {stages.map((stage) => {
+                const count = (counts || []).find((item) => item.key === stage.key)?.completedCount || 0;
+                return (
+                  <TableCell key={stage.key} align="center" sx={{ bgcolor: "#dcfce7", fontWeight: 800, color: count > 0 ? "#15803d" : "#6b7280" }}>
+                    {count}
+                  </TableCell>
+                );
+              })}
+              <TableCell sx={{ bgcolor: "#ecfdf5" }} />
             </TableRow>
 
             {rows.length === 0 ? (
@@ -152,7 +199,13 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                           fontSize: "0.78rem",
                         }}
                       >
-                        {stageData?.status === "completed" ? <CompletedStageTooltip stageData={stageData} /> : stageData ? stageStatusLabel(stageData) : ""}
+                        {stageData?.status === "completed" ? (
+                          <CompletedStageTooltip
+                            stageData={stageData}
+                            onReset={() => onResetStage?.(row._id, stage.key, pdiMode)}
+                            resetting={resettingStageKey === `${pdiMode ? "pdi" : "daily"}:${row._id}:${stage.key}`}
+                          />
+                        ) : stageData ? stageStatusLabel(stageData) : ""}
                       </TableCell>
                     );
                   })}
@@ -203,6 +256,8 @@ export default function WagonDataSheetAdminDashboard() {
     pdiStages,
   });
   const [error, setError] = useState("");
+  const [resettingStageKey, setResettingStageKey] = useState("");
+  const [resetTarget, setResetTarget] = useState(null);
 
   const loadProjects = async () => {
     const { data } = await api.get("/wagon-data-sheet/projects");
@@ -228,6 +283,33 @@ export default function WagonDataSheetAdminDashboard() {
     if (!selectedProjectId) return;
     loadDashboard(selectedProjectId).catch(() => setError("Failed to load project dashboard."));
   }, [selectedProjectId]);
+
+  const handleResetStage = (rowId, stageKey, pdiMode = false) => {
+    setResetTarget({ rowId, stageKey, pdiMode });
+  };
+
+  const confirmResetStage = async () => {
+    if (!selectedProjectId || !resetTarget) return;
+    const { rowId, stageKey, pdiMode } = resetTarget;
+    const requestKey = `${pdiMode ? "pdi" : "daily"}:${rowId}:${stageKey}`;
+    setResettingStageKey(requestKey);
+    setError("");
+    try {
+      const path = pdiMode
+        ? `/wagon-data-sheet/rows/${rowId}/pdi-stages/${stageKey}/reset`
+        : `/wagon-data-sheet/rows/${rowId}/stages/${stageKey}/reset`;
+      await api.patch(path, {
+        submittedByUsername: localStorage.getItem("username") || "admin",
+        submittedByRole: role,
+      });
+      await loadDashboard(selectedProjectId);
+      setResetTarget(null);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to reset stage.");
+    } finally {
+      setResettingStageKey("");
+    }
+  };
 
   const totals = useMemo(() => {
     const dailyPending = (dashboard.stageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0);
@@ -298,6 +380,8 @@ export default function WagonDataSheetAdminDashboard() {
           stages={inspectionStages}
           counts={dashboard.stageCounts || []}
           projectName={dashboard.project?.projectName || ""}
+          onResetStage={handleResetStage}
+          resettingStageKey={resettingStageKey}
         />
 
         <ReadOnlyStageTable
@@ -307,8 +391,31 @@ export default function WagonDataSheetAdminDashboard() {
           counts={dashboard.pdiStageCounts || []}
           projectName=""
           pdiMode
+          onResetStage={handleResetStage}
+          resettingStageKey={resettingStageKey}
         />
       </Box>
+
+      <Dialog open={Boolean(resetTarget)} onClose={() => !resettingStageKey && setResetTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Reset Completed Stage?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will change the completed stage back to pending. Later linked stages may also be reopened.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Chip
+            label="Cancel"
+            onClick={() => setResetTarget(null)}
+            sx={{ cursor: resettingStageKey ? "default" : "pointer", opacity: resettingStageKey ? 0.6 : 1 }}
+          />
+          <Chip
+            label={resettingStageKey ? "Resetting..." : "Yes, Reset"}
+            onClick={() => !resettingStageKey && confirmResetStage()}
+            sx={{ bgcolor: "#fee2e2", color: "#b91c1c", fontWeight: 700, cursor: resettingStageKey ? "default" : "pointer" }}
+          />
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

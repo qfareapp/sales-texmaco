@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   Paper,
   Stack,
@@ -13,6 +14,8 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import api from "../../api";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -70,6 +73,69 @@ function KpiCard({ label, value, tone = "blue", icon = "" }) {
     </Paper>
   );
 }
+
+function ActionKpiCard({ label, value, tone = "blue", icon = "", actionLabel, onAction, loading = false }) {
+  const s = TONES[tone] || TONES.blue;
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        px: { xs: 1.5, sm: 2 },
+        py: { xs: 1.25, sm: 1.75 },
+        borderRadius: 2.5,
+        border: `1.5px solid ${s.border}`,
+        bgcolor: s.bg,
+        position: "relative",
+        overflow: "hidden",
+        minHeight: 108,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
+    >
+      {icon && (
+        <Typography
+          sx={{ position: "absolute", top: 8, right: 10, fontSize: "1.5rem", opacity: 0.15, lineHeight: 1, userSelect: "none" }}
+        >
+          {icon}
+        </Typography>
+      )}
+      <Box>
+        <Typography fontWeight={900} sx={{ fontSize: { xs: "1.55rem", sm: "1.9rem" }, color: s.num, lineHeight: 1 }}>
+          {value}
+        </Typography>
+        <Typography
+          variant="caption"
+          fontWeight={700}
+          sx={{ color: s.lbl, textTransform: "uppercase", letterSpacing: 0.5, display: "block", mt: 0.4, fontSize: "0.67rem" }}
+        >
+          {label}
+        </Typography>
+      </Box>
+      <Button
+        onClick={onAction}
+        disabled={loading}
+        variant="text"
+        size="small"
+        sx={{ alignSelf: "flex-start", px: 0, minWidth: 0, mt: 1, fontWeight: 800, textTransform: "none", color: s.lbl }}
+      >
+        {loading ? "Preparing..." : actionLabel}
+      </Button>
+    </Paper>
+  );
+}
+
+const formatTimestamp = (value) => {
+  if (!value) return { date: "-", time: "-" };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date: String(value), time: "-" };
+  return {
+    date: date.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Kolkata" }),
+    time: date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }),
+  };
+};
+
+const joinValues = (value) => (Array.isArray(value) && value.length ? value.join(", ") : "-");
 
 function SectionCard({ title, accent = "#1d4ed8", dot = "#60a5fa", children, noPad = false }) {
   return (
@@ -269,6 +335,7 @@ export default function WagonDataSheetAdminOverview() {
   const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState("");
+  const [downloadingZone1, setDownloadingZone1] = useState(false);
 
   useEffect(() => {
     api
@@ -276,6 +343,54 @@ export default function WagonDataSheetAdminOverview() {
       .then(({ data }) => setOverview(data?.data || null))
       .catch((err) => setError(err.response?.data?.message || "Failed to load wagon data sheet overview."));
   }, []);
+
+  const handleDownloadZone1Excel = async () => {
+    setDownloadingZone1(true);
+    setError("");
+    try {
+      const { data } = await api.get("/wagon-data-sheet/analytics/zone1-forms");
+      const rows = data?.data || [];
+      const workbookRows = rows.map((row, index) => {
+        const timestamp = formatTimestamp(row.submittedAt);
+        return {
+          "SL No.": index + 1,
+          "Wheel Data Link": row.wheelDataKey || "-",
+          "Wheel Dia": row.wheelDia || "-",
+          "Wheel Make": row.wheelOrigin || "-",
+          "Axle Make": row.axleMake || "-",
+          "Axle Serial Numbers": joinValues(row.axleSerialNumbers),
+          "Axle Heat Numbers": joinValues(row.axleHeatNumbers),
+          "Wheel Set Make": row.wheelMake || "-",
+          "Wheel Serial Numbers": joinValues(row.wheelSerialNumbers),
+          "Wheel Heat Numbers": joinValues(row.wheelHeatNumbers),
+          "Bearing Make": row.bearingMake || "-",
+          "Bearing Serial Numbers": joinValues(row.bearingSerialNumbers),
+          "Inspector Name": row.inspectorName || "-",
+          "Inspector Role": row.inspectorRole || "-",
+          Date: timestamp.date,
+          Time: timestamp.time,
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(
+        workbookRows.length ? workbookRows : [{ Note: "No Zone 1 forms completed yet." }]
+      );
+      ws["!cols"] = [
+        { wch: 8 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 26 },
+        { wch: 24 }, { wch: 16 }, { wch: 26 }, { wch: 24 }, { wch: 16 }, { wch: 24 },
+        { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Zone 1 Forms");
+      const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      saveAs(new Blob([buffer], { type: "application/octet-stream" }), "Zone_1_Filled_Data.xlsx");
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to download Zone 1 Excel.");
+    } finally {
+      setDownloadingZone1(false);
+    }
+  };
 
   const kpiCards = useMemo(() => {
     if (!overview) return [];
@@ -440,6 +555,15 @@ export default function WagonDataSheetAdminOverview() {
                 ].map((card) => (
                   <KpiCard key={card.label} {...card} />
                 ))}
+                <ActionKpiCard
+                  label="Total Zone 1 Forms Complete"
+                  value={overview.overall?.totalZone1FormsComplete || 0}
+                  tone="teal"
+                  icon="⬇"
+                  actionLabel="Download Excel"
+                  onAction={handleDownloadZone1Excel}
+                  loading={downloadingZone1}
+                />
               </Box>
             </SectionCard>
           </Box>

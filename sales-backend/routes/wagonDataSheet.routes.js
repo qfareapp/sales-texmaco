@@ -510,6 +510,16 @@ const canStageBeCompleted = (stage, activeStage) =>
   (stage.status === STAGE_STATUS.SKIPPED || activeStage?.key === stage.key);
 const canTemporarilySkipStage = (stage) =>
   Boolean(stage) && stage.key !== "uf_fit_up";
+const resetStageEntry = (stage) => ({
+  ...stage,
+  status: STAGE_STATUS.PENDING,
+  completedOn: "",
+  completedAt: null,
+  completedBy: { username: "", role: "" },
+  skippedOn: "",
+  skippedBy: { username: "", role: "" },
+  skipReason: "",
+});
 
 const getNextSlNo = async (projectId) => {
   const existingRows = await WagonDataSheetRow.find({ projectId }).select("slNo").lean();
@@ -689,10 +699,11 @@ router.get("/projects/:projectId/stage-dashboard", async (req, res) => {
 
 router.get("/analytics/overview", async (_req, res) => {
   try {
-    const [projects, rows, wagonConfigs] = await Promise.all([
+    const [projects, rows, wagonConfigs, totalZone1FormsComplete] = await Promise.all([
       WagonDataSheetProject.find().sort({ createdAt: -1 }).lean(),
       WagonDataSheetRow.find({ projectId: { $ne: null } }).sort({ createdAt: 1 }).lean(),
       WagonConfig.find().lean(),
+      WagonDataSheetRow.countDocuments({ "secondZone.submittedAt": { $ne: null } }),
     ]);
 
     const projectMap = new Map(projects.map((project) => [String(project._id), project]));
@@ -741,6 +752,7 @@ router.get("/analytics/overview", async (_req, res) => {
       reachedDmLine: rowsWithProgress.filter((row) => row.pdi.isActivated).length,
       waitingInPdi: rowsWithProgress.filter((row) => row.pdi.isActivated && row.pdi.activeStage).length,
       finalPdiCleared: rowsWithProgress.filter((row) => row.pdi.isFullyCompleted).length,
+      totalZone1FormsComplete,
       readyForZone2: rowsWithProgress.filter((row) => row.pdi.isActivated).length,
       zone2Started: rowsWithProgress.filter((row) => row.firstZone?.submittedAt).length,
       zone2Completed: rowsWithProgress.filter((row) => row.firstZone?.submittedAt).length,
@@ -882,6 +894,41 @@ router.get("/analytics/overview", async (_req, res) => {
     });
   } catch (error) {
     console.error("Error fetching wagon data sheet analytics overview:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get("/analytics/zone1-forms", async (_req, res) => {
+  try {
+    const rows = await WagonDataSheetRow.find({
+      "secondZone.submittedAt": { $ne: null },
+    })
+      .sort({ "secondZone.submittedAt": -1, createdAt: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      data: rows.map((row) => ({
+        rowId: String(row._id),
+        projectId: row.projectId ? String(row.projectId) : "",
+        wheelDataKey: asText(row.wheelDataKey),
+        wheelDia: asText(row?.secondZone?.wheelDia),
+        wheelOrigin: asText(row?.secondZone?.wheelOrigin),
+        axleMake: asText(row?.secondZone?.axle?.make),
+        axleSerialNumbers: Array.isArray(row?.secondZone?.axle?.serialNumbers) ? row.secondZone.axle.serialNumbers : [],
+        axleHeatNumbers: Array.isArray(row?.secondZone?.axleHeatNumbers) ? row.secondZone.axleHeatNumbers : [],
+        wheelMake: asText(row?.secondZone?.wheel?.make),
+        wheelSerialNumbers: Array.isArray(row?.secondZone?.wheel?.serialNumbers) ? row.secondZone.wheel.serialNumbers : [],
+        wheelHeatNumbers: Array.isArray(row?.secondZone?.wheelHeatNumbers) ? row.secondZone.wheelHeatNumbers : [],
+        bearingMake: asText(row?.secondZone?.bearing?.make),
+        bearingSerialNumbers: Array.isArray(row?.secondZone?.bearing?.serialNumbers) ? row.secondZone.bearing.serialNumbers : [],
+        inspectorName: asText(row?.secondZone?.submittedBy?.username),
+        inspectorRole: asText(row?.secondZone?.submittedBy?.role),
+        submittedAt: row?.secondZone?.submittedAt || null,
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching zone 1 analytics rows:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -1303,6 +1350,143 @@ router.patch("/rows/:rowId/pdi-stages/:stageKey/skip", async (req, res) => {
     res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
   } catch (error) {
     console.error("Error skipping wagon PDI stage:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+router.patch("/rows/:rowId/stages/:stageKey/reset", async (req, res) => {
+  try {
+    const { rowId, stageKey } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(rowId)) {
+      return res.status(400).json({ success: false, message: "Valid rowId is required." });
+    }
+
+    const row = await WagonDataSheetRow.findById(rowId);
+    if (!row) {
+      return res.status(404).json({ success: false, message: "Wagon row not found." });
+    }
+
+    const rowObject = row.toObject();
+    const { inspectionRules, pdiRules } = getRowRuleSets(rowObject);
+    const dailyProgress = getInspectionProgress(rowObject, inspectionRules);
+    const targetIndex = INSPECTION_STAGES.findIndex((stage) => stage.key === stageKey);
+    const targetStage = getStageByKey(dailyProgress, stageKey);
+
+    if (targetIndex < 0 || !targetStage) {
+      return res.status(404).json({ success: false, message: "Daily stage not found." });
+    }
+    if (targetStage.status !== STAGE_STATUS.COMPLETED) {
+      return res.status(400).json({ success: false, message: "Only completed daily stages can be reset." });
+    }
+
+    const nextDailyStages = dailyProgress.stages.map((stage, index) =>
+      index >= targetIndex ? resetStageEntry(stage) : stage
+    );
+    const nextDailyProgress = getInspectionProgress(
+      {
+        ...rowObject,
+        inspectionProgress: {
+          ...row.inspectionProgress?.toObject?.(),
+          stages: nextDailyStages,
+          currentStageIndex: targetIndex,
+        },
+      },
+      inspectionRules
+    );
+    row.inspectionProgress = syncProgressPayload(nextDailyProgress);
+
+    const containerTestIndex = INSPECTION_STAGES.findIndex((stage) => stage.key === "container_test");
+    if (targetIndex <= containerTestIndex || stageKey === "dm_line") {
+      const currentPdi = getPdiProgress(rowObject, pdiRules);
+      const resetPdiProgress = getPdiProgress(
+        {
+          ...rowObject,
+          pdiProgress: {
+            ...row.pdiProgress?.toObject?.(),
+            stages: currentPdi.stages.map(resetStageEntry),
+            currentStageIndex: 0,
+            lastCompletedStageKey: "",
+            lastCompletedOn: "",
+            isActivated: false,
+          },
+        },
+        pdiRules
+      );
+      row.pdiProgress = syncProgressPayload(resetPdiProgress, true);
+    }
+
+    await row.save();
+    res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
+  } catch (error) {
+    console.error("Error resetting wagon daily stage:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+router.patch("/rows/:rowId/pdi-stages/:stageKey/reset", async (req, res) => {
+  try {
+    const { rowId, stageKey } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(rowId)) {
+      return res.status(400).json({ success: false, message: "Valid rowId is required." });
+    }
+
+    const row = await WagonDataSheetRow.findById(rowId);
+    if (!row) {
+      return res.status(404).json({ success: false, message: "Wagon row not found." });
+    }
+
+    const rowObject = row.toObject();
+    const { inspectionRules, pdiRules } = getRowRuleSets(rowObject);
+    const pdiProgress = getPdiProgress(rowObject, pdiRules);
+    const targetIndex = PDI_STAGES.findIndex((stage) => stage.key === stageKey);
+    const targetStage = getStageByKey(pdiProgress, stageKey);
+
+    if (targetIndex < 0 || !targetStage) {
+      return res.status(404).json({ success: false, message: "PDI stage not found." });
+    }
+    if (targetStage.status !== STAGE_STATUS.COMPLETED) {
+      return res.status(400).json({ success: false, message: "Only completed PDI stages can be reset." });
+    }
+
+    const nextPdiStages = pdiProgress.stages.map((stage, index) =>
+      index >= targetIndex ? resetStageEntry(stage) : stage
+    );
+    const nextPdiProgress = getPdiProgress(
+      {
+        ...rowObject,
+        pdiProgress: {
+          ...row.pdiProgress?.toObject?.(),
+          stages: nextPdiStages,
+          currentStageIndex: targetIndex,
+          isActivated: true,
+        },
+      },
+      pdiRules
+    );
+    row.pdiProgress = syncProgressPayload(nextPdiProgress, true);
+
+    const dailyProgress = getInspectionProgress(rowObject, inspectionRules);
+    const nextDailyStages = dailyProgress.stages.map((stage) =>
+      stage.key === "dm_line" ? resetStageEntry(stage) : stage
+    );
+    const dmLineIndex = INSPECTION_STAGES.findIndex((stage) => stage.key === "dm_line");
+    const nextDailyProgress = getInspectionProgress(
+      {
+        ...rowObject,
+        inspectionProgress: {
+          ...row.inspectionProgress?.toObject?.(),
+          stages: nextDailyStages,
+          currentStageIndex: Math.min(dailyProgress.currentStageIndex, dmLineIndex),
+        },
+      },
+      inspectionRules
+    );
+    row.inspectionProgress = syncProgressPayload(nextDailyProgress);
+
+    await row.save();
+    res.json({ success: true, data: buildStageDashboardRow(row.toObject()) });
+  } catch (error) {
+    console.error("Error resetting wagon PDI stage:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
