@@ -42,6 +42,11 @@ const USERS = [
     password: process.env.GROUND_INSPECTOR_PASSWORD || "123456",
     role: "ground-inspector",
   },
+  {
+    username: process.env.WAGON_DATA_VIEWER_USERNAME || "wagonviewer",
+    password: process.env.WAGON_DATA_VIEWER_PASSWORD || "123456",
+    role: "wagon-data-viewer",
+  },
 ];
 
 const authMiddleware = (req, res, next) => {

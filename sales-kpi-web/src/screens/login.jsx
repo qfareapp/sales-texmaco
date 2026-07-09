@@ -36,6 +36,7 @@ export default function TexmacoAccessPortal() {
         else if (res.data.role === "quality") window.location.href = "/quality-dashboard";
         else if (res.data.role === "ground-inspector") window.location.href = "/quality-dashboard";
         else if (res.data.role === "maintenance") window.location.href = "/maintenance/dashboard";
+        else if (res.data.role === "wagon-data-viewer") window.location.href = "/quality/wagon-data-sheet/projects";
       }
     } catch (err) {
       console.error("Login Error:", err);

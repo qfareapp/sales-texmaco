@@ -270,6 +270,7 @@ function InfoField({ label, value }) {
 export default function WagonDataSheetProjectDetail() {
   const role = localStorage.getItem("role");
   const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
+  const canViewProjectDetail = isQualityModuleAdmin || role === "wagon-data-viewer";
   const navigate = useNavigate();
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
@@ -486,10 +487,10 @@ export default function WagonDataSheetProjectDetail() {
     );
   };
 
-  if (!isQualityModuleAdmin) {
+  if (!canViewProjectDetail) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="info">This detailed wagon data sheet view is available only for quality admin accounts.</Alert>
+        <Alert severity="info">This detailed wagon data sheet view is available only for authorized Wagon Data Sheet accounts.</Alert>
       </Box>
     );
   }

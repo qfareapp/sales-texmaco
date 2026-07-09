@@ -7,6 +7,7 @@ export default function WagonDataSheetModule() {
   const role = localStorage.getItem("role") || "";
   const isGroundInspector = role === "ground-inspector";
   const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
+  const isWagonDataViewer = role === "wagon-data-viewer";
 
   const actions = [
     isQualityModuleAdmin && {
@@ -23,6 +24,11 @@ export default function WagonDataSheetModule() {
       label: "Stage Dashboard",
       color: "success",
       onClick: () => navigate("/quality/wagon-data-sheet/stage-dashboard"),
+    },
+    isWagonDataViewer && {
+      label: "Project Details & Downloads",
+      color: "primary",
+      onClick: () => navigate("/quality/wagon-data-sheet/projects"),
     },
     isGroundInspector && {
       label: "Stage Inspection Dashboard",
@@ -60,7 +66,9 @@ export default function WagonDataSheetModule() {
       <Typography variant="body2" color="text.secondary" mb={3}>
         {isGroundInspector
           ? "Use the zone forms as before, or open the new stage inspection section."
-          : "Open project setup or the stage dashboard for Wagon Data Sheet."}
+          : isWagonDataViewer
+            ? "Open project details and download the Wagon Data Sheet project files."
+            : "Open project setup or the stage dashboard for Wagon Data Sheet."}
       </Typography>
 
       <Paper sx={{ p: 3, maxWidth: 900 }}>

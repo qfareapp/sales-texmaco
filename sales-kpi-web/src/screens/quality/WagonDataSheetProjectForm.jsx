@@ -65,6 +65,7 @@ function StatBadge({ label, value, color = "default" }) {
 export default function WagonDataSheetProjectForm() {
   const role = localStorage.getItem("role");
   const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
+  const isWagonDataViewer = role === "wagon-data-viewer";
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [projects, setProjects] = useState([]);
@@ -459,7 +460,9 @@ export default function WagonDataSheetProjectForm() {
           severity="info"
           sx={{ mb: 3, borderRadius: 2 }}
         >
-          Project creation is reserved for quality admins. Inspectors can update the stage-wise Wagon Data Sheet only from their inspector account.
+          {isWagonDataViewer
+            ? "This account is read-only. You can open each project and download its files."
+            : "Project creation is reserved for quality admins. Inspectors can update the stage-wise Wagon Data Sheet only from their inspector account."}
         </Alert>
       )}
 
@@ -508,7 +511,7 @@ export default function WagonDataSheetProjectForm() {
               <Grid item xs={12} sm={6} lg={6} xl={4} key={project._id}>
                 <Paper
                   elevation={0}
-                  onClick={() => isQualityModuleAdmin && navigate(`/quality/wagon-data-sheet/projects/${project._id}`)}
+                  onClick={() => (isQualityModuleAdmin || isWagonDataViewer) && navigate(`/quality/wagon-data-sheet/projects/${project._id}`)}
                   sx={{
                     p: 2.5,
                     borderRadius: 2.5,
@@ -518,9 +521,9 @@ export default function WagonDataSheetProjectForm() {
                     display: "flex",
                     flexDirection: "column",
                     gap: 1.75,
-                    cursor: isQualityModuleAdmin ? "pointer" : "default",
+                    cursor: isQualityModuleAdmin || isWagonDataViewer ? "pointer" : "default",
                     transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
-                    "&:hover": isQualityModuleAdmin
+                    "&:hover": isQualityModuleAdmin || isWagonDataViewer
                       ? {
                           transform: "translateY(-2px)",
                           boxShadow: "0 12px 28px rgba(3,105,161,0.12)",
@@ -539,7 +542,7 @@ export default function WagonDataSheetProjectForm() {
                         {[project.contractPoNumber, project.wagonTypeOffered].filter(Boolean).join(" · ") || "—"}
                       </Typography>
                     </Box>
-                    {isQualityModuleAdmin && (
+                    {(isQualityModuleAdmin || isWagonDataViewer) && (
                       <Tooltip title="Open full project table">
                         <Box
                           sx={{

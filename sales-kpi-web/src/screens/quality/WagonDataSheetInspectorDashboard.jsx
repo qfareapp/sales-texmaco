@@ -69,7 +69,7 @@ const getStageState = (row, pdiMode = false) => {
 
 const canTemporarilySkipStage = (stage) => Boolean(stage) && stage.key !== "uf_fit_up";
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
+// -- Sub-components -------------------------------------------------------------
 
 function StatCard({ label, value, accent = "#374151" }) {
   return (
@@ -129,7 +129,7 @@ function StageDots({ row, stages, pdiMode = false }) {
           >
             {isDone && (
               <Typography sx={{ color: "white", fontSize: "0.58rem", fontWeight: 900, lineHeight: 1 }}>
-                ✓
+                ?
               </Typography>
             )}
           </Box>
@@ -244,7 +244,7 @@ function SlideToComplete({ label, onComplete, disabled, color = "#15803d" }) {
         }}
       />
 
-      {/* Centered label — shifts color once fill covers it */}
+      {/* Centered label � shifts color once fill covers it */}
       <Box
         sx={{
           position: "absolute",
@@ -294,14 +294,14 @@ function SlideToComplete({ label, onComplete, disabled, color = "#15803d" }) {
         }}
       >
         <Typography sx={{ color, fontSize: "1.05rem", letterSpacing: -2, lineHeight: 1, fontWeight: 900, mt: "1px" }}>
-          ›››
+          ���
         </Typography>
       </Box>
     </Box>
   );
 }
 
-// Mobile card — compact with single CTA + collapsible history
+// Mobile card � compact with single CTA + collapsible history
 function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMode = false, onGoToPdi, highlighted = false }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [skippedOpen, setSkippedOpen] = useState(false);
@@ -343,7 +343,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
         }),
       }}
     >
-      {/* ── Card header ── */}
+      {/* -- Card header -- */}
       <Box
         sx={{
           px: 2,
@@ -379,7 +379,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
         {allDone ? (
           <Chip
             size="small"
-            label={pdiMode ? "PDI Done ✓" : "All Done ✓"}
+            label={pdiMode ? "PDI Done ?" : "All Done ?"}
             sx={{ bgcolor: "#16a34a", color: "white", fontWeight: 700, fontSize: "0.7rem" }}
           />
         ) : (
@@ -389,15 +389,15 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
         )}
       </Box>
 
-      {/* ── Progress dots ── */}
+      {/* -- Progress dots -- */}
       <Box sx={{ px: 2, pt: 1.5, pb: 0.75 }}>
         <StageDotsStatus row={row} stages={stages} pdiMode={pdiMode} />
       </Box>
 
-      {/* ── Current stage + CTA ── */}
+      {/* -- Current stage + CTA -- */}
       <Box sx={{ px: 2, pb: 1.75 }}>
         {isPdiContinue ? (
-          /* Wagon reached DM Line — direct link to PDI tab */
+          /* Wagon reached DM Line � direct link to PDI tab */
           <>
           <Button
             fullWidth
@@ -415,7 +415,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
               "&:hover": { borderColor: "#1d4ed8", bgcolor: "#eff6ff" },
             }}
           >
-            → Open {row.texNo || "this wagon"} in PDI Status
+            ? Open {row.texNo || "this wagon"} in PDI Status
           </Button>
           {skippedStages.length > 0 && (
             <Button
@@ -551,7 +551,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
         )}
       </Box>
 
-      {/* ── Collapsible stage history ── */}
+      {/* -- Collapsible stage history -- */}
       <Box sx={{ borderTop: `1px dashed ${borderColor}` }}>
         <Button
           fullWidth
@@ -559,7 +559,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
           onClick={() => setHistoryOpen((v) => !v)}
           sx={{ py: 0.75, color: "text.secondary", fontSize: "0.75rem", fontWeight: 600, textTransform: "none", borderRadius: 0 }}
         >
-          {historyOpen ? "▲ Hide stage history" : "▼ View stage history"}
+          {historyOpen ? "? Hide stage history" : "? View stage history"}
         </Button>
         <Collapse in={historyOpen}>
           <Stack spacing={0.6} sx={{ px: 2, pb: 2 }}>
@@ -602,7 +602,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
                     fontWeight={800}
                     sx={{ whiteSpace: "nowrap", color: palette.text }}
                   >
-                    {isDone ? formatStageDate(stageData.completedOn) : isActive ? "Pending" : "—"}
+                    {isDone ? formatStageDate(stageData.completedOn) : isActive ? "Pending" : "�"}
                   </Typography>
                 </Box>
               );
@@ -614,7 +614,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
   );
 }
 
-// ── StageTable: content only (no outer Paper — lives inside the tabbed Paper) ──
+// -- StageTable: content only (no outer Paper � lives inside the tabbed Paper) --
 
 function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, saving, projectName, pdiMode = false, onGoToPdi, highlightedId }) {
   const pendingColor = pdiMode ? "#1d4ed8" : "#b45309";
@@ -645,7 +645,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
         </Box>
       )}
 
-      {/* ── MOBILE: count strip + cards ── */}
+      {/* -- MOBILE: count strip + cards -- */}
       <Box sx={{ display: { xs: "block", sm: "none" } }}>
         {(counts || []).length > 0 && (
           <Box
@@ -706,7 +706,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
         <Box sx={{ p: 2 }}>
           {rows.length === 0 ? (
             <Box sx={{ textAlign: "center", py: 5 }}>
-              <Typography sx={{ fontSize: 28, mb: 1 }}>🚃</Typography>
+              <Typography sx={{ fontSize: 28, mb: 1 }}>??</Typography>
               <Typography variant="body2" color="text.secondary">
                 {pdiMode
                   ? "PDI status will appear here once wagons reach the DM Line stage."
@@ -734,7 +734,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
         </Box>
       </Box>
 
-      {/* ── DESKTOP: sticky table (sm+) ── */}
+      {/* -- DESKTOP: sticky table (sm+) -- */}
       <Box sx={{ display: { xs: "none", sm: "block" } }}>
         <TableContainer sx={{ maxHeight: "60vh" }}>
           <Table size="small" stickyHeader>
@@ -759,7 +759,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
             <TableBody>
               <TableRow>
                 <TableCell colSpan={2} sx={{ fontWeight: 800, bgcolor: "#fefce8", color: "#78350f" }}>
-                  Total qty. →
+                  Total qty. ?
                 </TableCell>
                 {stages.map((stage) => {
                   const count = (counts || []).find((item) => item.key === stage.key)?.pendingCount || 0;
@@ -883,7 +883,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
                               onClick={() => onGoToPdi?.(row._id)}
                               sx={{ textTransform: "none", fontWeight: 700, fontSize: "0.78rem", borderColor: "#93c5fd", color: "#1d4ed8", borderRadius: 1.5, "&:hover": { borderColor: "#1d4ed8", bgcolor: "#eff6ff" } }}
                             >
-                              → Open in PDI Status
+                              ? Open in PDI Status
                             </Button>
                           ) : (
                             <>
@@ -960,7 +960,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// -- Main component -------------------------------------------------------------
 
 export default function WagonDataSheetInspectorDashboard() {
   const role = localStorage.getItem("role") || "";
@@ -1063,7 +1063,7 @@ export default function WagonDataSheetInspectorDashboard() {
         submittedByUsername,
         submittedByRole,
       });
-      setSuccess(`${row.texNo || "Selected TEX"} — ${row.activeStage.label} marked complete.`);
+      setSuccess(`${row.texNo || "Selected TEX"} � ${row.activeStage.label} marked complete.`);
       await loadDashboard(selectedProjectId);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to complete stage.");
@@ -1125,7 +1125,7 @@ export default function WagonDataSheetInspectorDashboard() {
         submittedByUsername,
         submittedByRole,
       });
-      setSuccess(`${row.texNo || "Selected TEX"} — ${row.activePdiStage.label} marked complete.`);
+      setSuccess(`${row.texNo || "Selected TEX"} � ${row.activePdiStage.label} marked complete.`);
       await loadDashboard(selectedProjectId);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to complete PDI stage.");
@@ -1169,10 +1169,10 @@ export default function WagonDataSheetInspectorDashboard() {
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1700, mx: "auto" }}>
 
-      {/* ── Page Header ── */}
+      {/* -- Page Header -- */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5 }}>
         <Box sx={{ bgcolor: "#15803d", borderRadius: 2, p: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Typography sx={{ color: "white", fontSize: 20, lineHeight: 1 }}>🔧</Typography>
+          <Typography sx={{ color: "white", fontSize: 20, lineHeight: 1 }}>??</Typography>
         </Box>
         <Box>
           <Typography variant="h5" fontWeight={800} sx={{ lineHeight: 1.1, letterSpacing: -0.5 }}>
@@ -1190,7 +1190,7 @@ export default function WagonDataSheetInspectorDashboard() {
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
 
-      {/* ── Project selector + summary ── */}
+      {/* -- Project selector + summary -- */}
       <Paper elevation={0} sx={{ p: { xs: 2, md: 2.5 }, mb: 3, borderRadius: 3, border: "1.5px solid #d1fae5", bgcolor: "#f0fdf4" }}>
         <TextField
           select
@@ -1273,7 +1273,7 @@ export default function WagonDataSheetInspectorDashboard() {
         </Stack>
       </Paper>
 
-      {/* ── Tabbed Sections ── */}
+      {/* -- Tabbed Sections -- */}
       <Paper elevation={0} sx={{ borderRadius: 3, border: "1.5px solid #e2e8f0", overflow: "hidden" }}>
 
         {/* Tab bar */}
@@ -1324,7 +1324,7 @@ export default function WagonDataSheetInspectorDashboard() {
               ) : wagons > 0 ? (
                 <Chip
                   size="small"
-                  label="All clear ✓"
+                  label="All clear ?"
                   sx={{ height: 20, fontSize: "0.63rem", fontWeight: 700, bgcolor: "rgba(21,128,61,0.5)", color: "#86efac" }}
                 />
               ) : null}
@@ -1362,7 +1362,7 @@ export default function WagonDataSheetInspectorDashboard() {
         )}
       </Paper>
 
-      {/* ── U/F Fit-Up TEX entry dialog ── */}
+      {/* -- U/F Fit-Up TEX entry dialog -- */}
       <Dialog open={ufDialogOpen} onClose={() => !saving && setUfDialogOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontWeight: 800 }}>Complete U/F Fit-Up</DialogTitle>
         <DialogContent>
@@ -1378,7 +1378,7 @@ export default function WagonDataSheetInspectorDashboard() {
             />
             <Typography variant="body2" color="text.secondary">
               Enter the TEX No. to assign to wagon row{" "}
-              <strong>#{selectedUfRow?.slNo || "—"}</strong>, then confirm to mark U/F Fit-Up complete.
+              <strong>#{selectedUfRow?.slNo || "�"}</strong>, then confirm to mark U/F Fit-Up complete.
             </Typography>
           </Stack>
         </DialogContent>
@@ -1392,7 +1392,7 @@ export default function WagonDataSheetInspectorDashboard() {
             disabled={saving || !newTexNo.trim()}
             sx={{ textTransform: "none", fontWeight: 800, bgcolor: "#15803d", "&:hover": { bgcolor: "#166534" }, borderRadius: 1.5, px: 3 }}
           >
-            {saving ? "Saving…" : "Confirm & Complete"}
+            {saving ? "Saving�" : "Confirm & Complete"}
           </Button>
         </DialogActions>
       </Dialog>
