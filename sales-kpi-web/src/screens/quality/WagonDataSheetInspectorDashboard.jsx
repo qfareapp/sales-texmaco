@@ -602,7 +602,7 @@ function MobileStageCard({ row, index, stages, onComplete, onSkip, saving, pdiMo
                     fontWeight={800}
                     sx={{ whiteSpace: "nowrap", color: palette.text }}
                   >
-                    {isDone ? formatStageDate(stageData.completedOn) : isActive ? "Pending" : "—"}
+                    {isDone ? formatStageDate(stageData.completedOn) : stageData?.status === "skipped" ? "Skipped" : isActive ? "Pending" : "—"}
                   </Typography>
                 </Box>
               );
@@ -706,7 +706,7 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, sav
         <Box sx={{ p: 2 }}>
           {rows.length === 0 ? (
             <Box sx={{ textAlign: "center", py: 5 }}>
-              <Typography sx={{ fontSize: 28, mb: 1 }}>i</Typography>
+              <Typography sx={{ fontSize: 28, mb: 1 }}>🚃</Typography>
               <Typography variant="body2" color="text.secondary">
                 {pdiMode
                   ? "PDI status will appear here once wagons reach the DM Line stage."
@@ -1255,7 +1255,7 @@ export default function WagonDataSheetInspectorDashboard() {
             onClick={handleCreateWagonInspection}
             disabled={saving || !selectedProjectId}
             sx={{
-              minHeight: { xs: 48, sm: 56 },
+              minHeight: { xs: 64, sm: 72 },
               px: 2.5,
               textTransform: "none",
               fontWeight: 800,
@@ -1268,7 +1268,14 @@ export default function WagonDataSheetInspectorDashboard() {
               width: { xs: "100%", sm: "auto" },
             }}
           >
-            + Create New Wagon Inspection
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1.1 }}>
+              <Typography component="span" sx={{ fontSize: "1.05rem", lineHeight: 1, mb: 0.35 }}>
+                🚃
+              </Typography>
+              <Typography component="span" sx={{ fontSize: "0.9rem", fontWeight: 800 }}>
+                + Create New Wagon Inspection
+              </Typography>
+            </Box>
           </Button>
         </Stack>
       </Paper>
@@ -1399,4 +1406,6 @@ export default function WagonDataSheetInspectorDashboard() {
     </Box>
   );
 }
+
+
 
