@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { useNavigate } from "react-router-dom";
 import api from "../../api";
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -331,6 +332,7 @@ function QualityItem({ label, value, warn = false, critical = false }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function WagonDataSheetAdminOverview() {
+  const navigate = useNavigate();
   const role = localStorage.getItem("role") || "";
   const isQualityModuleAdmin = role === "admin" || role === "quality-admin";
   const [overview, setOverview] = useState(null);
@@ -373,7 +375,7 @@ export default function WagonDataSheetAdminOverview() {
       });
 
       const ws = XLSX.utils.json_to_sheet(
-        workbookRows.length ? workbookRows : [{ Note: "No Zone 1 forms completed yet." }]
+        workbookRows.length ? workbookRows : [{ Note: "No CTRB (Wheel Data) forms completed yet." }]
       );
       ws["!cols"] = [
         { wch: 8 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 26 },
@@ -382,11 +384,11 @@ export default function WagonDataSheetAdminOverview() {
       ];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Zone 1 Forms");
+      XLSX.utils.book_append_sheet(wb, ws, "CTRB Wheel Data");
       const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
       saveAs(new Blob([buffer], { type: "application/octet-stream" }), "Zone_1_Filled_Data.xlsx");
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to download Zone 1 Excel.");
+      setError(err.response?.data?.message || "Failed to download CTRB Wheel Data Excel.");
     } finally {
       setDownloadingZone1(false);
     }
@@ -402,8 +404,8 @@ export default function WagonDataSheetAdminOverview() {
       { label: "PDI Pending",        value: overall.pdiInProgress || 0,           tone: "amber", icon: "🔷" },
       { label: "Completed Wagons",   value: overall.fullyCompletedWagons || 0,    tone: "green", icon: "✅" },
       { label: "Completion %",       value: `${overall.completionPercent || 0}%`, tone: "green", icon: "📊" },
-      { label: "Ready For Zone 2",   value: overall.readyForZone2 || 0,           tone: "blue",  icon: "➡️" },
-      { label: "Zone 2 Gap",         value: dataQuality?.zone2PendingThoughEligible || 0, tone: "red", icon: "⚠️" },
+      { label: "Ready For DM Line Data", value: overall.readyForZone2 || 0,           tone: "blue",  icon: "➡️" },
+      { label: "DM Line Data Gap",      value: dataQuality?.zone2PendingThoughEligible || 0, tone: "red", icon: "⚠️" },
     ];
   }, [overview]);
 
@@ -486,7 +488,7 @@ export default function WagonDataSheetAdminOverview() {
                 { key: "totalTexNos", label: "TEX Nos", align: "center" },
                 { key: "dailyPending", label: "Daily Pending", align: "center" },
                 { key: "pdiPending", label: "PDI Pending", align: "center" },
-                { key: "readyForZone2", label: "Ready Zone 2", align: "center" },
+                { key: "readyForZone2", label: "Ready DM Line", align: "center" },
                 { key: "completed", label: "Done", align: "center" },
                 {
                   key: "completionPercent",
@@ -549,14 +551,14 @@ export default function WagonDataSheetAdminOverview() {
                   { label: "Reached DM / PDI",    value: overview.overall?.reachedDmLine || 0,    tone: "blue"  },
                   { label: "Waiting In PDI",       value: overview.overall?.waitingInPdi || 0,     tone: "amber" },
                   { label: "Final PDI Cleared",    value: overview.overall?.finalPdiCleared || 0,  tone: "green" },
-                  { label: "Zone 2 Started",       value: overview.overall?.zone2Started || 0,     tone: "blue"  },
-                  { label: "Zone 2 Completed",     value: overview.overall?.zone2Completed || 0,   tone: "green" },
+                  { label: "DM Line Data Started",   value: overview.overall?.zone2Started || 0,     tone: "blue"  },
+                  { label: "DM Line Data Completed", value: overview.overall?.zone2Completed || 0,   tone: "green" },
                   { label: "Fully Documented",     value: overview.overall?.fullyDocumented || 0,  tone: "teal"  },
                 ].map((card) => (
                   <KpiCard key={card.label} {...card} />
                 ))}
                 <ActionKpiCard
-                  label="Total Zone 1 Forms Complete"
+                  label="Total CTRB (Wheel Data) Forms Complete"
                   value={overview.overall?.totalZone1FormsComplete || 0}
                   tone="teal"
                   icon="⬇"
@@ -573,11 +575,24 @@ export default function WagonDataSheetAdminOverview() {
             <SectionCard title="Inspector Productivity" accent="#1d4ed8" dot="#60a5fa" noPad>
               <DataTable
                 columns={[
-                  { key: "username", label: "Inspector" },
-                  { key: "dailyStageCompletions", label: "Daily", align: "center" },
+                  {
+                    key: "username",
+                    label: "Inspector",
+                    render: (row) => (
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => navigate(`/quality/wagon-data-sheet/inspectors/${encodeURIComponent(row.username)}`)}
+                        sx={{ px: 0, minWidth: 0, fontWeight: 800, textTransform: "none" }}
+                      >
+                        {row.username}
+                      </Button>
+                    ),
+                  },
+                  { key: "dailyStageCompletions", label: "Stage Status", align: "center" },
                   { key: "pdiStageCompletions", label: "PDI", align: "center" },
-                  { key: "formSubmissions", label: "Forms", align: "center" },
-                  { key: "completedToday", label: "Today", align: "center" },
+                  { key: "formSubmissions", label: "Wagon Data Form", align: "center" },
+                  { key: "completedToday", label: "Today's Activity", align: "center" },
                   { key: "completedThisWeek", label: "This Week", align: "center" },
                   { key: "totalCompletions", label: "Total", align: "center" },
                 ]}
@@ -589,7 +604,7 @@ export default function WagonDataSheetAdminOverview() {
             <SectionCard title="Data Quality & Exceptions" accent="#dc2626" dot="#f87171">
               <Stack spacing={0.85}>
                 <QualityItem label="Rows Without TEX No."              value={overview.dataQuality?.rowsWithoutTexNo || 0}                    critical />
-                <QualityItem label="Zone 2 Eligible But Pending"        value={overview.dataQuality?.zone2PendingThoughEligible || 0}           warn />
+                <QualityItem label="DM Line Data Eligible But Pending" value={overview.dataQuality?.zone2PendingThoughEligible || 0}           warn />
                 <QualityItem label="Stuck Without Active Stage"         value={overview.dataQuality?.rowsStuckWithoutActiveStage || 0}          critical />
                 <QualityItem label="PDI Reached But Not Activated"      value={overview.dataQuality?.rowsReachedPdiButNotActivated || 0}        critical />
                 <QualityItem label="Incomplete Required Forms"          value={overview.dataQuality?.incompleteRequiredForms || 0}              warn />

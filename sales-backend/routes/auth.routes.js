@@ -152,4 +152,6 @@ router.post("/change-password", authMiddleware, async (req, res) => {
   }
 });
 
+router.authMiddleware = authMiddleware;
+
 module.exports = router;

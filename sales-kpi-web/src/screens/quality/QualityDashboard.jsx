@@ -123,6 +123,14 @@ export default function QualityDashboard() {
       color: "teal",
       onClick: () => navigate("/quality/wagon-data-sheet/my-submissions"),
     },
+    isGroundInspector && {
+      key: "draft-forms",
+      icon: "📝",
+      title: "Draft Forms",
+      description: "Continue CTRB (Wheel Data) forms that you saved as drafts.",
+      color: "orange",
+      onClick: () => navigate("/quality/wagon-data-sheet/drafts"),
+    },
     {
       key: "coupler",
       icon: "🔗",

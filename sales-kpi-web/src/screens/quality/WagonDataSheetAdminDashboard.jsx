@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   CircularProgress,
   Chip,
   Dialog,
@@ -117,7 +118,7 @@ function CompletedStageTooltip({ stageData, onReset, resetting = false }) {
   );
 }
 
-function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode = false, onResetStage, resettingStageKey }) {
+function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode = false, onResetStage, resettingStageKey, onForceComplete, completingRowId }) {
   return (
     <Paper elevation={0} sx={{ borderRadius: 3, border: "1.5px solid #e5e7eb", overflow: "hidden" }}>
       <Box sx={{ px: 2.5, py: 1.25, bgcolor: "#111827", color: "white" }}>
@@ -139,6 +140,11 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
               <TableCell align="center" sx={{ fontWeight: 800, bgcolor: "#f1f5f9", minWidth: 170 }}>
                 Current Status
               </TableCell>
+              {pdiMode && (
+                <TableCell align="center" sx={{ fontWeight: 800, bgcolor: "#f1f5f9", minWidth: 140 }}>
+                  Update Status
+                </TableCell>
+              )}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -155,6 +161,7 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                 );
               })}
               <TableCell sx={{ bgcolor: "#fefce8" }} />
+              {pdiMode && <TableCell sx={{ bgcolor: "#fefce8" }} />}
             </TableRow>
             <TableRow>
               <TableCell colSpan={2} sx={{ fontWeight: 800, bgcolor: "#ecfdf5", color: "#166534" }}>
@@ -169,11 +176,12 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                 );
               })}
               <TableCell sx={{ bgcolor: "#ecfdf5" }} />
+              {pdiMode && <TableCell sx={{ bgcolor: "#ecfdf5" }} />}
             </TableRow>
 
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={stages.length + 3} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                <TableCell colSpan={stages.length + (pdiMode ? 4 : 3)} align="center" sx={{ py: 6, color: "text.secondary" }}>
                   {pdiMode ? "PDI status will appear here after wagons reach DM Line." : "No wagon inspections found for this project yet."}
                 </TableCell>
               </TableRow>
@@ -232,6 +240,26 @@ function ReadOnlyStageTable({ title, rows, stages, counts, projectName, pdiMode 
                       <Chip label="All Stages Done" size="small" sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 800 }} />
                     )}
                   </TableCell>
+                  {pdiMode && (
+                    <TableCell align="center">
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={!row.isPdiActivated || row.isPdiCompleted || completingRowId === row._id}
+                        onClick={() => onForceComplete?.(row)}
+                        sx={{
+                          bgcolor: "#15803d",
+                          fontWeight: 800,
+                          textTransform: "none",
+                          whiteSpace: "nowrap",
+                          "&:hover": { bgcolor: "#166534" },
+                          "&:disabled": { bgcolor: "#d1d5db", color: "#64748b" },
+                        }}
+                      >
+                        {completingRowId === row._id ? "Completing..." : row.isPdiCompleted ? "Completed" : "Complete"}
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -256,8 +284,10 @@ export default function WagonDataSheetAdminDashboard() {
     pdiStages,
   });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [resettingStageKey, setResettingStageKey] = useState("");
   const [resetTarget, setResetTarget] = useState(null);
+  const [completingRowId, setCompletingRowId] = useState("");
 
   const loadProjects = async () => {
     const { data } = await api.get("/wagon-data-sheet/projects");
@@ -311,6 +341,37 @@ export default function WagonDataSheetAdminDashboard() {
     }
   };
 
+  const handleForceCompletePdi = async (row) => {
+    if (!row?._id || !selectedProjectId) return;
+    setCompletingRowId(row._id);
+    setError("");
+    setSuccess("");
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await api.patch(
+        `/wagon-data-sheet/rows/${row._id}/pdi-force-complete`,
+        {
+          submittedByUsername: localStorage.getItem("username") || "admin",
+          submittedByRole: role,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const updatedRow = data?.data;
+      if (updatedRow?._id) {
+        setDashboard((previous) => ({
+          ...previous,
+          rows: (previous.rows || []).map((item) => item._id === updatedRow._id ? updatedRow : item),
+        }));
+      }
+      setSuccess(`${row.texNo || "Selected TEX"} marked complete. Skipped stages are now N/A and DM Line is updated.`);
+      await loadDashboard(selectedProjectId);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to complete the PDI entry.");
+    } finally {
+      setCompletingRowId("");
+    }
+  };
+
   const totals = useMemo(() => {
     const dailyPending = (dashboard.stageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0);
     const pdiPending = (dashboard.pdiStageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0);
@@ -347,6 +408,7 @@ export default function WagonDataSheetAdminDashboard() {
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
 
       <Paper elevation={0} sx={{ p: 2.5, mb: 2.5, borderRadius: 3, border: "1.5px solid #dbeafe", bgcolor: "#f8fbff" }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }} justifyContent="space-between">
@@ -377,7 +439,7 @@ export default function WagonDataSheetAdminDashboard() {
         <ReadOnlyStageTable
           title="Daily Status"
           rows={dashboard.rows || []}
-          stages={inspectionStages}
+          stages={dashboard.stages || []}
           counts={dashboard.stageCounts || []}
           projectName={dashboard.project?.projectName || ""}
           onResetStage={handleResetStage}
@@ -387,12 +449,14 @@ export default function WagonDataSheetAdminDashboard() {
         <ReadOnlyStageTable
           title="PDI Status"
           rows={pdiRows}
-          stages={pdiStages}
+          stages={dashboard.pdiStages || []}
           counts={dashboard.pdiStageCounts || []}
           projectName=""
           pdiMode
           onResetStage={handleResetStage}
           resettingStageKey={resettingStageKey}
+          onForceComplete={handleForceCompletePdi}
+          completingRowId={completingRowId}
         />
       </Box>
 

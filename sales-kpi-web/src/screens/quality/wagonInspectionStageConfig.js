@@ -28,6 +28,7 @@ export const pdiStages = [
 export const stageStatusLabel = (stage) => {
   if (!stage) return "";
   if (stage.status === "completed") return formatStageDate(stage.completedOn);
+  if (stage.status === "not_applicable") return "N/A";
   if (stage.status === "skipped") return stage.isOptional ? "Skipped" : "Skipped - revisit";
   return "Pending";
 };
@@ -48,6 +49,15 @@ export const stageStatusPalette = (stage, active = false, pdiMode = false) => {
       border: "#fdba74",
       text: "#c2410c",
       dot: "#f97316",
+    };
+  }
+
+  if (stage?.status === "not_applicable") {
+    return {
+      bg: "#f3f4f6",
+      border: "#d1d5db",
+      text: "#6b7280",
+      dot: "#9ca3af",
     };
   }
 

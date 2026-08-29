@@ -61,12 +61,14 @@ export default function WagonDataSheetFinalDetailsForm() {
   const submittedByRole = localStorage.getItem("role") || "";
   const [searchParams] = useSearchParams();
   const preselectedProjectId = searchParams.get("projectId") || "";
+  const requestedDraftId = searchParams.get("draftId") || "";
   const [projects, setProjects] = useState([]);
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ ...initialForm, projectId: preselectedProjectId });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
+  const [draftId, setDraftId] = useState("");
 
   const selectedRow = useMemo(
     () => rows.find((row) => row._id === form.rowId) || null,
@@ -83,6 +85,18 @@ export default function WagonDataSheetFinalDetailsForm() {
       .then(({ data }) => setProjects(data?.data || []))
       .catch(() => setError("Failed to load projects."));
   }, []);
+
+  useEffect(() => {
+    if (!requestedDraftId) return;
+    api.get(`/wagon-data-sheet/drafts/${requestedDraftId}`, { params: { username: submittedByUsername } })
+      .then(({ data }) => {
+        const draft = data?.data;
+        if (draft?.formType !== "dm-final") return;
+        setDraftId(draft._id);
+        setForm({ ...initialForm, ...(draft.payload || {}) });
+      })
+      .catch((err) => setError(err.response?.data?.message || "Failed to load draft."));
+  }, [requestedDraftId, submittedByUsername]);
 
   useEffect(() => {
     if (!preselectedProjectId) return;
@@ -138,6 +152,8 @@ export default function WagonDataSheetFinalDetailsForm() {
         submittedByRole,
       });
       setSuccess("Final details saved successfully.");
+      if (draftId) await api.delete(`/wagon-data-sheet/drafts/${draftId}`, { params: { username: submittedByUsername } });
+      setDraftId("");
       const { data } = await api.get("/wagon-data-sheet/rows/final-details-options", {
         params: { projectId: form.projectId },
       });
@@ -151,6 +167,16 @@ export default function WagonDataSheetFinalDetailsForm() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const { data } = await api.post("/wagon-data-sheet/drafts", { draftId, username: submittedByUsername, role: submittedByRole, formType: "dm-final", payload: form });
+      setDraftId(data?.data?._id || draftId);
+      setSuccess("DM Final Data draft saved. You can continue it at any time.");
+    } catch (err) { setError(err.response?.data?.message || "Failed to save draft."); }
+    finally { setSaving(false); }
   };
 
   if (role !== "ground-inspector") {
@@ -191,7 +217,7 @@ export default function WagonDataSheetFinalDetailsForm() {
         </Box>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: 7 }}>
-        Use this third stage after first zone and second zone are complete.
+        Use DM Final Data after CTRB (Wheel Data) and DM Line Data are complete.
       </Typography>
 
       {error && (
@@ -225,7 +251,7 @@ export default function WagonDataSheetFinalDetailsForm() {
                 onChange={handleChange("projectId")}
                 fullWidth
                 required
-                helperText="Choose a project to load rows that already completed second zone"
+                helperText="Choose a project to load rows that already completed DM Line Data"
               >
                 {projects.map((project) => (
                   <MenuItem key={project._id} value={project._id}>
@@ -420,7 +446,8 @@ export default function WagonDataSheetFinalDetailsForm() {
           </Box>
         </Paper>
 
-        <Box sx={{ display: "flex", justifyContent: { xs: "stretch", sm: "flex-end" }, mb: 4 }}>
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "flex-end", gap: 1.5, mb: 4 }}>
+          <Button type="button" variant="outlined" size="large" disabled={saving} onClick={handleSaveDraft} sx={{ px: 3, py: 1.5, borderRadius: 2, fontWeight: 700, color: "#374151", borderColor: "#374151" }}>Save as Draft</Button>
           <Button
             type="submit"
             variant="contained"

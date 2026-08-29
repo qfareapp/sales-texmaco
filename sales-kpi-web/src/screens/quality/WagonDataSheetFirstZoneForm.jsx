@@ -4,6 +4,8 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
+  FormControlLabel,
   Grid,
   MenuItem,
   Paper,
@@ -12,6 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import api from "../../api";
+import { useSearchParams } from "react-router-dom";
 import { buildProjectLabel, wagonConfigurationOptions } from "./wagonDataSheetConfig";
 
 const initialForm = {
@@ -33,14 +36,29 @@ const initialForm = {
   bogie2WheelDataRowId2: "",
   couplerMake: "",
   couplerSerialNumbers: "",
+  couplerHasNewMake: false,
+  couplerNewMake: "",
+  couplerNewSerialNumbers: "",
   draftGearMake: "",
   draftGearSerialNumbers: "",
+  draftGearHasNewMake: false,
+  draftGearNewMake: "",
+  draftGearNewSerialNumbers: "",
   dvMake: "",
   dvSerialNumbers: "",
+  dvHasNewMake: false,
+  dvNewMake: "",
+  dvNewSerialNumbers: "",
   bcMake: "",
   bcSerialNumbers: "",
+  bcHasNewMake: false,
+  bcNewMake: "",
+  bcNewSerialNumbers: "",
   arMake: "",
   arSerialNumbers: "",
+  arHasNewMake: false,
+  arNewMake: "",
+  arNewSerialNumbers: "",
   sabMake: "",
   atlMake: "",
   crfMake: "",
@@ -91,7 +109,9 @@ function SectionHeader({ label, color = "#2e7d32" }) {
   );
 }
 
-function ComponentRow({ keyName, label, form, handleChange }) {
+function ComponentRow({ keyName, label, form, handleChange, handleNewMakeToggle }) {
+  const hasNewMake = Boolean(form[`${keyName}HasNewMake`]);
+
   return (
     <Box
       sx={{
@@ -123,6 +143,40 @@ function ComponentRow({ keyName, label, form, handleChange }) {
         helperText="One per line. Values must be unique within this field."
         sx={{ bgcolor: "white", borderRadius: 1 }}
       />
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={hasNewMake}
+            onChange={handleNewMakeToggle(keyName)}
+            color="success"
+          />
+        }
+        label="New Make"
+        sx={{ gridColumn: { xs: "auto", sm: "1 / -1" }, width: "fit-content", my: -1 }}
+      />
+      {hasNewMake && (
+        <>
+          <TextField
+            label={`${label} New Make`}
+            value={form[`${keyName}NewMake`]}
+            onChange={handleChange(`${keyName}NewMake`)}
+            fullWidth
+            size="small"
+            sx={{ bgcolor: "white", borderRadius: 1 }}
+          />
+          <TextField
+            label={`${label} New Make Serial Numbers`}
+            value={form[`${keyName}NewSerialNumbers`]}
+            onChange={handleChange(`${keyName}NewSerialNumbers`)}
+            fullWidth
+            size="small"
+            multiline
+            minRows={2}
+            helperText="One per line. Values must be unique within this field."
+            sx={{ bgcolor: "white", borderRadius: 1 }}
+          />
+        </>
+      )}
     </Box>
   );
 }
@@ -304,6 +358,8 @@ export default function WagonDataSheetFirstZoneForm() {
   const role = localStorage.getItem("role") || "";
   const submittedByUsername = localStorage.getItem("username") || "";
   const submittedByRole = localStorage.getItem("role") || "";
+  const [searchParams] = useSearchParams();
+  const requestedDraftId = searchParams.get("draftId") || "";
   const [projects, setProjects] = useState([]);
   const [availableWheelData, setAvailableWheelData] = useState([]);
   const [eligibleTexRows, setEligibleTexRows] = useState([]);
@@ -311,6 +367,7 @@ export default function WagonDataSheetFirstZoneForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
+  const [draftId, setDraftId] = useState("");
 
   const selectedWheelIds = useMemo(
     () =>
@@ -354,6 +411,18 @@ export default function WagonDataSheetFirstZoneForm() {
     );
   }, []);
 
+  useEffect(() => {
+    if (!requestedDraftId) return;
+    api.get(`/wagon-data-sheet/drafts/${requestedDraftId}`, { params: { username: submittedByUsername } })
+      .then(({ data }) => {
+        const draft = data?.data;
+        if (draft?.formType !== "dm-line") return;
+        setDraftId(draft._id);
+        setForm({ ...initialForm, ...(draft.payload || {}) });
+      })
+      .catch((err) => setError(err.response?.data?.message || "Failed to load draft."));
+  }, [requestedDraftId, submittedByUsername]);
+
   const handleChange = (field) => (event) =>
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
 
@@ -365,6 +434,20 @@ export default function WagonDataSheetFirstZoneForm() {
 
   const handleWheelDataSelect = (field) => (value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleNewMakeToggle = (keyName) => (event) => {
+    const hasNewMake = event.target.checked;
+    setForm((prev) => ({
+      ...prev,
+      [`${keyName}HasNewMake`]: hasNewMake,
+      ...(hasNewMake
+        ? {}
+        : {
+            [`${keyName}NewMake`]: "",
+            [`${keyName}NewSerialNumbers`]: "",
+          }),
+    }));
+  };
 
   const handleTexRowChange = (event) => {
     const rowId = event.target.value;
@@ -408,6 +491,13 @@ export default function WagonDataSheetFirstZoneForm() {
         if (duplicateSerialNumber) {
           throw new Error(`${label} serial numbers must be unique within the same field. Duplicate serial number: ${duplicateSerialNumber}`);
         }
+
+        if (form[`${key}HasNewMake`]) {
+          const duplicateNewSerialNumber = findDuplicateSerialNumber(form[`${key}NewSerialNumbers`]);
+          if (duplicateNewSerialNumber) {
+            throw new Error(`${label} new make serial numbers must be unique within the same field. Duplicate serial number: ${duplicateNewSerialNumber}`);
+          }
+        }
       }
 
       await api.post("/wagon-data-sheet/rows/first-zone", {
@@ -417,12 +507,14 @@ export default function WagonDataSheetFirstZoneForm() {
         submittedByUsername,
         submittedByRole,
       });
-      setSuccess("Second zone row saved successfully. Linked wheel data entries are now removed from the list.");
+      setSuccess("DM Line Data saved successfully. Linked CTRB wheel data entries are now removed from the list.");
+      if (draftId) await api.delete(`/wagon-data-sheet/drafts/${draftId}`, { params: { username: submittedByUsername } });
+      setDraftId("");
       setForm((prev) => ({ ...initialForm, projectId: prev.projectId }));
       await fetchEligibleTexRows(form.projectId);
       await fetchAvailableWheelData();
     } catch (err) {
-      const message = err.response?.data?.message || "Failed to save second zone row.";
+      const message = err.response?.data?.message || "Failed to save DM Line Data.";
       setError(message);
       if (/already filled/i.test(message)) {
         window.alert(message);
@@ -430,6 +522,16 @@ export default function WagonDataSheetFirstZoneForm() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const { data } = await api.post("/wagon-data-sheet/drafts", { draftId, username: submittedByUsername, role: submittedByRole, formType: "dm-line", payload: form });
+      setDraftId(data?.data?._id || draftId);
+      setSuccess("DM Line Data draft saved. You can continue it at any time.");
+    } catch (err) { setError(err.response?.data?.message || "Failed to save draft."); }
+    finally { setSaving(false); }
   };
 
   if (role !== "ground-inspector") {
@@ -465,12 +567,12 @@ export default function WagonDataSheetFirstZoneForm() {
             fontWeight={600}
             sx={{ textTransform: "uppercase", letterSpacing: 1 }}
           >
-            Second Zone Entry
+            DM Line Data
           </Typography>
         </Box>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: 7 }}>
-        Select a TEX number that already completed DM Line in stage inspection, then fill the rest of the wagon component details and link 2 first-zone wheel data entries to each bogie.
+        Select a TEX number that already completed DM Line in stage inspection, then fill the wagon component details and link two CTRB wheel data entries to each bogie.
       </Typography>
 
       {error && (
@@ -658,7 +760,14 @@ export default function WagonDataSheetFirstZoneForm() {
             <SectionHeader label="Other Components" color="#2e7d32" />
             <Stack spacing={2}>
               {pairFields.map(([key, label]) => (
-                <ComponentRow key={key} keyName={key} label={label} form={form} handleChange={handleChange} />
+                <ComponentRow
+                  key={key}
+                  keyName={key}
+                  label={label}
+                  form={form}
+                  handleChange={handleChange}
+                  handleNewMakeToggle={handleNewMakeToggle}
+                />
               ))}
             </Stack>
 
@@ -700,7 +809,8 @@ export default function WagonDataSheetFirstZoneForm() {
           </Box>
         </Paper>
 
-        <Box sx={{ display: "flex", justifyContent: { xs: "stretch", sm: "flex-end" }, mb: 4 }}>
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "flex-end", gap: 1.5, mb: 4 }}>
+          <Button type="button" variant="outlined" size="large" disabled={saving} onClick={handleSaveDraft} sx={{ px: 3, py: 1.5, borderRadius: 2, fontWeight: 700, color: "#1a6b3c", borderColor: "#1a6b3c" }}>Save as Draft</Button>
           <Button
             type="submit"
             variant="contained"
@@ -719,7 +829,7 @@ export default function WagonDataSheetFirstZoneForm() {
               boxShadow: "0 4px 14px rgba(26,107,60,0.35)",
             }}
           >
-            {saving ? "Saving..." : "Save Second Zone Row"}
+            {saving ? "Saving..." : "Save DM Line Data"}
           </Button>
         </Box>
       </form>

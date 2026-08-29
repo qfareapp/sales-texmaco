@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import api from "../../api";
+import { useSearchParams } from "react-router-dom";
 
 const initialForm = {
   wheelDataKey: "",
@@ -23,6 +24,22 @@ const initialForm = {
   wheelHeatNumbers: [],
   bearingMake: "",
   bearingSerialNumbers: "",
+};
+const reusableDefaultFields = ["wheelDia", "wheelOrigin", "axleMake", "wheelMake", "bearingMake"];
+
+const getReusableDefaults = (username) => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(`wagon-data-sheet:ctrb-defaults:${username}`) || "{}");
+    return Object.fromEntries(reusableDefaultFields.map((field) => [field, String(saved?.[field] || "")]));
+  } catch (_error) {
+    return {};
+  }
+};
+
+const saveReusableDefaults = (username, form) => {
+  const defaults = Object.fromEntries(reusableDefaultFields.map((field) => [field, form[field] || ""]));
+  localStorage.setItem(`wagon-data-sheet:ctrb-defaults:${username}`, JSON.stringify(defaults));
+  return defaults;
 };
 
 const normalizeWheelDataKey = (value) =>
@@ -170,7 +187,10 @@ export default function WagonDataSheetSecondZoneForm() {
   const role = localStorage.getItem("role") || "";
   const submittedByUsername = localStorage.getItem("username") || "";
   const submittedByRole = localStorage.getItem("role") || "";
-  const [form, setForm] = useState(initialForm);
+  const [searchParams] = useSearchParams();
+  const requestedDraftId = searchParams.get("draftId") || "";
+  const [form, setForm] = useState(() => ({ ...initialForm, ...getReusableDefaults(submittedByUsername) }));
+  const [draftId, setDraftId] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
@@ -178,6 +198,32 @@ export default function WagonDataSheetSecondZoneForm() {
     axleSerialNumbers: "axleHeatNumbers",
     wheelSerialNumbers: "wheelHeatNumbers",
   };
+
+  useEffect(() => {
+    if (!requestedDraftId) return;
+    api.get(`/wagon-data-sheet/rows/second-zone/drafts/${requestedDraftId}`, { params: { username: submittedByUsername } })
+      .then(({ data }) => {
+        const draft = data?.data;
+        if (!draft) return;
+        const zone = draft.secondZone || {};
+        setDraftId(draft._id || requestedDraftId);
+        setForm({
+          ...initialForm,
+          wheelDataKey: zone.draftWheelDataKey || "",
+          wheelDia: zone.wheelDia || "",
+          wheelOrigin: zone.wheelOrigin || "",
+          axleMake: zone.axle?.make || "",
+          axleSerialNumbers: (zone.axle?.serialNumbers || []).join("\n"),
+          axleHeatNumbers: zone.axleHeatNumbers || [],
+          wheelMake: zone.wheel?.make || "",
+          wheelSerialNumbers: (zone.wheel?.serialNumbers || []).join("\n"),
+          wheelHeatNumbers: zone.wheelHeatNumbers || [],
+          bearingMake: zone.bearing?.make || "",
+          bearingSerialNumbers: (zone.bearing?.serialNumbers || []).join("\n"),
+        });
+      })
+      .catch((err) => setError(err.response?.data?.message || "Failed to load draft."));
+  }, [requestedDraftId, submittedByUsername]);
 
   const handleChange = (field, index = null) => (event) =>
     setForm((prev) => {
@@ -221,16 +267,38 @@ export default function WagonDataSheetSecondZoneForm() {
 
       await api.post("/wagon-data-sheet/rows/second-zone", {
         ...form,
+        draftId,
         wheelDataKey: normalizeWheelDataKey(form.wheelDataKey),
         submittedByUsername,
         submittedByRole,
       });
       setSuccess(
-        `First zone wheel data saved successfully. Wheel Data Link: ${normalizeWheelDataKey(form.wheelDataKey)}`
+        `CTRB wheel data saved successfully. Wheel Data Link: ${normalizeWheelDataKey(form.wheelDataKey)}`
       );
-      setForm(initialForm);
+      setForm({ ...initialForm, ...saveReusableDefaults(submittedByUsername, form) });
+      setDraftId("");
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Failed to save second zone row.");
+      setError(err.response?.data?.message || err.message || "Failed to save CTRB wheel data.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const { data } = await api.post("/wagon-data-sheet/rows/second-zone/drafts", {
+        ...form,
+        draftId,
+        submittedByUsername,
+        submittedByRole,
+      });
+      setDraftId(data?.data?._id || draftId);
+      setSuccess("Draft saved. You can return and continue this CTRB form at any time.");
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to save draft.");
     } finally {
       setSaving(false);
     }
@@ -269,12 +337,15 @@ export default function WagonDataSheetSecondZoneForm() {
             fontWeight={600}
             sx={{ textTransform: "uppercase", letterSpacing: 1 }}
           >
-            First Zone Entry
+            CTRB (Wheel Data)
           </Typography>
         </Box>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3, pl: 7 }}>
-        Inspectors can fill wheel data independently here before the project-based second zone is done.
+        Inspectors can fill CTRB wheel data independently here before DM Line Data is completed.
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2, pl: 7 }}>
+        The wheel diameter and makes from your last CTRB entry are prefilled and can be edited for a different category.
       </Typography>
 
       {error && (
@@ -369,12 +440,22 @@ export default function WagonDataSheetSecondZoneForm() {
           </Box>
           <Box sx={{ p: { xs: 2, md: 3 } }}>
             <Typography variant="body2" color="text.secondary">
-              Once second-zone data is saved, the final details screen can use the same shared wagon row.
+              Once DM Line Data is saved, the DM Final Data screen can use the same shared wagon row.
             </Typography>
           </Box>
         </Paper>
 
-        <Box sx={{ display: "flex", justifyContent: { xs: "stretch", sm: "flex-end" }, mb: 4 }}>
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "flex-end", gap: 1.5, mb: 4 }}>
+          <Button
+            type="button"
+            variant="outlined"
+            size="large"
+            disabled={saving}
+            onClick={handleSaveDraft}
+            sx={{ px: 3, py: 1.5, borderRadius: 2, fontWeight: 700, color: "#b45309", borderColor: "#b45309" }}
+          >
+            Save as Draft
+          </Button>
           <Button
             type="submit"
             variant="contained"
@@ -393,7 +474,7 @@ export default function WagonDataSheetSecondZoneForm() {
               boxShadow: "0 4px 14px rgba(180,83,9,0.35)",
             }}
           >
-            {saving ? "Saving..." : "Save First Zone Wheel Data"}
+            {saving ? "Saving..." : "Save CTRB Wheel Data"}
           </Button>
         </Box>
       </form>

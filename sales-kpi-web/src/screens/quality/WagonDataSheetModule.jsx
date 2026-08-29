@@ -36,17 +36,17 @@ export default function WagonDataSheetModule() {
       onClick: () => navigate("/quality/wagon-data-sheet/stage-dashboard"),
     },
     isGroundInspector && {
-      label: "Zone 1 Form",
+      label: "CTRB (Wheel Data)",
       color: "warning",
       onClick: () => navigate("/quality/wagon-data-sheet/first-zone"),
     },
     isGroundInspector && {
-      label: "Zone 2 Form",
+      label: "DM Line Data",
       color: "secondary",
       onClick: () => navigate("/quality/wagon-data-sheet/second-zone"),
     },
     isGroundInspector && {
-      label: "Zone 3 Form",
+      label: "DM Final Data",
       color: "info",
       onClick: () => navigate("/quality/wagon-data-sheet/final-details"),
     },
@@ -55,6 +55,12 @@ export default function WagonDataSheetModule() {
       color: "inherit",
       variant: "outlined",
       onClick: () => navigate("/quality/wagon-data-sheet/my-submissions"),
+    },
+    isGroundInspector && {
+      label: "Draft Forms",
+      color: "warning",
+      variant: "outlined",
+      onClick: () => navigate("/quality/wagon-data-sheet/drafts"),
     },
   ].filter(Boolean);
 
@@ -65,7 +71,7 @@ export default function WagonDataSheetModule() {
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
         {isGroundInspector
-          ? "Use the zone forms as before, or open the new stage inspection section."
+          ? "Use the CTRB, DM Line, and DM Final data forms, or open the stage inspection section."
           : isWagonDataViewer
             ? "Open project details and download the Wagon Data Sheet project files."
             : "Open project setup or the stage dashboard for Wagon Data Sheet."}

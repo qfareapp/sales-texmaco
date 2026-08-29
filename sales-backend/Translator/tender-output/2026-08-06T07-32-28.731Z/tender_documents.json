@@ -1,0 +1,94 @@
+[
+  {
+    "filePath": "D:\\temaco final copy\\Final Stage 5(development)\\sales-backend\\Translator\\uploads\\tender-jobs\\12d805ec-b191-46ca-9af8-9c8a378355ec\\0001-GePNIC-2026-08-05-02_07_28.pdf",
+    "relativePath": "0001-GePNIC-2026-08-05-02_07_28.pdf",
+    "isTenderRelated": true,
+    "confidence": 0.95,
+    "documentKind": "Tender Details",
+    "tenderId": "2026_BHEL_63688_1",
+    "tenderTitle": "11KV HT BUSBAR Sleeve and Panel Service",
+    "issuingAuthority": "MM/Purchase, Quality Building, SSTP/BHEL, Trichy, 620014.",
+    "procurementMethod": "Buy",
+    "submissionDeadline": "08-Aug-2026 12:00 PM",
+    "bidOpeningDate": "08-Aug-2026 12:30 PM",
+    "preBidMeetingDate": null,
+    "bidValidity": "75 days",
+    "workLocation": "sstp/bhel/Trichy, Pincode 620014",
+    "currency": "INR",
+    "estimatedValue": "0.00",
+    "emdAmount": "0.00",
+    "tenderFee": "0.00",
+    "summary": "Supply Of 11KV HT BUSBAR Sleeve",
+    "eligibilityOverview": "Please Refer Tender Documents",
+    "riskLevel": null,
+    "legalCriteria": [
+      "PPP-MII Order 2017: Agree",
+      "MSEs Order 2012: Agree",
+      "Tender complying with Order (as indicated in undertaking list)"
+    ],
+    "technicalCriteria": [
+      "General Technical Evaluation Allowed: No",
+      "ItemWise Technical Evaluation: No",
+      "Cover Details: Fee/PreQual/Technical/Finance (single cover)",
+      "Work Description: Supply Of 11KV HT BUSBAR Sleeve",
+      "Item Description: 11KV HT BUSBAR SLEEVE 200X10mm and 70X10mm",
+      "Period Of Work (Days): 42",
+      "Show Technical bid status: Yes"
+    ],
+    "financialCriteria": [
+      "Bid Validity: 75 days",
+      "EMD Amount in ₹: 0.00",
+      "EMD Fee Type: fixed",
+      "Tender Fee in ₹: 0.00",
+      "Form of contract: Buy",
+      "Contract Type: Tender",
+      "Payment Mode: Not Applicable",
+      "Is Multi Currency Allowed For BOQ: No",
+      "Is Multi Currency Allowed For Fee: No"
+    ],
+    "complianceRequirements": [
+      "EMD Exemption: (field present but no detail)",
+      "Exemption Allowed: No",
+      "Undertaking - PPP-MII Order 2017: Agree",
+      "Undertaking - MSEs Order 2012: Agree",
+      "Should Allow NDA: No",
+      "Allow Preferential: No",
+      "Public Domain: No"
+    ],
+    "importantDates": [
+      "Tender Publish Date: 05-Aug-2026 12:30 PM",
+      "Document Created Date: 05-Aug-2026 12:06 PM",
+      "Document Download / Sale End: 08-Aug-2026 12:00 PM",
+      "Document Download / Sale Start: 05-Aug-2026 12:45 PM",
+      "Bid Submission Start Date: 05-Aug-2026 01:00 PM",
+      "Bid Submission End Date: 08-Aug-2026 12:00 PM",
+      "Bid Opening Date: 08-Aug-2026 12:30 PM",
+      "Report Initiated On: 30-Jul-2026",
+      "Report Valid Until: 29-Aug-2026"
+    ],
+    "requiredDocuments": [
+      "Tendernotice_1.pdf (TECHDOCX) - 1037.18 KB",
+      "Tendernotice_2.pdf (COMMLDOCX) - 1586.76 KB",
+      "BOQ_69010.xls (PRICEBID) - 262.50 KB"
+    ],
+    "penalties": [],
+    "paymentTerms": [
+      "Payment Mode: Not Applicable",
+      "Fee Payable To: Nil",
+      "Fee Payable At: Nil"
+    ],
+    "notes": [
+      "Tender Reference Number: 9642600012",
+      "Withdrawal Allowed: Yes",
+      "Tender Type: Single",
+      "No. of Covers: 1",
+      "Bidder listed: Lakshmi Electrical Works (lakshmiew@yahoo.co.in)",
+      "Bid Openers: SUJITH NAVEENKUMAR (nsujith@bhel.in), MANIMARAN BOORASAMY (bmanimaran@bhel.in), Senthil Kumar B (senthilvbd@bhel.in), PRABHU P (ppp@bhel.in)",
+      "GeMARPTS ID: VTIONJWBHL8I",
+      "BOQ Form Based: No",
+      "TIA Undertaking Name: SUJITH N",
+      "Created By: MANIMARAN BOORASAMY, Designation: Assistant Engineer Gr II"
+    ],
+    "exclusionReason": null
+  }
+]

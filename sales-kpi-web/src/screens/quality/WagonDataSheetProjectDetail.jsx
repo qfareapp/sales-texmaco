@@ -3,8 +3,15 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Divider,
+  FormControlLabel,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
   Paper,
   Stack,
   Table,
@@ -14,6 +21,7 @@ import {
   TableHead,
   TableRow,
   Tooltip,
+  TextField,
   Typography,
 } from "@mui/material";
 import * as XLSX from "xlsx";
@@ -24,6 +32,7 @@ import { downloadWagonOfferWorkbook } from "../../utils/wagonOfferWorkbook";
 import { downloadWagonOfferPdf } from "../../utils/wagonOfferPdf";
 import { downloadWagonElectronicsWorkbook } from "../../utils/wagonElectronicsWorkbook";
 import { downloadWagonCocWorkbook } from "../../utils/wagonCocWorkbook";
+import { inspectionStages, pdiStages } from "./wagonInspectionStageConfig";
 
 const joinSerials = (value) => (Array.isArray(value) && value.length ? value.join(", ") : "—");
 const textOrDash = (value) => (value ? String(value) : "—");
@@ -53,6 +62,20 @@ const bogieSerialSummary = (row) =>
   [row?.firstZone?.bogie1SerialNumber, row?.firstZone?.bogie2SerialNumber].filter(Boolean).join(", ") || "—";
 
 const safeText = (value) => (value ? String(value) : "-");
+const projectFields = [
+  "projectName", "contractPoNumber", "contractPoDate", "deliveryPeriodUpto",
+  "totalQuantity", "contractPlacedBy", "wagonManufacturer", "wagonTypeInPo",
+  "wagonTypeOffered", "wagonsOfferedForInspection", "inspectionOfferDate", "notes",
+];
+const toProjectForm = (project) => ({
+  ...Object.fromEntries(projectFields.map((field) => [field, String(project?.[field] || "")])),
+  applicableDailyStageKeys: Array.isArray(project?.applicableDailyStageKeys) && project.applicableDailyStageKeys.length
+    ? project.applicableDailyStageKeys
+    : inspectionStages.map((stage) => stage.key),
+  applicablePdiStageKeys: Array.isArray(project?.applicablePdiStageKeys) && project.applicablePdiStageKeys.length
+    ? project.applicablePdiStageKeys
+    : pdiStages.map((stage) => stage.key),
+});
 const safeJoinSerials = (value) => (Array.isArray(value) && value.length ? value.join(", ") : "-");
 const safeJoinAxleHeatPairs = (row) =>
   (row?.secondZone?.axle?.serialNumbers || [])
@@ -276,6 +299,9 @@ export default function WagonDataSheetProjectDetail() {
   const [project, setProject] = useState(null);
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [savingProject, setSavingProject] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -291,6 +317,41 @@ export default function WagonDataSheetProjectDetail() {
   }, [projectId]);
 
   const offeredCount = useMemo(() => rows.length, [rows]);
+
+  const openProjectEditor = () => {
+    setEditForm(toProjectForm(project));
+    setEditOpen(true);
+  };
+
+  const handleProjectFieldChange = (field) => (event) => {
+    setEditForm((previous) => ({ ...previous, [field]: event.target.value }));
+  };
+
+  const handleStageSelection = (field, stageKey) => (event) => {
+    setEditForm((previous) => {
+      const selected = new Set(previous[field] || []);
+      if (event.target.checked) selected.add(stageKey);
+      else selected.delete(stageKey);
+      return { ...previous, [field]: [...selected] };
+    });
+  };
+
+  const handleProjectUpdate = async () => {
+    setSavingProject(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("token");
+      const { data } = await api.put(`/wagon-data-sheet/projects/${projectId}`, editForm, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setProject(data?.data || null);
+      setEditOpen(false);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update project details.");
+    } finally {
+      setSavingProject(false);
+    }
+  };
 
   const handleDownloadExcel = () => {
     if (!project) return;
@@ -452,7 +513,7 @@ export default function WagonDataSheetProjectDetail() {
         "Configuration": safeText(row.wagonConfiguration),
         "Linked Bogie": linkedBogieAssignments(row, wheelRow),
         "Wheel Data Link": safeText(wheelRow?.wheelDataKey),
-        "Zone 1 Entry No.": wheelIndex + 1,
+        "CTRB Wheel Data Entry No.": wheelIndex + 1,
         "Wheel Dia": safeText(wheelRow?.secondZone?.wheelDia),
         "Wheel Origin": safeText(wheelRow?.secondZone?.wheelOrigin),
         "Axle Make": safeText(wheelRow?.secondZone?.axle?.make),
@@ -469,7 +530,7 @@ export default function WagonDataSheetProjectDetail() {
     );
 
     const ws = XLSX.utils.json_to_sheet(
-      workbookRows.length > 0 ? workbookRows : [{ Note: "No first zone records linked to this project yet." }]
+      workbookRows.length > 0 ? workbookRows : [{ Note: "No CTRB (Wheel Data) records linked to this project yet." }]
     );
     ws["!cols"] = [
       { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 16 },
@@ -479,11 +540,11 @@ export default function WagonDataSheetProjectDetail() {
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "First Zone Details");
+    XLSX.utils.book_append_sheet(wb, ws, "CTRB Wheel Data");
     const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(
       new Blob([buffer], { type: "application/octet-stream" }),
-      `First_Zone_Details_${fileSafe(project.projectName)}.xlsx`
+      `CTRB_Wheel_Data_${fileSafe(project.projectName)}.xlsx`
     );
   };
 
@@ -496,7 +557,7 @@ export default function WagonDataSheetProjectDetail() {
   }
 
   const reportButtons = [
-    { label: "1st Zone .xlsx", full: "Filled First Zone Form Details.xlsx", handler: handleDownloadFirstZoneExcel },
+    { label: "CTRB .xlsx", full: "Filled CTRB (Wheel Data) Details.xlsx", handler: handleDownloadFirstZoneExcel },
     { label: "Offer .xlsx",    full: "Wagon Offer Copy.xlsx",              handler: handleDownloadOfferWorkbook },
     { label: "Offer .pdf",     full: "Wagon Offer Copy.pdf",               handler: handleDownloadOfferPdf },
     { label: "Electronics",   full: "Wagon Electronics Data Sheet.xlsx",  handler: handleDownloadElectronicsWorkbook },
@@ -628,6 +689,22 @@ export default function WagonDataSheetProjectDetail() {
                 {project.projectName || "—"}
               </Typography>
               <Stack direction="row" gap={1} flexWrap="wrap">
+                {isQualityModuleAdmin && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={openProjectEditor}
+                    sx={{
+                      color: "white",
+                      borderColor: "rgba(255,255,255,0.65)",
+                      fontWeight: 700,
+                      textTransform: "none",
+                      "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.12)" },
+                    }}
+                  >
+                    Edit Project Details
+                  </Button>
+                )}
                 <Chip
                   label={`P.O.: ${textOrDash(project.contractPoNumber)}`}
                   size="small"
@@ -676,6 +753,95 @@ export default function WagonDataSheetProjectDetail() {
           </Paper>
 
           {/* ── Data Table ── */}
+          <Dialog open={editOpen} onClose={() => !savingProject && setEditOpen(false)} fullWidth maxWidth="md">
+            <DialogTitle fontWeight={800}>Edit Project Details</DialogTitle>
+            <DialogContent dividers>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+                Update project information that was unavailable when the project was created.
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Project Name" value={editForm.projectName || ""} onChange={handleProjectFieldChange("projectName")} required fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Contract / P.O. No." value={editForm.contractPoNumber || ""} onChange={handleProjectFieldChange("contractPoNumber")} required fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="P.O. Date" type="date" value={editForm.contractPoDate || ""} onChange={handleProjectFieldChange("contractPoDate")} InputLabelProps={{ shrink: true }} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="D.P. Upto" type="date" value={editForm.deliveryPeriodUpto || ""} onChange={handleProjectFieldChange("deliveryPeriodUpto")} InputLabelProps={{ shrink: true }} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Total Quantity in P.O." value={editForm.totalQuantity || ""} onChange={handleProjectFieldChange("totalQuantity")} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Contract / P.O. Placed By" value={editForm.contractPlacedBy || ""} onChange={handleProjectFieldChange("contractPlacedBy")} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Wagon Manufacturer" value={editForm.wagonManufacturer || ""} onChange={handleProjectFieldChange("wagonManufacturer")} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Type of Wagon in P.O." value={editForm.wagonTypeInPo || ""} onChange={handleProjectFieldChange("wagonTypeInPo")} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Type Offered" value={editForm.wagonTypeOffered || ""} onChange={handleProjectFieldChange("wagonTypeOffered")} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Offered for Inspection" value={editForm.wagonsOfferedForInspection || ""} onChange={handleProjectFieldChange("wagonsOfferedForInspection")} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField label="Inspection Offer Date" type="date" value={editForm.inspectionOfferDate || ""} onChange={handleProjectFieldChange("inspectionOfferDate")} InputLabelProps={{ shrink: true }} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.5 }}>
+                    Applicable Inspection Stages
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.25 }}>
+                    Unselected stages are removed from the active workflow for all existing and future wagon entries. Existing stage history is retained.
+                  </Typography>
+                  <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 1.5 }}>
+                    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "#f0fdf4", borderColor: "#bbf7d0" }}>
+                      <Typography variant="caption" fontWeight={800} color="#166534" sx={{ display: "block", mb: 0.5 }}>
+                        DAILY STATUS
+                      </Typography>
+                      {inspectionStages.map((stage) => (
+                        <FormControlLabel
+                          key={stage.key}
+                          control={<Checkbox size="small" checked={(editForm.applicableDailyStageKeys || []).includes(stage.key)} onChange={handleStageSelection("applicableDailyStageKeys", stage.key)} />}
+                          label={stage.label}
+                          sx={{ display: "flex", m: 0, minHeight: 30 }}
+                        />
+                      ))}
+                    </Paper>
+                    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "#eff6ff", borderColor: "#bfdbfe" }}>
+                      <Typography variant="caption" fontWeight={800} color="#1d4ed8" sx={{ display: "block", mb: 0.5 }}>
+                        PDI STATUS
+                      </Typography>
+                      {pdiStages.map((stage) => (
+                        <FormControlLabel
+                          key={stage.key}
+                          control={<Checkbox size="small" checked={(editForm.applicablePdiStageKeys || []).includes(stage.key)} onChange={handleStageSelection("applicablePdiStageKeys", stage.key)} />}
+                          label={stage.label}
+                          sx={{ display: "flex", m: 0, minHeight: 30 }}
+                        />
+                      ))}
+                    </Paper>
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField label="Notes" value={editForm.notes || ""} onChange={handleProjectFieldChange("notes")} fullWidth multiline rows={3} size="small" />
+                </Grid>
+              </Grid>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, py: 2 }}>
+              <Button onClick={() => setEditOpen(false)} disabled={savingProject}>Cancel</Button>
+              <Button variant="contained" onClick={handleProjectUpdate} disabled={savingProject} sx={{ bgcolor: "#0369a1", "&:hover": { bgcolor: "#025d8f" } }}>
+                {savingProject ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
           <Paper elevation={0} sx={{ borderRadius: 3, border: "1.5px solid #e2e8f0", overflow: "hidden" }}>
             <Box
               sx={{
@@ -709,10 +875,10 @@ export default function WagonDataSheetProjectDetail() {
                   {/* ── Row 0: Zone group labels ── */}
                   <TableRow>
                     <ZoneHeaderCell colSpan={6}  zone="info">General Information</ZoneHeaderCell>
-                    <ZoneHeaderCell colSpan={15} zone="zone2">2nd Zone — Bogie &amp; Components</ZoneHeaderCell>
+                    <ZoneHeaderCell colSpan={15} zone="zone2">DM Line Data — Bogie &amp; Components</ZoneHeaderCell>
                     <ZoneHeaderCell colSpan={1}  zone="link">Wheel Data Link</ZoneHeaderCell>
-                    <ZoneHeaderCell colSpan={6}  zone="zone1">1st Zone — Wheel Set</ZoneHeaderCell>
-                    <ZoneHeaderCell colSpan={8}  zone="zone3">3rd Zone — Final Assembly</ZoneHeaderCell>
+                    <ZoneHeaderCell colSpan={6}  zone="zone1">CTRB (Wheel Data) — Wheel Set</ZoneHeaderCell>
+                    <ZoneHeaderCell colSpan={8}  zone="zone3">DM Final Data — Final Assembly</ZoneHeaderCell>
                   </TableRow>
 
                   {/* ── Row 1: Column group names ── */}

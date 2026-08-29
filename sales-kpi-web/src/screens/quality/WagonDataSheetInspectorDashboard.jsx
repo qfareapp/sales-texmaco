@@ -54,6 +54,7 @@ const stageShort = {
   painting_clear_by_tpi: "Paint",
   lettring_clear_by_tpi: "Letr.",
 };
+const TEX_NO_PATTERN = /^[A-Za-z0-9]+$/;
 
 const getStageState = (row, pdiMode = false) => {
   const stageList = pdiMode ? row.pdiProgress?.stages || [] : row.inspectionProgress?.stages || [];
@@ -1000,6 +1001,79 @@ function StageTable({ rows, stages, counts, actionLabel, onComplete, onSkip, onS
 
 // -- Main component -------------------------------------------------------------
 
+function CompletedTexNos({ rows }) {
+  const [sectionOpen, setSectionOpen] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState("");
+
+  if (!rows.length) return null;
+
+  return (
+    <Paper elevation={0} sx={{ mt: 3, borderRadius: 3, overflow: "hidden", border: "1.5px solid #86efac", bgcolor: "#f0fdf4" }}>
+      <Button
+        fullWidth
+        onClick={() => setSectionOpen((open) => !open)}
+        sx={{ justifyContent: "space-between", px: { xs: 2, sm: 2.5 }, py: 1.5, textTransform: "none", color: "#166534", borderRadius: 0 }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#16a34a" }} />
+          <Typography fontWeight={800}>Completed TEX Nos.</Typography>
+          <Chip label={`${rows.length} complete`} size="small" sx={{ bgcolor: "#bbf7d0", color: "#166534", fontWeight: 800 }} />
+        </Stack>
+        <Typography fontWeight={800}>{sectionOpen ? "−" : "+"}</Typography>
+      </Button>
+      <Collapse in={sectionOpen}>
+        <Stack spacing={1.25} sx={{ p: { xs: 1.5, sm: 2 }, pt: 0 }}>
+          {rows.map((row, index) => {
+            const rowOpen = expandedRowId === row._id;
+            const completedOn = row.pdiProgress?.lastCompletedOn || "";
+            return (
+              <Paper key={row._id} elevation={0} sx={{ border: "1px solid #bbf7d0", borderRadius: 2, overflow: "hidden", bgcolor: "white" }}>
+                <Button
+                  fullWidth
+                  onClick={() => setExpandedRowId((current) => (current === row._id ? "" : row._id))}
+                  sx={{ justifyContent: "space-between", px: 1.75, py: 1.25, textTransform: "none", color: "#14532d", borderRadius: 0 }}
+                >
+                  <Stack direction="row" spacing={1.25} alignItems="center" textAlign="left">
+                    <Box sx={{ minWidth: 28, height: 28, borderRadius: 1.25, bgcolor: "#16a34a", color: "white", display: "grid", placeItems: "center", fontWeight: 800, fontSize: "0.78rem" }}>
+                      {row.slNo || index + 1}
+                    </Box>
+                    <Box>
+                      <Typography fontWeight={800}>{row.texNo || "New Wagon"}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {row.wagonNo ? `Wagon: ${row.wagonNo}` : "PDI completed by admin"}{completedOn ? ` · Completed: ${completedOn}` : ""}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Chip label="Complete" size="small" sx={{ bgcolor: "#dcfce7", color: "#15803d", fontWeight: 800 }} />
+                    <Typography fontWeight={800}>{rowOpen ? "˄" : "˅"}</Typography>
+                  </Stack>
+                </Button>
+                <Collapse in={rowOpen}>
+                  <Box sx={{ px: 1.75, pb: 1.75, borderTop: "1px solid #dcfce7" }}>
+                    <Typography variant="caption" fontWeight={800} color="#166534" sx={{ display: "block", mt: 1.25, mb: 0.75 }}>DAILY STATUS</Typography>
+                    <Stack direction="row" flexWrap="wrap" gap={0.75}>
+                      {(row.inspectionProgress?.stages || []).map((stage) => (
+                        <Chip key={stage.key} size="small" label={`${stage.label}: ${stageStatusLabel(stage)}`} sx={{ bgcolor: "#f0fdf4", color: "#166534", fontWeight: 600 }} />
+                      ))}
+                    </Stack>
+                    <Typography variant="caption" fontWeight={800} color="#1d4ed8" sx={{ display: "block", mt: 1.5, mb: 0.75 }}>PDI STATUS</Typography>
+                    <Stack direction="row" flexWrap="wrap" gap={0.75}>
+                      {(row.pdiProgress?.stages || []).map((stage) => (
+                        <Chip key={stage.key} size="small" label={`${stage.label}: ${stageStatusLabel(stage)}`} sx={{ bgcolor: "#eff6ff", color: "#1d4ed8", fontWeight: 600 }} />
+                      ))}
+                    </Stack>
+                  </Box>
+                </Collapse>
+              </Paper>
+            );
+          })}
+        </Stack>
+      </Collapse>
+    </Paper>
+  );
+}
+
 export default function WagonDataSheetInspectorDashboard() {
   const role = localStorage.getItem("role") || "";
   const submittedByUsername = localStorage.getItem("username") || "";
@@ -1020,6 +1094,7 @@ export default function WagonDataSheetInspectorDashboard() {
   const [success, setSuccess] = useState("");
   const [ufDialogOpen, setUfDialogOpen] = useState(false);
   const [newTexNo, setNewTexNo] = useState("");
+  const [texNoError, setTexNoError] = useState("");
   const [selectedUfRow, setSelectedUfRow] = useState(null);
   const [activeTab, setActiveTab] = useState("daily"); // "daily" | "pdi"
   const [pdiHighlightId, setPdiHighlightId] = useState(null);
@@ -1058,8 +1133,16 @@ export default function WagonDataSheetInspectorDashboard() {
     () => (dashboard.pdiStageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0),
     [dashboard.pdiStageCounts]
   );
+  const completedPdiRows = useMemo(
+    () => (dashboard.rows || []).filter((row) => row.isPdiCompleted),
+    [dashboard.rows]
+  );
+  const activeDailyRows = useMemo(
+    () => (dashboard.rows || []).filter((row) => !row.isPdiCompleted),
+    [dashboard.rows]
+  );
   const pdiRows = useMemo(
-    () => (dashboard.rows || []).filter((row) => row.isPdiActivated),
+    () => (dashboard.rows || []).filter((row) => row.isPdiActivated && !row.isPdiCompleted),
     [dashboard.rows]
   );
 
@@ -1076,7 +1159,7 @@ export default function WagonDataSheetInspectorDashboard() {
     setSuccess("");
     try {
       await api.post("/wagon-data-sheet/rows/stage-entry", { projectId: selectedProjectId });
-      setSuccess("New wagon inspection created. Current stage is U/F Fit-Up.");
+      setSuccess("New wagon inspection created. The first applicable Daily stage is ready.");
       await loadDashboard(selectedProjectId);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create wagon inspection.");
@@ -1091,6 +1174,7 @@ export default function WagonDataSheetInspectorDashboard() {
     if (stage.key === "uf_fit_up") {
       setSelectedUfRow(row);
       setNewTexNo(row.texNo || "");
+      setTexNoError("");
       setUfDialogOpen(true);
       return;
     }
@@ -1132,6 +1216,10 @@ export default function WagonDataSheetInspectorDashboard() {
 
   const handleStartUfFitUp = async () => {
     if (!selectedUfRow?._id) return;
+    if (!TEX_NO_PATTERN.test(newTexNo)) {
+      setTexNoError("Use letters and numbers only. Spaces and special characters are not allowed (example: B181).");
+      return;
+    }
     setSaving(true);
     setError("");
     setSuccess("");
@@ -1144,6 +1232,7 @@ export default function WagonDataSheetInspectorDashboard() {
       setSuccess("U/F Fit-Up completed and TEX No. saved.");
       setUfDialogOpen(false);
       setNewTexNo("");
+      setTexNoError("");
       setSelectedUfRow(null);
       await loadDashboard(selectedProjectId);
     } catch (err) {
@@ -1217,7 +1306,7 @@ export default function WagonDataSheetInspectorDashboard() {
   }
 
   const tabs = [
-    { key: "daily", label: "Daily Status", pending: totalPending, wagons: (dashboard.rows || []).length, color: "#15803d" },
+    { key: "daily", label: "Daily Status", pending: totalPending, wagons: activeDailyRows.length, color: "#15803d" },
     { key: "pdi",   label: "PDI Status",   pending: totalPdiPending, wagons: pdiRows.length, color: "#3b82f6" },
   ];
 
@@ -1390,8 +1479,8 @@ export default function WagonDataSheetInspectorDashboard() {
         {/* Tab content */}
         {activeTab === "daily" && (
           <StageTable
-            rows={dashboard.rows || []}
-            stages={inspectionStages}
+            rows={activeDailyRows}
+            stages={dashboard.stages || []}
             counts={dashboard.stageCounts || []}
             actionLabel="Complete"
             onComplete={handleCompleteStage}
@@ -1406,7 +1495,7 @@ export default function WagonDataSheetInspectorDashboard() {
           <StageTable
             pdiMode
             rows={pdiRows}
-            stages={pdiStages}
+            stages={dashboard.pdiStages || []}
             counts={dashboard.pdiStageCounts || []}
             actionLabel="Complete"
             onComplete={handleCompletePdiStage}
@@ -1419,6 +1508,8 @@ export default function WagonDataSheetInspectorDashboard() {
         )}
       </Paper>
 
+      <CompletedTexNos rows={completedPdiRows} />
+
       {/* -- U/F Fit-Up TEX entry dialog -- */}
       <Dialog open={ufDialogOpen} onClose={() => !saving && setUfDialogOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontWeight: 800 }}>Complete U/F Fit-Up</DialogTitle>
@@ -1427,11 +1518,19 @@ export default function WagonDataSheetInspectorDashboard() {
             <TextField
               label="TEX No."
               value={newTexNo}
-              onChange={(event) => setNewTexNo(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value.toUpperCase();
+                setNewTexNo(value);
+                setTexNoError(value && !TEX_NO_PATTERN.test(value)
+                  ? "Use letters and numbers only. Spaces and special characters are not allowed (example: B181)."
+                  : "");
+              }}
               size="small"
               fullWidth
               autoFocus
-              placeholder="e.g. B-94"
+              placeholder="e.g. B181"
+              error={Boolean(texNoError)}
+              helperText={texNoError || "Letters and numbers only, with no spaces or special characters."}
             />
             <Typography variant="body2" color="text.secondary">
               Enter the TEX No. to assign to wagon row{" "}
@@ -1446,7 +1545,7 @@ export default function WagonDataSheetInspectorDashboard() {
           <Button
             variant="contained"
             onClick={handleStartUfFitUp}
-            disabled={saving || !newTexNo.trim()}
+            disabled={saving || !newTexNo || Boolean(texNoError)}
             sx={{ textTransform: "none", fontWeight: 800, bgcolor: "#15803d", "&:hover": { bgcolor: "#166534" }, borderRadius: 1.5, px: 3 }}
           >
             {saving ? "Saving…" : "Confirm & Complete"}

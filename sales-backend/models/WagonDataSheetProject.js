@@ -13,6 +13,8 @@ const WagonDataSheetProjectSchema = new mongoose.Schema(
     wagonTypeOffered: { type: String, default: "", trim: true },
     wagonsOfferedForInspection: { type: String, default: "", trim: true },
     inspectionOfferDate: { type: String, default: "", trim: true },
+    applicableDailyStageKeys: { type: [{ type: String, trim: true }], default: [] },
+    applicablePdiStageKeys: { type: [{ type: String, trim: true }], default: [] },
     notes: { type: String, default: "", trim: true },
   },
   { timestamps: true }

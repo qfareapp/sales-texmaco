@@ -1,0 +1,1438 @@
+/* ============================================================
+   Tender analysis detail + AI assistant styling
+   ============================================================ */
+
+.tender-page {
+  --tender-ink: #0f2744;
+  --tender-muted: #64748b;
+  --tender-line: #e2e8f0;
+  --tender-accent: #2563eb;
+  color: var(--tender-ink);
+}
+
+/* ---------- Header band ---------- */
+
+.tender-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 26px 28px;
+  color: #fff;
+  background: linear-gradient(120deg, #0f2744 0%, #1b3f73 48%, #2563eb 100%);
+  box-shadow: 0 18px 38px rgba(15, 39, 68, 0.22);
+}
+
+.tender-hero::after {
+  content: "";
+  position: absolute;
+  top: -90px;
+  right: -60px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.tender-hero__crumbs {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.tender-hero__crumbs a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+}
+
+.tender-hero__crumbs a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.tender-hero__title {
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 6px 0 12px;
+  max-width: 60ch;
+}
+
+.tender-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.tender-chip__label {
+  opacity: 0.7;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tender-hero__actions .btn {
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.tender-hero__actions .btn-light {
+  background: #fff;
+  border-color: #fff;
+  color: var(--tender-ink);
+}
+
+.tender-hero__actions .btn-ghost {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+.tender-hero__actions .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+/* ---------- Risk + confidence ---------- */
+
+.tender-risk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-transform: capitalize;
+}
+
+.tender-risk__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.tender-risk--high {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.tender-risk--medium {
+  background: #fef3c7;
+  color: #b45309;
+}
+.tender-risk--low {
+  background: #dcfce7;
+  color: #15803d;
+}
+.tender-risk--unknown {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.tender-confidence__track {
+  height: 7px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.tender-confidence__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+  transition: width 0.5s ease;
+}
+
+/* ---------- KPI tiles ---------- */
+
+.tender-kpi {
+  height: 100%;
+  background: #fff;
+  border: 1px solid var(--tender-line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tender-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(15, 39, 68, 0.1);
+}
+
+.tender-kpi__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tender-muted);
+}
+
+.tender-kpi__value {
+  margin-top: 8px;
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.tender-kpi__value--empty {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.tender-kpi__foot {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.tender-kpi__foot--urgent {
+  color: #dc2626;
+}
+.tender-kpi__foot--soon {
+  color: #b45309;
+}
+.tender-kpi__foot--safe {
+  color: #15803d;
+}
+.tender-kpi__foot--past {
+  color: #64748b;
+}
+
+.tender-kpi--alert {
+  border-color: #fca5a5;
+  background: linear-gradient(180deg, #fff5f5 0%, #ffffff 60%);
+}
+
+/* ---------- Deadline strip ---------- */
+
+.tender-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.tender-alert--urgent {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.tender-alert--soon {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.tender-alert--past {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+/* ---------- Section cards ---------- */
+
+.tender-card {
+  background: #fff;
+  border: 1px solid var(--tender-line);
+  border-radius: 16px;
+  overflow: hidden;
+  height: 100%;
+}
+
+.tender-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--tender-line);
+  background: #f8fafc;
+}
+
+.tender-card__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tender-card__icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #e0edff;
+  color: var(--tender-accent);
+  flex: none;
+}
+
+.tender-card__count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tender-muted);
+  background: #fff;
+  border: 1px solid var(--tender-line);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.tender-card__body {
+  padding: 18px 20px;
+}
+
+/* ---------- Fact rows ---------- */
+
+.tender-fact + .tender-fact {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--tender-line);
+}
+
+.tender-fact__label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tender-muted);
+  margin-bottom: 4px;
+}
+
+.tender-fact__value {
+  font-size: 0.94rem;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.tender-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tender-list li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.tender-list li + li {
+  margin-top: 8px;
+}
+
+.tender-list li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #93c5fd;
+}
+
+/* ---------- Executive summary ---------- */
+
+.tender-summary {
+  font-size: 1rem;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.tender-summary__quote {
+  border-left: 4px solid var(--tender-accent);
+  background: #f5f9ff;
+  border-radius: 0 12px 12px 0;
+  padding: 14px 18px;
+}
+
+/* ---------- Timeline ---------- */
+
+.tender-timeline {
+  position: relative;
+  margin: 0;
+  padding: 4px 0 0 26px;
+  list-style: none;
+}
+
+.tender-timeline::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--tender-line);
+}
+
+.tender-timeline li {
+  position: relative;
+  padding-bottom: 18px;
+}
+
+.tender-timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.tender-timeline li::before {
+  content: "";
+  position: absolute;
+  left: -23px;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #93c5fd;
+}
+
+.tender-timeline li.is-next::before {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15);
+}
+
+.tender-timeline li.is-done::before {
+  border-color: #cbd5e1;
+  background: #cbd5e1;
+}
+
+.tender-timeline__label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.tender-timeline__meta {
+  font-size: 0.82rem;
+  color: var(--tender-muted);
+}
+
+/* ---------- Checklist ---------- */
+
+.tender-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.tender-check:hover {
+  background: #f8fafc;
+  border-color: var(--tender-line);
+}
+
+.tender-check input {
+  margin-top: 3px;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  cursor: pointer;
+  accent-color: var(--tender-accent);
+}
+
+.tender-check__text {
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.tender-check.is-checked .tender-check__text {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.tender-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.tender-progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+  transition: width 0.35s ease;
+}
+
+/* ---------- Contacts ---------- */
+
+.tender-contact {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--tender-line);
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.tender-contact__avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 700;
+  flex: none;
+}
+
+/* ---------- Sticky side panel ---------- */
+
+.tender-sticky {
+  position: sticky;
+  top: 84px;
+}
+
+.tender-glance__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.88rem;
+  padding: 7px 0;
+}
+
+.tender-glance__row + .tender-glance__row {
+  border-top: 1px dashed var(--tender-line);
+}
+
+.tender-glance__key {
+  color: var(--tender-muted);
+}
+
+.tender-glance__val {
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.tender-ask-cta {
+  border-radius: 16px;
+  padding: 20px;
+  color: #fff;
+  background: linear-gradient(135deg, #4338ca 0%, #2563eb 55%, #0ea5e9 100%);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
+}
+
+.tender-ask-cta .btn {
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* ---------- Source files table ---------- */
+
+.tender-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9rem;
+}
+
+.tender-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tender-muted);
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--tender-line);
+  white-space: nowrap;
+}
+
+.tender-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+.tender-table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.tender-badge-soft {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: #eef2ff;
+  color: #4338ca;
+  text-transform: capitalize;
+}
+
+.tender-empty {
+  text-align: center;
+  padding: 26px 16px;
+  color: var(--tender-muted);
+  font-size: 0.9rem;
+}
+
+/* ============================================================
+   Analysed tenders board (dashboard)
+   ============================================================ */
+
+.tender-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tender-search {
+  position: relative;
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.tender-search input {
+  width: 100%;
+  padding: 9px 14px 9px 38px;
+  border: 1px solid var(--tender-line);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tender-search input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.tender-search__icon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.tender-select {
+  padding: 9px 12px;
+  border: 1px solid var(--tender-line);
+  border-radius: 12px;
+  font-size: 0.88rem;
+  background: #fff;
+  color: var(--tender-ink);
+  outline: none;
+}
+
+.tender-select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.tender-viewtoggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: #eef2f7;
+  border: 1px solid var(--tender-line);
+}
+
+.tender-viewtoggle button {
+  border: none;
+  background: none;
+  padding: 6px 14px;
+  border-radius: 9px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--tender-muted);
+  transition: all 0.15s ease;
+}
+
+.tender-viewtoggle button.is-active {
+  background: #fff;
+  color: var(--tender-accent);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+/* ---------- Summary strip ---------- */
+
+.tender-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--tender-line);
+}
+
+.tender-stat__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  flex: none;
+}
+
+.tender-stat__icon--blue {
+  background: #e0edff;
+  color: #1d4ed8;
+}
+.tender-stat__icon--red {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.tender-stat__icon--amber {
+  background: #fef3c7;
+  color: #b45309;
+}
+.tender-stat__icon--slate {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.tender-stat__value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.tender-stat__label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tender-muted);
+}
+
+/* ---------- Tender cards ---------- */
+
+.tender-tile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+  border: 1px solid var(--tender-line);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.tender-tile:hover {
+  transform: translateY(-3px);
+  border-color: #bfdbfe;
+  box-shadow: 0 16px 32px rgba(15, 39, 68, 0.12);
+}
+
+.tender-tile__accent {
+  height: 4px;
+  background: #cbd5e1;
+}
+
+.tender-tile__accent--urgent {
+  background: linear-gradient(90deg, #dc2626, #f87171);
+}
+.tender-tile__accent--soon {
+  background: linear-gradient(90deg, #d97706, #fbbf24);
+}
+.tender-tile__accent--safe {
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+}
+.tender-tile__accent--past {
+  background: #cbd5e1;
+}
+
+.tender-tile__body {
+  flex: 1;
+  padding: 16px 18px;
+}
+
+.tender-tile__title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 10px 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tender-tile__authority {
+  font-size: 0.84rem;
+  color: var(--tender-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tender-tile__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--tender-line);
+}
+
+.tender-tile__key {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tender-muted);
+}
+
+.tender-tile__val {
+  margin-top: 3px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.tender-tile__val--empty {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.tender-tile__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 18px;
+  background: #f8fafc;
+  border-top: 1px solid var(--tender-line);
+}
+
+.tender-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tender-pill--urgent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.tender-pill--soon {
+  background: #fef3c7;
+  color: #b45309;
+}
+.tender-pill--safe {
+  background: #dcfce7;
+  color: #15803d;
+}
+.tender-pill--past {
+  background: #e2e8f0;
+  color: #475569;
+}
+.tender-pill--muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.tender-truncate {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tender-table--board td {
+  max-width: 260px;
+}
+
+.tender-table--board .tender-table__title {
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tender-jobs-toggle {
+  border: none;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--tender-accent);
+  padding: 0;
+}
+
+.tender-jobs-toggle:hover {
+  text-decoration: underline;
+}
+
+/* ============================================================
+   AI assistant (floating chat)
+   ============================================================ */
+
+.tender-chat-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1035;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 20px 13px 15px;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 600;
+  background: linear-gradient(135deg, #4338ca, #2563eb 60%, #0ea5e9);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.4);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tender-chat-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.48);
+  color: #fff;
+}
+
+.tender-chat-fab__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 2px solid rgba(37, 99, 235, 0.5);
+  animation: tenderPulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes tenderPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.tender-chat-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 1040;
+  animation: tenderFade 0.2s ease;
+}
+
+@keyframes tenderFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tender-chat {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  height: min(680px, calc(100vh - 96px));
+  z-index: 1045;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.32);
+  animation: tenderChatIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes tenderChatIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tender-chat__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px;
+  color: #fff;
+  background: linear-gradient(135deg, #1e1b4b 0%, #3730a3 45%, #2563eb 100%);
+}
+
+.tender-chat__avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex: none;
+}
+
+.tender-chat__online {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid #2b2a6b;
+}
+
+.tender-chat__title {
+  font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.tender-chat__subtitle {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 230px;
+}
+
+.tender-chat__iconbtn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  transition: background 0.15s ease;
+}
+
+.tender-chat__iconbtn:hover {
+  background: rgba(255, 255, 255, 0.26);
+  color: #fff;
+}
+
+.tender-chat__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f8 100%);
+}
+
+.tender-chat__body::-webkit-scrollbar {
+  width: 7px;
+}
+
+.tender-chat__body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.tender-chat__welcome {
+  text-align: center;
+  padding: 8px 4px 4px;
+}
+
+.tender-chat__welcome-avatar {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #4338ca, #0ea5e9);
+  box-shadow: 0 10px 22px rgba(67, 56, 202, 0.32);
+}
+
+.tender-chat__suggest {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #dbe3ee;
+  background: #fff;
+  font-size: 0.86rem;
+  color: #1e293b;
+  transition: all 0.15s ease;
+}
+
+.tender-chat__suggest + .tender-chat__suggest {
+  margin-top: 8px;
+}
+
+.tender-chat__suggest:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #f0f7ff;
+  color: #1d4ed8;
+  transform: translateX(2px);
+}
+
+.tender-msg {
+  display: flex;
+  gap: 9px;
+  margin-bottom: 14px;
+  align-items: flex-end;
+}
+
+.tender-msg--user {
+  flex-direction: row-reverse;
+}
+
+.tender-msg__avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.tender-msg--bot .tender-msg__avatar {
+  background: linear-gradient(135deg, #4338ca, #0ea5e9);
+  color: #fff;
+}
+
+.tender-msg--user .tender-msg__avatar {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.tender-msg__bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  border-radius: 16px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.07);
+  word-break: break-word;
+}
+
+.tender-msg--bot .tender-msg__bubble {
+  background: #fff;
+  border: 1px solid #e5eaf2;
+  border-bottom-left-radius: 5px;
+}
+
+.tender-msg--user .tender-msg__bubble {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+
+.tender-msg--error .tender-msg__bubble {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.tender-msg__bubble p {
+  margin: 0;
+}
+
+.tender-msg__bubble p + p {
+  margin-top: 8px;
+}
+
+.tender-msg__bubble ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.tender-msg__bubble li + li {
+  margin-top: 3px;
+}
+
+.tender-msg__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.tender-msg__copy {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.68rem;
+  color: #64748b;
+  text-decoration: underline;
+}
+
+.tender-msg__copy:hover {
+  color: var(--tender-accent);
+}
+
+.tender-typing {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px 2px;
+}
+
+.tender-typing span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+  animation: tenderBounce 1.3s infinite ease-in-out;
+}
+
+.tender-typing span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.tender-typing span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes tenderBounce {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  35% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+.tender-chat__foot {
+  padding: 12px 14px 14px;
+  border-top: 1px solid #e5eaf2;
+  background: #fff;
+}
+
+.tender-chat__inputwrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 7px 8px 7px 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 16px;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tender-chat__inputwrap:focus-within {
+  border-color: #93c5fd;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.tender-chat__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  max-height: 120px;
+  padding: 5px 0;
+}
+
+.tender-chat__send {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.tender-chat__send:disabled {
+  opacity: 0.45;
+}
+
+.tender-chat__send:not(:disabled):hover {
+  transform: scale(1.05);
+}
+
+.tender-chat__hint {
+  margin-top: 7px;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+@media (max-width: 576px) {
+  .tender-chat {
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .tender-chat-fab span:not(.tender-chat-fab__pulse) {
+    display: none;
+  }
+
+  .tender-chat-fab {
+    padding: 15px;
+    right: 16px;
+    bottom: 16px;
+  }
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  .sidebar,
+  .custom-navbar,
+  .tender-chat,
+  .tender-chat-fab,
+  .tender-chat-backdrop,
+  .tender-no-print {
+    display: none !important;
+  }
+
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .tender-hero {
+    color: #0f2744;
+    background: none !important;
+    box-shadow: none;
+    border: 1px solid #cbd5e1;
+  }
+
+  .tender-hero__crumbs,
+  .tender-hero__crumbs a,
+  .tender-chip {
+    color: #0f2744 !important;
+  }
+
+  .tender-chip {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  .tender-card,
+  .tender-kpi {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+
+  .tender-sticky {
+    position: static;
+  }
+
+  .tender-checklist-progress {
+    display: none !important;
+  }
+
+  .tender-checklist-grid {
+    display: block !important;
+    margin: 0 !important;
+  }
+
+  .tender-checklist-grid__item {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 0 10px 0 !important;
+    break-inside: avoid;
+  }
+
+  .tender-check {
+    display: block !important;
+    padding: 0 !important;
+    border: none !important;
+    background: none !important;
+  }
+
+  .tender-check input {
+    display: none !important;
+  }
+
+  .tender-check__text {
+    display: block !important;
+    padding-left: 16px;
+    position: relative;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere;
+    color: #0f2744 !important;
+    text-decoration: none !important;
+  }
+
+  .tender-check__text::before {
+    content: "\2022";
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-weight: 700;
+  }
+}

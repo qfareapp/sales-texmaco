@@ -71,6 +71,7 @@ const projectShortageRoutes = require("./routes/projectShortage.routes");
 const wagonDataSheetRoutes = require("./routes/wagonDataSheet.routes");
 const documentControlRoutes = require("./routes/documentControl.routes");
 const inspectorAccountRoutes = require("./routes/inspectorAccounts.routes");
+const tenderRoutes = require("./routes/tender.routes");
 
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/enquiries', enquiryRoutes);   // ⚡ includes milestones & project-summary
@@ -90,6 +91,7 @@ app.use('/api/project-shortages', projectShortageRoutes);
 app.use('/api/wagon-data-sheet', wagonDataSheetRoutes);
 app.use('/api/document-control', documentControlRoutes);
 app.use('/api/inspector-accounts', inspectorAccountRoutes);
+app.use('/api/tender-jobs', tenderRoutes);
 
 
 

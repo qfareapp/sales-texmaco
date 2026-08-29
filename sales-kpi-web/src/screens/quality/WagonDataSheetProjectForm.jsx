@@ -3,9 +3,11 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Collapse,
   Divider,
+  FormControlLabel,
   Grid,
   LinearProgress,
   MenuItem,
@@ -21,6 +23,7 @@ import { downloadWagonOfferWorkbook } from "../../utils/wagonOfferWorkbook";
 import { downloadWagonOfferPdf } from "../../utils/wagonOfferPdf";
 import { downloadWagonElectronicsWorkbook } from "../../utils/wagonElectronicsWorkbook";
 import { downloadWagonCocWorkbook } from "../../utils/wagonCocWorkbook";
+import { inspectionStages, pdiStages } from "./wagonInspectionStageConfig";
 
 const initialForm = {
   projectName: "",
@@ -34,6 +37,8 @@ const initialForm = {
   wagonTypeOffered: "",
   wagonsOfferedForInspection: "",
   inspectionOfferDate: "",
+  applicableDailyStageKeys: inspectionStages.map((stage) => stage.key),
+  applicablePdiStageKeys: pdiStages.map((stage) => stage.key),
   notes: "",
 };
 
@@ -88,6 +93,15 @@ export default function WagonDataSheetProjectForm() {
 
   const handleChange = (field) => (event) =>
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
+
+  const handleStageSelection = (field, stageKey) => (event) => {
+    setForm((prev) => {
+      const selected = new Set(prev[field] || []);
+      if (event.target.checked) selected.add(stageKey);
+      else selected.delete(stageKey);
+      return { ...prev, [field]: [...selected] };
+    });
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -416,6 +430,47 @@ export default function WagonDataSheetProjectForm() {
               <Divider sx={{ mb: 3 }} />
 
               {/* Notes */}
+              <Divider sx={{ mb: 3 }} />
+
+              <SectionHeader label="Applicable Inspection Stages" color="#15803d" />
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+                Select only the Daily and PDI stages applicable to this project. Inspectors will see and complete only these selected stages.
+              </Typography>
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} md={6}>
+                  <Paper variant="outlined" sx={{ p: 2, bgcolor: "#f0fdf4", borderColor: "#bbf7d0" }}>
+                    <Typography variant="subtitle2" fontWeight={800} color="#166534" sx={{ mb: 1 }}>
+                      Daily Status Stages
+                    </Typography>
+                    {inspectionStages.map((stage) => (
+                      <FormControlLabel
+                        key={stage.key}
+                        control={<Checkbox checked={(form.applicableDailyStageKeys || []).includes(stage.key)} onChange={handleStageSelection("applicableDailyStageKeys", stage.key)} size="small" />}
+                        label={stage.label}
+                        sx={{ display: "flex", m: 0, minHeight: 32 }}
+                      />
+                    ))}
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Paper variant="outlined" sx={{ p: 2, bgcolor: "#eff6ff", borderColor: "#bfdbfe" }}>
+                    <Typography variant="subtitle2" fontWeight={800} color="#1d4ed8" sx={{ mb: 1 }}>
+                      PDI Status Stages
+                    </Typography>
+                    {pdiStages.map((stage) => (
+                      <FormControlLabel
+                        key={stage.key}
+                        control={<Checkbox checked={(form.applicablePdiStageKeys || []).includes(stage.key)} onChange={handleStageSelection("applicablePdiStageKeys", stage.key)} size="small" />}
+                        label={stage.label}
+                        sx={{ display: "flex", m: 0, minHeight: 32 }}
+                      />
+                    ))}
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ mb: 3 }} />
+
               <SectionHeader label="Notes" />
               <TextField
                 id="project-notes"

@@ -30,9 +30,11 @@ import WagonDataSheetSecondZoneForm from './screens/quality/WagonDataSheetSecond
 import WagonDataSheetFinalDetailsForm from './screens/quality/WagonDataSheetFinalDetailsForm';
 import WagonDataSheetProjectDetail from './screens/quality/WagonDataSheetProjectDetail';
 import WagonDataSheetInspectorHistory from './screens/quality/WagonDataSheetInspectorHistory';
+import WagonDataSheetDraftForms from './screens/quality/WagonDataSheetDraftForms';
 import WagonDataSheetInspectorDashboard from './screens/quality/WagonDataSheetInspectorDashboard';
 import WagonDataSheetAdminDashboard from './screens/quality/WagonDataSheetAdminDashboard';
 import WagonDataSheetAdminOverview from './screens/quality/WagonDataSheetAdminOverview';
+import WagonDataSheetInspectorDetail from './screens/quality/WagonDataSheetInspectorDetail';
 import WagonInspectorAccountsPage from './screens/quality/WagonInspectorAccountsPage';
 import InspectorPasswordChangePage from './screens/InspectorPasswordChangePage';
 import EquipmentMaintenanceScreen from './screens/maintenance/EquipmentMaintenanceScreen';
@@ -40,6 +42,9 @@ import EquipmentMasterForm from './screens/maintenance/EquipmentMasterForm';
 import MaintenanceDashboard from "./screens/maintenance/MaintenanceDashboard.jsx";
 import EquipmentMasterList from "./screens/maintenance/EquipmentMasterList";
 import ProjectShortageDashboard from "./screens/shortage/ProjectShortageDashboard.jsx";
+import TenderDashboard from "./screens/tender/TenderDashboard.jsx";
+import TenderAnalysisPage from "./screens/tender/TenderAnalysisPage.jsx";
+import TenderDetailPage from "./screens/tender/TenderDetailPage.jsx";
 import TexmacoAccessPortal from './screens/login';
 import DocumentControlFormScreen from "./screens/DocumentControlFormScreen.jsx";
 import DocumentControlDashboardScreen from "./screens/DocumentControlDashboardScreen.jsx";
@@ -95,6 +100,7 @@ const LayoutWrapper = ({ children }) => {
   const [documentControlOpen, setDocumentControlOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [shortageOpen, setShortageOpen] = useState(false);
+  const [tenderOpen, setTenderOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false); // allow hiding the sidebar entirely
 
 
@@ -420,7 +426,7 @@ const LayoutWrapper = ({ children }) => {
               className="nav-link text-white"
               onClick={handleLinkClick}
             >
-              Zone 1
+              CTRB (Wheel Data)
             </Link>
           </li>
           <li>
@@ -429,7 +435,7 @@ const LayoutWrapper = ({ children }) => {
               className="nav-link text-white"
               onClick={handleLinkClick}
             >
-              Zone 2
+              DM Line Data
             </Link>
           </li>
           <li>
@@ -438,7 +444,7 @@ const LayoutWrapper = ({ children }) => {
               className="nav-link text-white"
               onClick={handleLinkClick}
             >
-              Zone 3
+              DM Final Data
             </Link>
           </li>
         </>
@@ -523,7 +529,7 @@ const LayoutWrapper = ({ children }) => {
                   className="nav-link text-white"
                   onClick={handleLinkClick}
                 >
-                  Zone 1
+                  CTRB (Wheel Data)
                 </Link>
               </li>
               <li>
@@ -532,7 +538,7 @@ const LayoutWrapper = ({ children }) => {
                   className="nav-link text-white"
                   onClick={handleLinkClick}
                 >
-                  Zone 2
+                  DM Line Data
                 </Link>
               </li>
               <li>
@@ -541,7 +547,7 @@ const LayoutWrapper = ({ children }) => {
                   className="nav-link text-white"
                   onClick={handleLinkClick}
                 >
-                  Zone 3
+                  DM Final Data
                 </Link>
               </li>
             </>
@@ -621,6 +627,38 @@ const LayoutWrapper = ({ children }) => {
     )}
     {!isQualityOnlyUser && (
 <>
+<li className="nav-item mt-3">
+  <span
+    onClick={() => setTenderOpen(!tenderOpen)}
+    className="nav-link text-white fw-bold"
+    style={{ cursor: 'pointer' }}
+  >
+    Tender {tenderOpen ? 'â–²' : 'â–¼'}
+  </span>
+
+  {tenderOpen && (
+    <ul className="nav flex-column ms-3">
+      <li>
+        <Link
+          to="/tender"
+          className="nav-link text-white"
+          onClick={handleLinkClick}
+        >
+          Tender Dashboard
+        </Link>
+      </li>
+      <li>
+        <Link
+          to="/tender/analyse"
+          className="nav-link text-white"
+          onClick={handleLinkClick}
+        >
+          Analyse a Tender
+        </Link>
+      </li>
+    </ul>
+  )}
+</li>
 <li className="nav-item mt-3">
   <span
     onClick={() => setShortageOpen(!shortageOpen)}
@@ -887,6 +925,14 @@ function App() {
             }
           />
           <Route
+            path="/quality/wagon-data-sheet/inspectors/:username"
+            element={
+              <ProtectedRoute allowedRoles={["quality-admin"]}>
+                <WagonDataSheetInspectorDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/quality/wagon-data-sheet/projects/:projectId"
             element={
               <ProtectedRoute allowedRoles={["quality-admin", "wagon-data-viewer"]}>
@@ -923,6 +969,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ground-inspector"]}>
                 <WagonDataSheetInspectorHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/drafts"
+            element={
+              <ProtectedRoute allowedRoles={["ground-inspector"]}>
+                <WagonDataSheetDraftForms />
               </ProtectedRoute>
             }
           />
@@ -968,6 +1022,30 @@ function App() {
   element={
     <ProtectedRoute allowedRoles={["production", "maintenance"]}>
       <ProjectShortageDashboard />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/tender"
+  element={
+    <ProtectedRoute allowedRoles={["sales", "production", "maintenance"]}>
+      <TenderDashboard />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/tender/analyse"
+  element={
+    <ProtectedRoute allowedRoles={["sales", "production", "maintenance"]}>
+      <TenderAnalysisPage />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/tender/:jobId/analysis/:docIndex"
+  element={
+    <ProtectedRoute allowedRoles={["sales", "production", "maintenance"]}>
+      <TenderDetailPage />
     </ProtectedRoute>
   }
 />
