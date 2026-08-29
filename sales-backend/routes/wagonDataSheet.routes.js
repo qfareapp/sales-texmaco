@@ -1148,6 +1148,35 @@ router.get("/analytics/overview", async (_req, res) => {
       texFrequency.set(texNo.toUpperCase(), (texFrequency.get(texNo.toUpperCase()) || 0) + 1);
     });
 
+    const buildExceptionRow = (row) => ({
+      rowId: String(row._id),
+      projectId: String(row.projectId || ""),
+      projectName: asText(row.project?.projectName) || "Untitled Project",
+      slNo: asText(row.slNo) || "-",
+      texNo: asText(row.texNo) || "Not assigned",
+      wagonNo: asText(row.wagonNo) || "Not entered",
+      dailyStage: asText(row.inspection?.activeStage?.label) || "No active daily stage",
+      pdiStage: asText(row.pdi?.activeStage?.label) || (row.pdi?.isFullyCompleted ? "PDI complete" : "Not active"),
+    });
+    const exceptionRows = {
+      rowsWithoutTexNo: rowsWithProgress.filter((row) => !asText(row.texNo)).map(buildExceptionRow),
+      zone2PendingThoughEligible: rowsWithProgress
+        .filter((row) => row.pdi.isActivated && !row.firstZone?.submittedAt)
+        .map(buildExceptionRow),
+      rowsStuckWithoutActiveStage: rowsWithProgress
+        .filter((row) => !row.inspection.activeStage && !row.pdi.isFullyCompleted)
+        .map(buildExceptionRow),
+      rowsReachedPdiButNotActivated: rowsWithProgress
+        .filter((row) => row.inspection.activeStage?.key === "dm_line" && !row.pdi.isActivated)
+        .map(buildExceptionRow),
+      incompleteRequiredForms: rowsWithProgress
+        .filter((row) => row.firstZone?.submittedAt && (!asText(row.wagonConfiguration) || !asText(row.wagonNo)))
+        .map(buildExceptionRow),
+      duplicateTexNos: rowsWithProgress
+        .filter((row) => asText(row.texNo) && (texFrequency.get(asText(row.texNo).toUpperCase()) || 0) > 1)
+        .map(buildExceptionRow),
+    };
+
     const dataQuality = {
       rowsWithoutTexNo: rowsWithProgress.filter((row) => !asText(row.texNo)).length,
       duplicateTexNos: [...texFrequency.entries()]
@@ -1157,6 +1186,7 @@ router.get("/analytics/overview", async (_req, res) => {
       rowsReachedPdiButNotActivated: rowsWithProgress.filter((row) => row.inspection.activeStage?.key === "dm_line" && !row.pdi.isActivated).length,
       zone2PendingThoughEligible: rowsWithProgress.filter((row) => row.pdi.isActivated && !row.firstZone?.submittedAt).length,
       incompleteRequiredForms: rowsWithProgress.filter((row) => row.firstZone?.submittedAt && (!asText(row.wagonConfiguration) || !asText(row.wagonNo))).length,
+      exceptionRows,
     };
 
     res.json({

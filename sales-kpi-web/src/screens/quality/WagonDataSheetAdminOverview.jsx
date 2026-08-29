@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Stack,
   Table,
@@ -284,7 +288,7 @@ function CycleStat({ label, value, tone = "slate" }) {
 }
 
 // Data quality checklist item
-function QualityItem({ label, value, warn = false, critical = false }) {
+function QualityItem({ label, value, warn = false, critical = false, onClick }) {
   const isOk = value === 0 || value === "0";
   const icon = isOk ? "✓" : critical ? "✕" : "!";
   const bg = isOk ? "#f0fdf4" : critical ? "#fef2f2" : "#fffbeb";
@@ -303,7 +307,11 @@ function QualityItem({ label, value, warn = false, critical = false }) {
         borderRadius: 2,
         border: `1.5px solid ${border}`,
         bgcolor: bg,
+        cursor: onClick && !isOk ? "pointer" : "default",
+        transition: "transform 0.15s, box-shadow 0.15s",
+        ...(onClick && !isOk ? { "&:hover": { transform: "translateY(-1px)", boxShadow: "0 3px 10px rgba(15,23,42,0.1)" } } : {}),
       }}
+      onClick={!isOk ? onClick : undefined}
     >
       <Box
         sx={{
@@ -338,6 +346,7 @@ export default function WagonDataSheetAdminOverview() {
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState("");
   const [downloadingZone1, setDownloadingZone1] = useState(false);
+  const [selectedException, setSelectedException] = useState(null);
 
   useEffect(() => {
     api
@@ -603,11 +612,11 @@ export default function WagonDataSheetAdminOverview() {
 
             <SectionCard title="Data Quality & Exceptions" accent="#dc2626" dot="#f87171">
               <Stack spacing={0.85}>
-                <QualityItem label="Rows Without TEX No."              value={overview.dataQuality?.rowsWithoutTexNo || 0}                    critical />
-                <QualityItem label="DM Line Data Eligible But Pending" value={overview.dataQuality?.zone2PendingThoughEligible || 0}           warn />
-                <QualityItem label="Stuck Without Active Stage"         value={overview.dataQuality?.rowsStuckWithoutActiveStage || 0}          critical />
-                <QualityItem label="PDI Reached But Not Activated"      value={overview.dataQuality?.rowsReachedPdiButNotActivated || 0}        critical />
-                <QualityItem label="Incomplete Required Forms"          value={overview.dataQuality?.incompleteRequiredForms || 0}              warn />
+                <QualityItem label="Rows Without TEX No." value={overview.dataQuality?.rowsWithoutTexNo || 0} critical onClick={() => setSelectedException({ key: "rowsWithoutTexNo", title: "Rows Without TEX No." })} />
+                <QualityItem label="DM Line Data Eligible But Pending" value={overview.dataQuality?.zone2PendingThoughEligible || 0} warn onClick={() => setSelectedException({ key: "zone2PendingThoughEligible", title: "DM Line Data Eligible But Pending" })} />
+                <QualityItem label="Stuck Without Active Stage" value={overview.dataQuality?.rowsStuckWithoutActiveStage || 0} critical onClick={() => setSelectedException({ key: "rowsStuckWithoutActiveStage", title: "Stuck Without Active Stage" })} />
+                <QualityItem label="PDI Reached But Not Activated" value={overview.dataQuality?.rowsReachedPdiButNotActivated || 0} critical onClick={() => setSelectedException({ key: "rowsReachedPdiButNotActivated", title: "PDI Reached But Not Activated" })} />
+                <QualityItem label="Incomplete Required Forms" value={overview.dataQuality?.incompleteRequiredForms || 0} warn onClick={() => setSelectedException({ key: "incompleteRequiredForms", title: "Incomplete Required Forms" })} />
                 <Box sx={{ pt: 0.5 }}>
                   <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.6, display: "block", mb: 0.75 }}>
                     Duplicate TEX Nos
@@ -615,7 +624,7 @@ export default function WagonDataSheetAdminOverview() {
                   {(overview.dataQuality?.duplicateTexNos || []).length ? (
                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                       {overview.dataQuality.duplicateTexNos.map((item) => (
-                        <Chip key={item.texNo} label={`${item.texNo} ×${item.count}`} size="small" color="error" variant="outlined" sx={{ fontWeight: 700 }} />
+                        <Chip key={item.texNo} label={`${item.texNo} ×${item.count}`} size="small" color="error" variant="outlined" clickable onClick={() => setSelectedException({ key: "duplicateTexNos", title: `Duplicate TEX No.: ${item.texNo}`, texNo: item.texNo })} sx={{ fontWeight: 700 }} />
                       ))}
                     </Stack>
                   ) : (
@@ -703,6 +712,52 @@ export default function WagonDataSheetAdminOverview() {
 
         </Box>
       )}
+
+      <Dialog open={Boolean(selectedException)} onClose={() => setSelectedException(null)} fullWidth maxWidth="md">
+        <DialogTitle sx={{ fontWeight: 800 }}>{selectedException?.title || "Exception locations"}</DialogTitle>
+        <DialogContent dividers>
+          {(() => {
+            const exceptionRows = overview?.dataQuality?.exceptionRows?.[selectedException?.key] || [];
+            const rows = selectedException?.texNo
+              ? exceptionRows.filter((row) => row.texNo.toUpperCase() === selectedException.texNo.toUpperCase())
+              : exceptionRows;
+            return rows.length ? (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                      <TableCell sx={{ fontWeight: 800 }}>Project</TableCell>
+                      <TableCell sx={{ fontWeight: 800 }}>SL No.</TableCell>
+                      <TableCell sx={{ fontWeight: 800 }}>TEX No.</TableCell>
+                      <TableCell sx={{ fontWeight: 800 }}>Wagon No.</TableCell>
+                      <TableCell sx={{ fontWeight: 800 }}>Current Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow key={row.rowId} hover>
+                        <TableCell>{row.projectName}</TableCell>
+                        <TableCell>{row.slNo}</TableCell>
+                        <TableCell sx={{ fontWeight: 800 }}>{row.texNo}</TableCell>
+                        <TableCell>{row.wagonNo}</TableCell>
+                        <TableCell>
+                          <Typography variant="caption" fontWeight={700} display="block">Daily: {row.dailyStage}</Typography>
+                          <Typography variant="caption" color="text.secondary">PDI: {row.pdiStage}</Typography>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : <Alert severity="success">No matching exception rows found.</Alert>;
+          })()}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          <Button onClick={() => setSelectedException(null)} variant="contained" sx={{ textTransform: "none", fontWeight: 800 }}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
