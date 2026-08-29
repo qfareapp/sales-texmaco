@@ -1,0 +1,8 @@
+{
+  "installCommand": "cd sales-kpi-web && npm ci",
+  "buildCommand": "cd sales-kpi-web && npm run build",
+  "outputDirectory": "sales-kpi-web/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/" }
+  ]
+}
