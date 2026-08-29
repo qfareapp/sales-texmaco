@@ -68,6 +68,8 @@ const WagonDataSheetRowSchema = new mongoose.Schema(
     wheelDataKey: { type: String, required: true, trim: true },
     firstZone: {
       bogie: { type: makeSerialSchema, default: () => ({}) },
+      bogie1Make: { type: String, default: "", trim: true },
+      bogie2Make: { type: String, default: "", trim: true },
       bogie1SerialNumber: { type: String, default: "", trim: true },
       bogie2SerialNumber: { type: String, default: "", trim: true },
       bogie1WheelDataRows: { type: [linkedWheelDataSchema], default: [] },

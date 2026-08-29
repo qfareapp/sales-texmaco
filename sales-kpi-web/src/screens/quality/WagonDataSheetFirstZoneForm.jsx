@@ -24,6 +24,8 @@ const initialForm = {
   wagonNo: "",
   wagonConfiguration: "",
   bogieMake: "",
+  hasDifferentBogie2Make: false,
+  bogie2Make: "",
   bogie1SerialNumber: "",
   bogie1WheelDiaFilter: "",
   bogie1WheelOriginFilter: "",
@@ -674,13 +676,38 @@ export default function WagonDataSheetFirstZoneForm() {
             <SectionHeader label="Bogie and Wheel Data Linking" color="#2e7d32" />
             <Stack spacing={2} sx={{ mb: 3 }}>
               <TextField
-                label="Bogie Make"
+                label="Bogie 1 Make"
                 value={form.bogieMake}
                 onChange={handleChange("bogieMake")}
                 fullWidth
                 size="small"
                 sx={{ bgcolor: "white", borderRadius: 1 }}
               />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={Boolean(form.hasDifferentBogie2Make)}
+                    onChange={(event) => setForm((prev) => ({
+                      ...prev,
+                      hasDifferentBogie2Make: event.target.checked,
+                      ...(!event.target.checked ? { bogie2Make: "" } : {}),
+                    }))}
+                    color="success"
+                  />
+                }
+                label="Bogie 2 has a different make"
+                sx={{ width: "fit-content", my: -1 }}
+              />
+              {form.hasDifferentBogie2Make && (
+                <TextField
+                  label="Bogie 2 Make"
+                  value={form.bogie2Make}
+                  onChange={handleChange("bogie2Make")}
+                  fullWidth
+                  size="small"
+                  sx={{ bgcolor: "white", borderRadius: 1 }}
+                />
+              )}
 
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>

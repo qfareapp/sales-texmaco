@@ -2111,6 +2111,8 @@ router.post("/rows/first-zone", async (req, res) => {
         make: asText(req.body.bogieMake),
         serialNumbers: [asText(req.body.bogie1SerialNumber), asText(req.body.bogie2SerialNumber)].filter(Boolean),
       },
+      bogie1Make: asText(req.body.bogieMake),
+      bogie2Make: asText(req.body.hasDifferentBogie2Make ? req.body.bogie2Make : req.body.bogieMake),
       bogie1SerialNumber: asText(req.body.bogie1SerialNumber),
       bogie2SerialNumber: asText(req.body.bogie2SerialNumber),
       bogie1WheelDataRows: buildWheelLinkPayload(bogie1WheelDataRowIds),
