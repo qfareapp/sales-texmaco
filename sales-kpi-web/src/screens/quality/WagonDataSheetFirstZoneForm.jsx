@@ -634,7 +634,7 @@ export default function WagonDataSheetFirstZoneForm() {
                   fullWidth
                   size="small"
                   required
-                  helperText={!form.projectId ? "Select a project first" : "Only TEX numbers that reached DM Line are listed here"}
+                  helperText={!form.projectId ? "Select a project first" : "Only TEX numbers that reached DM Line are listed here. Existing legacy TEX formats are supported."}
                   sx={{ bgcolor: "white", borderRadius: 1 }}
                 >
                   {eligibleTexRows.map((row) => (

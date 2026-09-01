@@ -12,8 +12,15 @@ const router = express.Router();
 const asText = (value) => String(value || "").trim();
 const TEX_NO_PATTERN = /^[A-Za-z0-9]+$/;
 const normalizeTexNo = (value) => asText(value).toUpperCase();
-const assertValidTexNo = (value, required = false) => {
-  const texNo = normalizeTexNo(value);
+const assertValidTexNo = (value, required = false, existingTexNo = "") => {
+  const enteredTexNo = asText(value);
+  const legacyTexNo = asText(existingTexNo);
+  // Existing records may predate the strict TEX format. Preserve them when unchanged.
+  if (legacyTexNo && enteredTexNo === legacyTexNo) {
+    return legacyTexNo;
+  }
+
+  const texNo = normalizeTexNo(enteredTexNo);
   if (!texNo && required) {
     throw new Error("TEX No. is required.");
   }
@@ -2076,7 +2083,7 @@ router.post("/rows/first-zone", async (req, res) => {
     }
 
     const previousWheelIds = existingRow ? getLinkedWheelIds(existingRow.toObject()) : [];
-    const texNo = assertValidTexNo(req.body.texNo);
+    const texNo = assertValidTexNo(req.body.texNo, false, existingRow?.texNo);
     const wagonNo = asText(req.body.wagonNo);
 
     await ensureUniqueWagonIdentifiers({
