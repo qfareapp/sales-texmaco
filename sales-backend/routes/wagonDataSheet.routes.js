@@ -578,16 +578,18 @@ const findDuplicateSerialNumber = (values) => {
 
   return "";
 };
-const asSerialNumbers = (value, fieldLabel = "Serial numbers") => {
+const asSerialNumbers = (value, fieldLabel = "Serial numbers", allowDuplicates = false) => {
   const source = Array.isArray(value) ? value : String(value || "").split(/\r?\n|,/);
   const serialNumbers = source
     .map((item) => String(item || "").trim())
     .filter(Boolean)
     .slice(0, 8);
 
-  const duplicateSerialNumber = findDuplicateSerialNumber(serialNumbers);
-  if (duplicateSerialNumber) {
-    throw new Error(`${fieldLabel} must be unique within the same field. Duplicate serial number: ${duplicateSerialNumber}`);
+  if (!allowDuplicates) {
+    const duplicateSerialNumber = findDuplicateSerialNumber(serialNumbers);
+    if (duplicateSerialNumber) {
+      throw new Error(`${fieldLabel} must be unique within the same field. Duplicate serial number: ${duplicateSerialNumber}`);
+    }
   }
 
   return serialNumbers;
@@ -602,6 +604,14 @@ const asAlignedOptionalValues = (value, expectedLength, limit = 8) => {
   }
 
   return normalized;
+};
+const asUniqueHeatNumbers = (value, expectedLength, fieldLabel) => {
+  const heatNumbers = asAlignedOptionalValues(value, expectedLength);
+  const duplicateHeatNumber = findDuplicateSerialNumber(heatNumbers);
+  if (duplicateHeatNumber) {
+    throw new Error(`${fieldLabel} must be unique within the same field. Duplicate heat number: ${duplicateHeatNumber}`);
+  }
+  return heatNumbers;
 };
 const asObjectIdList = (value, limit = 8) => {
   const source = Array.isArray(value) ? value : [];
@@ -2440,16 +2450,16 @@ router.post("/rows/second-zone/drafts", async (req, res) => {
       slNo: "",
       wheelDataKey: createInternalWheelDataKey("DRAFT"),
     });
-    const axleSerialNumbers = asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers");
-    const wheelSerialNumbers = asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers");
+    const axleSerialNumbers = asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers", true);
+    const wheelSerialNumbers = asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers", true);
     draft.secondZone = {
       ...draft.secondZone?.toObject?.(),
       wheelDia: asText(req.body.wheelDia),
       wheelOrigin: asText(req.body.wheelOrigin),
       axle: { make: asText(req.body.axleMake), serialNumbers: axleSerialNumbers },
-      axleHeatNumbers: asAlignedOptionalValues(req.body.axleHeatNumbers, axleSerialNumbers.length),
+      axleHeatNumbers: asUniqueHeatNumbers(req.body.axleHeatNumbers, axleSerialNumbers.length, "Axle heat numbers"),
       wheel: { make: asText(req.body.wheelMake), serialNumbers: wheelSerialNumbers },
-      wheelHeatNumbers: asAlignedOptionalValues(req.body.wheelHeatNumbers, wheelSerialNumbers.length),
+      wheelHeatNumbers: asUniqueHeatNumbers(req.body.wheelHeatNumbers, wheelSerialNumbers.length, "Wheel heat numbers"),
       bearing: { make: asText(req.body.bearingMake), serialNumbers: asSerialNumbers(req.body.bearingSerialNumbers, "Bearing serial numbers") },
       isDraft: true,
       draftWheelDataKey: normalizeWheelDataKey(req.body.wheelDataKey),
@@ -2503,8 +2513,8 @@ router.post("/rows/second-zone", async (req, res) => {
       });
     }
 
-    const axleSerialNumbers = asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers");
-    const wheelSerialNumbers = asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers");
+    const axleSerialNumbers = asSerialNumbers(req.body.axleSerialNumbers, "Axle serial numbers", true);
+    const wheelSerialNumbers = asSerialNumbers(req.body.wheelSerialNumbers, "Wheel serial numbers", true);
 
     const row = draft || new WagonDataSheetRow({
       projectId,
@@ -2521,12 +2531,12 @@ router.post("/rows/second-zone", async (req, res) => {
           make: asText(req.body.axleMake),
           serialNumbers: axleSerialNumbers,
         },
-        axleHeatNumbers: asAlignedOptionalValues(req.body.axleHeatNumbers, axleSerialNumbers.length),
+        axleHeatNumbers: asUniqueHeatNumbers(req.body.axleHeatNumbers, axleSerialNumbers.length, "Axle heat numbers"),
         wheel: {
           make: asText(req.body.wheelMake),
           serialNumbers: wheelSerialNumbers,
         },
-        wheelHeatNumbers: asAlignedOptionalValues(req.body.wheelHeatNumbers, wheelSerialNumbers.length),
+        wheelHeatNumbers: asUniqueHeatNumbers(req.body.wheelHeatNumbers, wheelSerialNumbers.length, "Wheel heat numbers"),
         bearing: {
           make: asText(req.body.bearingMake),
           serialNumbers: asSerialNumbers(req.body.bearingSerialNumbers, "Bearing serial numbers"),

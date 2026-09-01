@@ -159,7 +159,9 @@ function ComponentRow({ keyName, label, form, handleChange }) {
           size="small"
           multiline
           minRows={2}
-          helperText="One per line. Values must be unique within this field."
+          helperText={supportsHeatNumbers
+            ? "One per line. Repeated serial numbers are allowed; use a unique heat number for each entry."
+            : "One per line. Values must be unique within this field."}
           sx={{ bgcolor: "white", borderRadius: 1 }}
         />
         {supportsHeatNumbers && serialNumberSlots.length > 0 ? (
@@ -172,7 +174,7 @@ function ComponentRow({ keyName, label, form, handleChange }) {
                 onChange={handleChange(heatFieldName, index)}
                 fullWidth
                 size="small"
-                helperText="Optional"
+                helperText="Must be unique within this component."
                 sx={{ bgcolor: "white", borderRadius: 1 }}
               />
             ))}
@@ -258,10 +260,17 @@ export default function WagonDataSheetSecondZoneForm() {
     setSuccess("");
 
     try {
-      for (const [key, label] of serialNumberFields) {
+      for (const [key, label] of serialNumberFields.filter(([key]) => key === "bearing")) {
         const duplicateSerialNumber = findDuplicateSerialNumber(form[`${key}SerialNumbers`]);
         if (duplicateSerialNumber) {
           throw new Error(`${label} serial numbers must be unique within the same field. Duplicate serial number: ${duplicateSerialNumber}`);
+        }
+      }
+
+      for (const [key, label] of [["axle", "Axle"], ["wheel", "Wheel"]]) {
+        const duplicateHeatNumber = findDuplicateSerialNumber((form[`${key}HeatNumbers`] || []).join("\n"));
+        if (duplicateHeatNumber) {
+          throw new Error(`${label} heat numbers must be unique within the same field. Duplicate heat number: ${duplicateHeatNumber}`);
         }
       }
 
