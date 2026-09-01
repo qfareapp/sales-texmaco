@@ -31,6 +31,7 @@ import WagonDataSheetFinalDetailsForm from './screens/quality/WagonDataSheetFina
 import WagonDataSheetProjectDetail from './screens/quality/WagonDataSheetProjectDetail';
 import WagonDataSheetInspectorHistory from './screens/quality/WagonDataSheetInspectorHistory';
 import WagonDataSheetDraftForms from './screens/quality/WagonDataSheetDraftForms';
+import WagonDataSheetSearch from './screens/quality/WagonDataSheetSearch';
 import WagonDataSheetInspectorDashboard from './screens/quality/WagonDataSheetInspectorDashboard';
 import WagonDataSheetAdminDashboard from './screens/quality/WagonDataSheetAdminDashboard';
 import WagonDataSheetAdminOverview from './screens/quality/WagonDataSheetAdminOverview';
@@ -447,6 +448,15 @@ const LayoutWrapper = ({ children }) => {
               DM Final Data
             </Link>
           </li>
+          <li>
+            <Link
+              to="/quality/wagon-data-sheet/search"
+              className="nav-link text-white"
+              onClick={handleLinkClick}
+            >
+              Search Filled Data
+            </Link>
+          </li>
         </>
       )}
     </ul>
@@ -548,6 +558,15 @@ const LayoutWrapper = ({ children }) => {
                   onClick={handleLinkClick}
                 >
                   DM Final Data
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/quality/wagon-data-sheet/search"
+                  className="nav-link text-white"
+                  onClick={handleLinkClick}
+                >
+                  Search Filled Data
                 </Link>
               </li>
             </>
@@ -977,6 +996,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ground-inspector"]}>
                 <WagonDataSheetDraftForms />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quality/wagon-data-sheet/search"
+            element={
+              <ProtectedRoute allowedRoles={["ground-inspector"]}>
+                <WagonDataSheetSearch />
               </ProtectedRoute>
             }
           />

@@ -1954,6 +1954,98 @@ router.get("/rows/available-wheel-data", async (_req, res) => {
   }
 });
 
+router.get("/rows/search", async (req, res) => {
+  try {
+    const field = asText(req.query.field);
+    const query = asText(req.query.query);
+    const validFields = new Set([
+      "texNo",
+      "wheelDataLink",
+      "axleSerialNo",
+      "wheelSerialNo",
+      "bearingSerialNo",
+      "bogieSerialNo",
+      "couplerSerialNo",
+      "draftGearSerialNo",
+      "dvSerialNo",
+      "bcSerialNo",
+      "arSerialNo",
+      "wagonNo",
+    ]);
+
+    if (!validFields.has(field) || !query) {
+      return res.status(400).json({ success: false, message: "Choose a search field and enter a value." });
+    }
+
+    const [projects, rawRows] = await Promise.all([
+      WagonDataSheetProject.find().lean(),
+      WagonDataSheetRow.find({}).sort({ updatedAt: -1 }).lean(),
+    ]);
+    const projectMap = new Map(projects.map((project) => [String(project._id), project]));
+    const rows = await attachLinkedWheelDataRows(rawRows);
+    const normalizedQuery = query.toUpperCase();
+    const hasMatch = (values) => values.some((value) => asText(value).toUpperCase().includes(normalizedQuery));
+    const serialValues = (item) => Array.isArray(item) ? item : [];
+    const componentSerialNumbers = (row, component) => [
+      ...serialValues(row?.firstZone?.[component]?.serialNumbers),
+      ...serialValues(row?.firstZone?.additionalComponents?.[component]?.serialNumbers),
+    ];
+    const sourcesFor = (row) => [row, ...(row.linkedWheelDataRows || [])];
+
+    const matchesRow = (row) => {
+      const sources = sourcesFor(row);
+      const values = {
+        texNo: [row.texNo],
+        wheelDataLink: sources.flatMap((source) => [source.wheelDataKey, source.secondZone?.draftWheelDataKey]),
+        axleSerialNo: sources.flatMap((source) => serialValues(source.secondZone?.axle?.serialNumbers)),
+        wheelSerialNo: sources.flatMap((source) => serialValues(source.secondZone?.wheel?.serialNumbers)),
+        bearingSerialNo: sources.flatMap((source) => serialValues(source.secondZone?.bearing?.serialNumbers)),
+        bogieSerialNo: [row.firstZone?.bogie1SerialNumber, row.firstZone?.bogie2SerialNumber],
+        couplerSerialNo: componentSerialNumbers(row, "coupler"),
+        draftGearSerialNo: componentSerialNumbers(row, "draftGear"),
+        dvSerialNo: componentSerialNumbers(row, "dv"),
+        bcSerialNo: componentSerialNumbers(row, "bc"),
+        arSerialNo: componentSerialNumbers(row, "ar"),
+        wagonNo: [row.wagonNo],
+      };
+      return hasMatch(values[field] || []);
+    };
+    const joinValues = (values) => [...new Set(values.map(asText).filter(Boolean))].join(", ");
+    const formSummary = (form) => ({
+      filledOn: form?.submittedAt || null,
+      filledBy: asText(form?.submittedBy?.username) || "-",
+    });
+    const results = rows
+      .filter(matchesRow)
+      .slice(0, 200)
+      .map((row) => {
+        const sources = sourcesFor(row);
+        const project = projectMap.get(String(row.projectId || ""));
+        return {
+          rowId: String(row._id),
+          projectName: asText(project?.projectName) || "Independent CTRB entry",
+          projectPoNumber: asText(project?.contractPoNumber),
+          slNo: asText(row.slNo),
+          texNo: asText(row.texNo) || "-",
+          wagonNo: asText(row.wagonNo) || "-",
+          wheelDataLinks: joinValues(sources.map((source) => source.wheelDataKey)),
+          axleSerialNumbers: joinValues(sources.flatMap((source) => serialValues(source.secondZone?.axle?.serialNumbers))),
+          wheelSerialNumbers: joinValues(sources.flatMap((source) => serialValues(source.secondZone?.wheel?.serialNumbers))),
+          bearingSerialNumbers: joinValues(sources.flatMap((source) => serialValues(source.secondZone?.bearing?.serialNumbers))),
+          bogieSerialNumbers: joinValues([row.firstZone?.bogie1SerialNumber, row.firstZone?.bogie2SerialNumber]),
+          ctrb: formSummary(row.secondZone),
+          dmLine: formSummary(row.firstZone),
+          dmFinal: formSummary(row.finalAssembly),
+        };
+      });
+
+    res.json({ success: true, data: results, total: results.length, limit: 200 });
+  } catch (error) {
+    console.error("Error searching wagon data sheet records:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.get("/rows/pending-second-zone", async (req, res) => {
   try {
     const { projectId } = req.query;

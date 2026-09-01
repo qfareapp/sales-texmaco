@@ -131,6 +131,14 @@ export default function QualityDashboard() {
       color: "orange",
       onClick: () => navigate("/quality/wagon-data-sheet/drafts"),
     },
+    isGroundInspector && {
+      key: "search-filled-data",
+      icon: "🔎",
+      title: "Search Filled Data",
+      description: "Find wagon data entered by any inspector using TEX, wheel data links, or serial numbers.",
+      color: "blue",
+      onClick: () => navigate("/quality/wagon-data-sheet/search"),
+    },
     {
       key: "coupler",
       icon: "🔗",
