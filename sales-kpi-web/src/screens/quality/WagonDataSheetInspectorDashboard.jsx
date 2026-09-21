@@ -56,6 +56,15 @@ const stageShort = {
 };
 const TEX_NO_PATTERN = /^[A-Za-z0-9]+$/;
 
+const compareTexNumbers = (left, right) => {
+  const leftDigits = String(left.texNo ?? "").replace(/\D/g, "");
+  const rightDigits = String(right.texNo ?? "").replace(/\D/g, "");
+  // Keep unassigned/non-numeric TEX entries after numbered wagons.
+  if (!leftDigits) return rightDigits ? 1 : 0;
+  if (!rightDigits) return -1;
+  return leftDigits.localeCompare(rightDigits, "en", { numeric: true });
+};
+
 const getStageState = (row, pdiMode = false) => {
   const stageList = pdiMode ? row.pdiProgress?.stages || [] : row.inspectionProgress?.stages || [];
   const activeStage = pdiMode ? row.activePdiStage : row.activeStage;
@@ -1133,17 +1142,21 @@ export default function WagonDataSheetInspectorDashboard() {
     () => (dashboard.pdiStageCounts || []).reduce((sum, item) => sum + (item.pendingCount || 0), 0),
     [dashboard.pdiStageCounts]
   );
-  const completedPdiRows = useMemo(
-    () => (dashboard.rows || []).filter((row) => row.isPdiCompleted),
+  const sortedRows = useMemo(
+    () => [...(dashboard.rows || [])].sort(compareTexNumbers),
     [dashboard.rows]
+  );
+  const completedPdiRows = useMemo(
+    () => sortedRows.filter((row) => row.isPdiCompleted),
+    [sortedRows]
   );
   const activeDailyRows = useMemo(
-    () => (dashboard.rows || []).filter((row) => !row.isPdiCompleted),
-    [dashboard.rows]
+    () => sortedRows.filter((row) => !row.isPdiCompleted),
+    [sortedRows]
   );
   const pdiRows = useMemo(
-    () => (dashboard.rows || []).filter((row) => row.isPdiActivated && !row.isPdiCompleted),
-    [dashboard.rows]
+    () => sortedRows.filter((row) => row.isPdiActivated && !row.isPdiCompleted),
+    [sortedRows]
   );
 
   // Switch to PDI tab and highlight the specific wagon row
