@@ -733,13 +733,13 @@ const getNextSlNo = async (projectId) => {
 
   return String(maxSlNo + 1);
 };
-const ensureUniqueWagonIdentifiers = async ({ rowId, texNo, wagonNo }) => {
+const ensureUniqueWagonIdentifiers = async ({ rowId, projectId, texNo, wagonNo }) => {
   const duplicateChecks = [];
   const cleanTexNo = asText(texNo);
   const cleanWagonNo = asText(wagonNo);
 
   if (cleanTexNo) {
-    duplicateChecks.push({ texNo: buildExactMatchRegex(cleanTexNo) });
+    duplicateChecks.push({ projectId, texNo: buildExactMatchRegex(cleanTexNo) });
   }
   if (cleanWagonNo) {
     duplicateChecks.push({ wagonNo: buildExactMatchRegex(cleanWagonNo) });
@@ -752,11 +752,11 @@ const ensureUniqueWagonIdentifiers = async ({ rowId, texNo, wagonNo }) => {
     ...(rowId ? { _id: { $ne: rowId } } : {}),
     $or: duplicateChecks,
   })
-    .select("texNo wagonNo")
+    .select("projectId texNo wagonNo")
     .lean();
 
-  if (cleanTexNo && duplicateRows.some((row) => asText(row.texNo).toUpperCase() === cleanTexNo.toUpperCase())) {
-    throw new Error("TEX No. already filled.");
+  if (cleanTexNo && duplicateRows.some((row) => String(row.projectId) === String(projectId) && asText(row.texNo).toUpperCase() === cleanTexNo.toUpperCase())) {
+    throw new Error("TEX No. already filled in this project.");
   }
   if (cleanWagonNo && duplicateRows.some((row) => asText(row.wagonNo).toUpperCase() === cleanWagonNo.toUpperCase())) {
     throw new Error("Wagon No. already filled.");
@@ -1159,10 +1159,12 @@ router.get("/analytics/overview", async (_req, res) => {
     const stageCompletionsByInspector = [...inspectorMap.values()].sort((a, b) => b.totalCompletions - a.totalCompletions);
 
     const texFrequency = new Map();
+    const texProjectKey = (row) => JSON.stringify([String(row.projectId || ""), asText(row.texNo).toUpperCase()]);
     rowsWithProgress.forEach((row) => {
       const texNo = asText(row.texNo);
       if (!texNo) return;
-      texFrequency.set(texNo.toUpperCase(), (texFrequency.get(texNo.toUpperCase()) || 0) + 1);
+      const key = texProjectKey(row);
+      texFrequency.set(key, (texFrequency.get(key) || 0) + 1);
     });
 
     const buildExceptionRow = (row) => ({
@@ -1190,7 +1192,7 @@ router.get("/analytics/overview", async (_req, res) => {
         .filter((row) => row.firstZone?.submittedAt && (!asText(row.wagonConfiguration) || !asText(row.wagonNo)))
         .map(buildExceptionRow),
       duplicateTexNos: rowsWithProgress
-        .filter((row) => asText(row.texNo) && (texFrequency.get(asText(row.texNo).toUpperCase()) || 0) > 1)
+        .filter((row) => asText(row.texNo) && (texFrequency.get(texProjectKey(row)) || 0) > 1)
         .map(buildExceptionRow),
     };
 
@@ -1198,7 +1200,10 @@ router.get("/analytics/overview", async (_req, res) => {
       rowsWithoutTexNo: rowsWithProgress.filter((row) => !asText(row.texNo)).length,
       duplicateTexNos: [...texFrequency.entries()]
         .filter(([, count]) => count > 1)
-        .map(([texNo, count]) => ({ texNo, count })),
+        .map(([key, count]) => {
+          const [projectId, texNo] = JSON.parse(key);
+          return { projectId, texNo, count };
+        }),
       rowsStuckWithoutActiveStage: rowsWithProgress.filter((row) => !row.inspection.activeStage && !row.pdi.isFullyCompleted).length,
       rowsReachedPdiButNotActivated: rowsWithProgress.filter((row) => row.inspection.activeStage?.key === "dm_line" && !row.pdi.isActivated).length,
       zone2PendingThoughEligible: rowsWithProgress.filter((row) => row.pdi.isActivated && !row.firstZone?.submittedAt).length,
@@ -1422,6 +1427,7 @@ router.patch("/rows/:rowId/stages/:stageKey/complete", async (req, res) => {
 
       await ensureUniqueWagonIdentifiers({
         rowId: row._id,
+        projectId: row.projectId,
         texNo,
         wagonNo: row.wagonNo,
       });
@@ -2190,6 +2196,7 @@ router.post("/rows/first-zone", async (req, res) => {
 
     await ensureUniqueWagonIdentifiers({
       rowId: existingRow?._id || null,
+      projectId,
       texNo,
       wagonNo,
     });

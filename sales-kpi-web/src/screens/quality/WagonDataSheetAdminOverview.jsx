@@ -624,7 +624,7 @@ export default function WagonDataSheetAdminOverview() {
                   {(overview.dataQuality?.duplicateTexNos || []).length ? (
                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
                       {overview.dataQuality.duplicateTexNos.map((item) => (
-                        <Chip key={item.texNo} label={`${item.texNo} ×${item.count}`} size="small" color="error" variant="outlined" clickable onClick={() => setSelectedException({ key: "duplicateTexNos", title: `Duplicate TEX No.: ${item.texNo}`, texNo: item.texNo })} sx={{ fontWeight: 700 }} />
+                        <Chip key={`${item.projectId}-${item.texNo}`} label={`${item.texNo} ×${item.count}`} size="small" color="error" variant="outlined" clickable onClick={() => setSelectedException({ key: "duplicateTexNos", title: `Duplicate TEX No.: ${item.texNo}`, texNo: item.texNo, projectId: item.projectId })} sx={{ fontWeight: 700 }} />
                       ))}
                     </Stack>
                   ) : (
@@ -719,7 +719,7 @@ export default function WagonDataSheetAdminOverview() {
           {(() => {
             const exceptionRows = overview?.dataQuality?.exceptionRows?.[selectedException?.key] || [];
             const rows = selectedException?.texNo
-              ? exceptionRows.filter((row) => row.texNo.toUpperCase() === selectedException.texNo.toUpperCase())
+              ? exceptionRows.filter((row) => row.texNo.toUpperCase() === selectedException.texNo.toUpperCase() && row.projectId === selectedException.projectId)
               : exceptionRows;
             return rows.length ? (
               <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>

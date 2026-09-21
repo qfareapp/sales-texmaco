@@ -129,6 +129,11 @@ router.post("/:jobId/documents/:docIndex/chat", express.json(), async (req, res,
     const answer = await answerTenderQuestion({
       documents,
       selectedDocument: document,
+      sourceDirectory: job.sourceDirectory,
+      sourceFiles: [
+        ...(Array.isArray(job.sourceFiles) ? job.sourceFiles : []),
+        ...(job.resultFiles?.skippedPath ? await readJobOutputJson(job, job.resultFiles.skippedPath, []) : []),
+      ],
       question,
     });
 

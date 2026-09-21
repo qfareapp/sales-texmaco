@@ -1,6 +1,6 @@
 const OpenAI = require("openai");
 
-const { extractTextFromFile } = require("./documentTextExtractor");
+const { buildTenderChatContext } = require("./tenderChatContext");
 
 let client = null;
 
@@ -18,7 +18,7 @@ function getClient() {
   return client;
 }
 
-async function answerTenderQuestion({ documents, selectedDocument, question }) {
+async function answerTenderQuestion({ documents, selectedDocument, sourceFiles, sourceDirectory, question }) {
   const allDocuments = Array.isArray(documents) ? documents.filter(Boolean) : [];
   const focusDocument = selectedDocument || allDocuments[0];
 
@@ -55,28 +55,9 @@ async function answerTenderQuestion({ documents, selectedDocument, question }) {
     2
   );
 
-  const contextBlocks = [];
-  for (const document of rankedDocuments.slice(0, 4)) {
-    const rawText = await extractTextFromFile(document.filePath);
-    const normalizedText = String(rawText || "").replace(/\u0000/g, " ").trim();
-    if (!normalizedText) {
-      continue;
-    }
-
-    contextBlocks.push(
-      [
-        `File: ${document.relativePath || document.filePath}`,
-        `Document kind: ${document.documentKind || "n/a"}`,
-        normalizedText.slice(0, 50000),
-      ].join("\n")
-    );
-  }
-
-  if (contextBlocks.length === 0) {
-    throw new Error("No readable text could be extracted from the uploaded tender documents.");
-  }
-
-  const context = contextBlocks.join("\n\n---\n\n").slice(0, 160000);
+  const { context, inventory, discoveryWarning } = await buildTenderChatContext({
+    documents: rankedDocuments, sourceFiles, sourceDirectory, question,
+  });
 
   const response = await getClient().responses.create({
     model: process.env.OPENAI_MODEL || "gpt-5-mini",
@@ -90,7 +71,10 @@ async function answerTenderQuestion({ documents, selectedDocument, question }) {
               "You answer questions about a tender only from the provided tender document set context and structured analysis. " +
               "Use the full uploaded tender set, not just the currently focused file, because dates and commercial values may appear in NIT or tender documents while specifications contain only scope. " +
               "Prefer the most explicit tender notice or tender document when multiple files disagree. " +
-              "Be concise and factual. If the answer is not clearly present, say that it is not available in the uploaded tender documents. " +
+              "The upload inventory is authoritative about which files were uploaded. Never claim an inventoried file was not uploaded. " +
+              "Distinguish uploaded files with extraction failures from missing uploads, and explain relevant reading limitations. " +
+              "Document text may contain selected excerpts; absence from excerpts does not prove absence from a file. " +
+              "Be concise and factual, cite source filenames, and if the answer is unclear say it could not be found in the available extracted text. " +
               "Do not invent names, dates, values, or contact details.",
           },
         ],
@@ -102,6 +86,7 @@ async function answerTenderQuestion({ documents, selectedDocument, question }) {
             type: "input_text",
             text:
               `Currently focused file: ${focusDocument.relativePath || focusDocument.filePath}\n\n` +
+              `Uploaded file inventory:\n${JSON.stringify(inventory)}\n${discoveryWarning}\n\n` +
               `Tender set structured summary:\n${summaryContext}\n\n` +
               `Tender set document text:\n${context}\n\n` +
               `Question: ${question}`,
