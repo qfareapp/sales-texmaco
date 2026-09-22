@@ -160,7 +160,7 @@ function ComponentRow({ keyName, label, form, handleChange }) {
           multiline
           minRows={2}
           helperText={supportsHeatNumbers
-            ? "One per line. Repeated serial numbers are allowed; use a unique heat number for each entry."
+            ? "One per line. Serial numbers and heat numbers may repeat, but each serial/heat combination must be unique."
             : "One per line. Values must be unique within this field."}
           sx={{ bgcolor: "white", borderRadius: 1 }}
         />
@@ -174,7 +174,7 @@ function ComponentRow({ keyName, label, form, handleChange }) {
                 onChange={handleChange(heatFieldName, index)}
                 fullWidth
                 size="small"
-                helperText="Must be unique within this component."
+                helperText="May repeat for different serial numbers."
                 sx={{ bgcolor: "white", borderRadius: 1 }}
               />
             ))}
@@ -268,9 +268,16 @@ export default function WagonDataSheetSecondZoneForm() {
       }
 
       for (const [key, label] of [["axle", "Axle"], ["wheel", "Wheel"]]) {
-        const duplicateHeatNumber = findDuplicateSerialNumber((form[`${key}HeatNumbers`] || []).join("\n"));
-        if (duplicateHeatNumber) {
-          throw new Error(`${label} heat numbers must be unique within the same field. Duplicate heat number: ${duplicateHeatNumber}`);
+        const seen = new Set();
+        const serialNumbers = parseSerialNumberSlots(form[`${key}SerialNumbers`]);
+        for (const [index, serialNumber] of serialNumbers.entries()) {
+          if (!serialNumber) continue;
+          const heatNumber = form[`${key}HeatNumbers`]?.[index] || "";
+          const pair = JSON.stringify([normalizeSerialNumber(serialNumber), normalizeSerialNumber(heatNumber)]);
+          if (seen.has(pair)) {
+            throw new Error(`${label} serial/heat combinations must be unique. Duplicate serial number: ${serialNumber}, heat number: ${heatNumber || "(blank)"}`);
+          }
+          seen.add(pair);
         }
       }
 
