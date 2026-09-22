@@ -131,7 +131,7 @@ export default function QualityDashboard() {
       color: "orange",
       onClick: () => navigate("/quality/wagon-data-sheet/drafts"),
     },
-    isGroundInspector && {
+    (isQualityModuleAdmin || isGroundInspector) && {
       key: "search-filled-data",
       icon: "🔎",
       title: "Search Filled Data",

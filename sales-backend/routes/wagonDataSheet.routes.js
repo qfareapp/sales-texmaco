@@ -2612,4 +2612,14 @@ router.post("/rows/final-details", async (req, res) => {
   }
 });
 
+router.use("/admin/rows", require("./wagonDataSheetAdmin.routes")({
+  Row: WagonDataSheetRow,
+  mongoose,
+  authMiddleware,
+  assertValidTexNo,
+  asSerialNumbers,
+  asUniqueSerialHeatNumbers,
+  normalizeWheelDataKey,
+}));
+
 module.exports = router;

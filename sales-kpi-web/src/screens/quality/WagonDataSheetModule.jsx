@@ -62,7 +62,7 @@ export default function WagonDataSheetModule() {
       variant: "outlined",
       onClick: () => navigate("/quality/wagon-data-sheet/drafts"),
     },
-    isGroundInspector && {
+    (isQualityModuleAdmin || isGroundInspector) && {
       label: "Search Filled Data",
       color: "info",
       variant: "outlined",

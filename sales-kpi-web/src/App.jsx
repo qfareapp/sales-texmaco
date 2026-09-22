@@ -448,16 +448,18 @@ const LayoutWrapper = ({ children }) => {
               DM Final Data
             </Link>
           </li>
-          <li>
-            <Link
-              to="/quality/wagon-data-sheet/search"
-              className="nav-link text-white"
-              onClick={handleLinkClick}
-            >
-              Search Filled Data
-            </Link>
-          </li>
         </>
+      )}
+      {(isMasterAdmin || isQualityAdmin || isGroundInspector) && (
+        <li>
+          <Link
+            to="/quality/wagon-data-sheet/search"
+            className="nav-link text-white"
+            onClick={handleLinkClick}
+          >
+            Search Filled Data
+          </Link>
+        </li>
       )}
     </ul>
   )}
@@ -560,16 +562,18 @@ const LayoutWrapper = ({ children }) => {
                   DM Final Data
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/quality/wagon-data-sheet/search"
-                  className="nav-link text-white"
-                  onClick={handleLinkClick}
-                >
-                  Search Filled Data
-                </Link>
-              </li>
             </>
+          )}
+          {(isMasterAdmin || isQualityAdmin || isGroundInspector) && (
+            <li>
+              <Link
+                to="/quality/wagon-data-sheet/search"
+                className="nav-link text-white"
+                onClick={handleLinkClick}
+              >
+                Search Filled Data
+              </Link>
+            </li>
           )}
           {isWagonDataViewer && (
             <li>
@@ -1002,7 +1006,7 @@ function App() {
           <Route
             path="/quality/wagon-data-sheet/search"
             element={
-              <ProtectedRoute allowedRoles={["ground-inspector"]}>
+              <ProtectedRoute allowedRoles={["admin", "quality-admin", "ground-inspector"]}>
                 <WagonDataSheetSearch />
               </ProtectedRoute>
             }

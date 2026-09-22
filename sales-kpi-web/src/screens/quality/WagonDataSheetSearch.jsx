@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import api from "../../api";
+import WagonDataSheetRecordDialog from "./WagonDataSheetRecordDialog";
 
 const searchFields = [
   { value: "texNo", label: "TEX No." },
@@ -42,6 +43,10 @@ const formatFilled = (form) => {
 };
 
 export default function WagonDataSheetSearch() {
+  const isMasterAdmin = localStorage.getItem("role") === "admin";
+  const [target, setTarget] = useState(null);
+  const [revision, setRevision] = useState(0);
+  const [success, setSuccess] = useState("");
   const [field, setField] = useState("texNo");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -82,7 +87,7 @@ export default function WagonDataSheetSearch() {
       isCurrent = false;
       window.clearTimeout(timeoutId);
     };
-  }, [field, query]);
+  }, [field, query, revision]);
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1800, mx: "auto" }}>
@@ -115,6 +120,7 @@ export default function WagonDataSheetSearch() {
       </Paper>
 
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" onClose={() => setSuccess("")} sx={{ mb: 2 }}>{success}</Alert>}
       {searched && <Typography variant="body2" fontWeight={700} color="text.secondary" sx={{ mb: 1.25 }}>{results.length} matching record{results.length === 1 ? "" : "s"} found</Typography>}
 
       <Paper elevation={0} sx={{ borderRadius: 3, overflow: "hidden", border: "1.5px solid #e2e8f0" }}>
@@ -122,6 +128,7 @@ export default function WagonDataSheetSearch() {
           <Table stickyHeader size="small" sx={{ minWidth: 1450 }}>
             <TableHead>
               <TableRow>
+                {isMasterAdmin && <TableCell sx={{ fontWeight: 800, bgcolor: "#1e293b", color: "white", position: "sticky", left: 0, zIndex: 4 }}>Actions</TableCell>}
                 {["Project", "SL / TEX / Wagon", "Wheel Data Link", "Axle Serial No.", "Wheel Serial No.", "Bearing Serial No.", "Bogie Serial No.", "CTRB Filled", "DM Line Filled", "DM Final Filled"].map((label) => (
                   <TableCell key={label} sx={{ fontWeight: 800, bgcolor: "#1e293b", color: "white", whiteSpace: "nowrap" }}>{label}</TableCell>
                 ))}
@@ -129,11 +136,17 @@ export default function WagonDataSheetSearch() {
             </TableHead>
             <TableBody>
               {!searched ? (
-                <TableRow><TableCell colSpan={10} align="center" sx={{ py: 7, color: "text.secondary" }}>Select a field and enter a value to search all submitted wagon data.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isMasterAdmin ? 11 : 10} align="center" sx={{ py: 7, color: "text.secondary" }}>Select a field and enter a value to search all submitted wagon data.</TableCell></TableRow>
               ) : results.length === 0 ? (
-                <TableRow><TableCell colSpan={10} align="center" sx={{ py: 7, color: "text.secondary" }}>No matching data found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isMasterAdmin ? 11 : 10} align="center" sx={{ py: 7, color: "text.secondary" }}>No matching data found.</TableCell></TableRow>
               ) : results.map((row) => (
                 <TableRow key={row.rowId} hover>
+                  {isMasterAdmin && <TableCell sx={{ position: "sticky", left: 0, bgcolor: "white", zIndex: 1 }}>
+                    <Stack direction="row" spacing={1}>
+                      <Button size="small" variant="outlined" onClick={() => setTarget({ mode: "edit", row })}>Edit</Button>
+                      <Button size="small" color="error" variant="outlined" onClick={() => setTarget({ mode: "delete", row })}>Delete</Button>
+                    </Stack>
+                  </TableCell>}
                   <TableCell><Typography fontWeight={700}>{row.projectName}</Typography><Typography variant="caption" color="text.secondary">{row.projectPoNumber || "-"}</Typography></TableCell>
                   <TableCell><Typography fontWeight={800}>{row.texNo}</Typography><Typography variant="caption" display="block">SL: {row.slNo || "-"} | Wagon: {row.wagonNo}</Typography></TableCell>
                   <TableCell>{row.wheelDataLinks || "-"}</TableCell>
@@ -150,6 +163,13 @@ export default function WagonDataSheetSearch() {
           </Table>
         </TableContainer>
       </Paper>
+      {isMasterAdmin && target && <WagonDataSheetRecordDialog target={target} onClose={() => setTarget(null)} onSaved={(message) => {
+        setTarget(null);
+        setSuccess(message);
+        setResults([]);
+        setSearched(false);
+        setRevision((value) => value + 1);
+      }} />}
     </Box>
   );
 }
