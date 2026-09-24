@@ -18,9 +18,12 @@ import AdminScreen from "./src/screens/AdminScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import MyProfileScreen from "./src/screens/MyProfileScreen";
 import MyReportsScreen from "./src/screens/MyReportsScreen";
+import MyWagonReportsScreen from "./src/screens/MyWagonReportsScreen";
 import SelectReportTypeScreen from "./src/screens/SelectReportTypeScreen";
 import ReportFormScreen from "./src/screens/ReportFormScreen";
 import SuccessScreen from "./src/screens/SuccessScreen";
+import InspectorScreen from "./src/screens/InspectorScreen";
+import { InspectorProfileProvider } from "./src/storage/InspectorProfileContext";
 
 /* Keep native splash visible until we're ready */
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -36,22 +39,16 @@ const HEADER_OPTS = {
   contentStyle: { backgroundColor: "#f7f3ea" },
 };
 
-function LogoHeader() {
-  return (
-    <Image
-      source={require("./assets/texmaco-logo.png")}
-      style={{ width: 110, height: 36, resizeMode: "contain" }}
-    />
-  );
-}
-
-function BackButton({ navigation }) {
+function BackButton({ navigation, onPress }) {
   return (
     <Pressable
-      onPress={() => navigation.goBack()}
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+      onPress={onPress || (() => navigation.goBack())}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
+        minHeight: 44,
         paddingVertical: 6,
         paddingHorizontal: 4,
         borderRadius: 10,
@@ -60,6 +57,7 @@ function BackButton({ navigation }) {
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
     >
       <Ionicons name="chevron-back" size={24} color="#1f2a37" />
+      <Text style={{ color: "#1f2a37", fontWeight: "600", fontSize: 15 }}>Back</Text>
     </Pressable>
   );
 }
@@ -69,7 +67,10 @@ function HomeStack({ onAdminLogin }) {
     <Stack.Navigator screenOptions={HEADER_OPTS}>
       <Stack.Screen
         name="HomeScreen"
-        options={{ title: "", headerLeft: () => <LogoHeader /> }}
+        options={({ navigation }) => ({
+          title: "",
+          headerLeft: () => <BackButton navigation={navigation} onPress={() => navigation.navigate("Home")} />,
+        })}
       >
         {(props) => <HomeScreen {...props} onAdminLogin={onAdminLogin} />}
       </Stack.Screen>
@@ -104,8 +105,22 @@ function AdminHomeStack() {
       <Stack.Screen
         name="AdminHome"
         component={AdminScreen}
-        options={{ title: "", headerLeft: () => <LogoHeader /> }}
+        options={{ title: "" }}
       />
+    </Stack.Navigator>
+  );
+}
+
+function MyReportsStack() {
+  return (
+    <Stack.Navigator screenOptions={HEADER_OPTS}>
+      <Stack.Screen name="FilledWagonForms" component={MyWagonReportsScreen} options={({ navigation }) => ({
+        title: "My Reports",
+        headerLeft: () => <BackButton navigation={navigation} onPress={() => navigation.getParent()?.navigate("Home")} />,
+      })} />
+      <Stack.Screen name="SubmittedIncidents" component={MyReportsScreen} options={({ navigation }) => ({
+        title: "Submitted Incidents", headerLeft: () => <BackButton navigation={navigation} />,
+      })} />
     </Stack.Navigator>
   );
 }
@@ -113,10 +128,17 @@ function AdminHomeStack() {
 /* ── Custom JS splash screen ── */
 function AppSplash({ onReady }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const loadingAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     /* Hide the native splash, show our custom one */
     SplashScreen.hideAsync().catch(() => {});
+    const loadingAnimation = Animated.loop(Animated.timing(loadingAnim, {
+      toValue: 1,
+      duration: 1100,
+      useNativeDriver: true,
+    }));
+    loadingAnimation.start();
 
     /* After a short hold, fade out */
     const hold = setTimeout(() => {
@@ -127,26 +149,25 @@ function AppSplash({ onReady }) {
       }).start(() => onReady());
     }, 1800);
 
-    return () => clearTimeout(hold);
+    return () => {
+      clearTimeout(hold);
+      loadingAnimation.stop();
+      fadeAnim.stopAnimation();
+    };
   }, []);
 
   return (
     <Animated.View style={[styles.splash, { opacity: fadeAnim }]}>
       <View style={styles.splashContent}>
         <Image
-          source={require("./assets/texhse-icon.png")}
-          style={styles.splashIcon}
-          resizeMode="contain"
-        />
-        <Text style={styles.splashName}>TexHSE</Text>
-        <Text style={styles.splashTagline}>Safety Reporting Platform</Text>
-      </View>
-      <View style={styles.splashFooter}>
-        <Image
           source={require("./assets/texmaco-logo.png")}
           style={styles.splashLogo}
           resizeMode="contain"
         />
+        <View style={styles.loadingTrack} accessibilityRole="progressbar" accessibilityLabel="App loading">
+          <Animated.View style={[styles.loadingBar, { transform: [{ translateX: loadingAnim.interpolate({ inputRange: [0, 1], outputRange: [-72, 240] }) }] }]} />
+        </View>
+        <Text style={styles.loadingLabel}>Loading…</Text>
       </View>
     </Animated.View>
   );
@@ -159,21 +180,24 @@ export default function App() {
   if (!appReady) {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <AppSplash onReady={() => setAppReady(true)} />
       </>
     );
   }
 
   return (
+    <InspectorProfileProvider>
     <NavigationContainer>
       <StatusBar style="dark" />
       <Tab.Navigator
+        initialRouteName="Home"
+        backBehavior="initialRoute"
+        detachInactiveScreens={false}
         screenOptions={({ route }) => ({
           headerShadowVisible: false,
           headerStyle: { backgroundColor: "#f7f3ea" },
           headerTintColor: "#1f2a37",
-          headerLeft: () => <LogoHeader />,
           headerTitleAlign: "left",
           tabBarActiveTintColor: "#1f6f5f",
           tabBarInactiveTintColor: "#7c8692",
@@ -182,6 +206,8 @@ export default function App() {
             let iconName;
             if (route.name === "Home") {
               iconName = focused ? "home" : "home-outline";
+            } else if (route.name === "Incident") {
+              iconName = focused ? "alert-circle" : "alert-circle-outline";
             } else if (route.name === "MyReports" || route.name === "Reports") {
               iconName = focused ? "document-text" : "document-text-outline";
             } else {
@@ -201,12 +227,9 @@ export default function App() {
       >
         <Tab.Screen
           name="Home"
-          options={{ headerShown: false, tabBarLabel: "Home" }}
-        >
-          {isAdmin
-            ? () => <AdminHomeStack />
-            : (props) => <HomeStack {...props} onAdminLogin={() => setIsAdmin(true)} />}
-        </Tab.Screen>
+          component={InspectorScreen}
+          options={{ headerShown: false, tabBarLabel: "Home", freezeOnBlur: false }}
+        />
 
         {isAdmin ? (
           <Tab.Screen
@@ -217,14 +240,33 @@ export default function App() {
         ) : (
           <Tab.Screen
             name="MyReports"
-            component={MyReportsScreen}
-            options={{ title: "", tabBarLabel: "My Reports" }}
+            component={MyReportsStack}
+            options={{ headerShown: false, tabBarLabel: "My Reports", popToTopOnBlur: true }}
           />
         )}
 
         <Tab.Screen
+          name="Incident"
+          options={{
+            headerShown: false,
+            tabBarLabel: "Report Incident",
+            tabBarAccessibilityLabel: "Report an incident",
+            tabBarActiveTintColor: "#dc2626",
+            tabBarInactiveTintColor: "#dc2626",
+            tabBarLabelStyle: { fontSize: 11, fontWeight: "800" },
+          }}
+        >
+          {isAdmin
+            ? () => <AdminHomeStack />
+            : (props) => <HomeStack {...props} onAdminLogin={() => setIsAdmin(true)} />}
+        </Tab.Screen>
+
+        <Tab.Screen
           name="MyProfile"
-          options={{ title: "", tabBarLabel: "My Profile" }}
+          options={({ navigation }) => ({
+            title: "", tabBarLabel: "My Profile",
+            headerLeft: () => <BackButton navigation={navigation} onPress={() => navigation.navigate("Home")} />,
+          })}
         >
           {(props) => (
             <MyProfileScreen
@@ -236,48 +278,27 @@ export default function App() {
         </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
+    </InspectorProfileProvider>
   );
 }
 
 const styles = StyleSheet.create({
   splash: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#20364a",
-    justifyContent: "space-between",
+    backgroundColor: "#ffffff",
+    justifyContent: "center",
     alignItems: "center",
-    paddingTop: 140,
-    paddingBottom: 52,
   },
   splashContent: {
     alignItems: "center",
     gap: 16,
   },
-  splashIcon: {
-    width: 120,
-    height: 120,
-    borderRadius: 28,
-  },
-  splashName: {
-    color: "#ffffff",
-    fontSize: 36,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-    marginTop: 8,
-  },
-  splashTagline: {
-    color: "#7ee8d4",
-    fontSize: 14,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  splashFooter: {
-    alignItems: "center",
-    gap: 6,
-  },
   splashLogo: {
-    width: 100,
-    height: 32,
-    opacity: 0.5,
+    width: 240,
+    height: 100,
+    marginBottom: 20,
   },
+  loadingTrack: { width: 240, height: 5, borderRadius: 3, backgroundColor: "#e8eeeb", overflow: "hidden" },
+  loadingBar: { width: 72, height: 5, borderRadius: 3, backgroundColor: "#1f6f5f" },
+  loadingLabel: { fontSize: 14, color: "#64748b" },
 });

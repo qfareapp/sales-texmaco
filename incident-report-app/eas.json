@@ -8,7 +8,7 @@
       "distribution": "internal",
       "env": {
         "APP_ENV": "development",
-        "EXPO_PUBLIC_API_BASE_URL": "http://192.168.16.21:5000/api"
+        "EXPO_PUBLIC_API_BASE_URL": "http://192.168.16.22:5000/api"
       }
     },
     "preview": {
@@ -18,7 +18,8 @@
       },
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_API_BASE_URL": "https://sales-texmaco.onrender.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://texmaco-backend.onrender.com/api",
+        "EXPO_PUBLIC_INSPECTOR_WEB_URL": "https://texmaco-frontend.vercel.app/quality-dashboard"
       }
     },
     "production": {
@@ -27,7 +28,8 @@
       },
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_API_BASE_URL": "https://sales-texmaco.onrender.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://texmaco-backend.onrender.com/api",
+        "EXPO_PUBLIC_INSPECTOR_WEB_URL": "https://texmaco-frontend.vercel.app/quality-dashboard"
       }
     }
   }

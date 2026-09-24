@@ -1,23 +1,35 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { getMyIncidentReports } from "../services/incidents";
-import { getReporterProfile } from "../storage/reporterProfile";
+import { getReporterProfile, saveReporterProfile } from "../storage/reporterProfile";
+import { useInspectorProfile } from "../storage/InspectorProfileContext";
 
 export default function MyReportsScreen() {
+  const { inspectorSession } = useInspectorProfile();
+  const username = inspectorSession?.username;
+  const requestId = useRef(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState([]);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
   const [selectedReport, setSelectedReport] = useState(null);
+  const [lookupMobile, setLookupMobile] = useState("");
 
-  const loadReports = useCallback(async (isRefresh = false) => {
+  const loadReports = useCallback(async (isRefresh = false, mobileLookup = "") => {
+    const currentRequest = ++requestId.current;
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
+      if (mobileLookup) {
+        setReports([]);
+        setSelectedReport(null);
+        setError("");
+      }
 
-      const savedProfile = await getReporterProfile();
+      const savedProfile = mobileLookup ? { mobileNumber: mobileLookup } : await getReporterProfile(username);
+      if (currentRequest !== requestId.current) return;
       setProfile(savedProfile);
 
       if (!savedProfile?.empId && !savedProfile?.mobileNumber) {
@@ -31,19 +43,43 @@ export default function MyReportsScreen() {
         mobileNumber: savedProfile.mobileNumber,
       });
 
+      if (currentRequest !== requestId.current) return;
       setReports(myReports);
       setError("");
+      if (mobileLookup && myReports.length) {
+        const reporter = myReports[0].reportedBy || {};
+        const recoveredProfile = {
+          name: reporter.name,
+          departmentContractor: reporter.reporterType,
+          mobileNumber: mobileLookup,
+          department: reporter.department,
+          contractorName: reporter.contractorName,
+        };
+        // Keep a mobile-only lookup so records with different employee IDs remain visible.
+        setProfile(recoveredProfile);
+        try { await saveReporterProfile(recoveredProfile, username); }
+        catch { if (currentRequest === requestId.current) setError("Reports loaded, but your lookup could not be saved on this device."); }
+      }
     } catch (loadError) {
+      if (currentRequest !== requestId.current) return;
       setError(loadError.message || "Unable to load your reports.");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (currentRequest === requestId.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, []);
+  }, [username]);
 
   useFocusEffect(
     useCallback(() => {
+      setReports([]);
+      setProfile(null);
+      setSelectedReport(null);
+      setLookupMobile("");
+      setError("");
       loadReports();
+      return () => { requestId.current += 1; };
     }, [loadReports])
   );
 
@@ -62,15 +98,31 @@ export default function MyReportsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadReports(true)} tintColor="#1f6f5f" />}
     >
       <View style={styles.card}>
-        <Text style={styles.eyebrow}>My Reports</Text>
+        <Text style={styles.eyebrow}>Submitted Incidents</Text>
         <Text style={styles.title}>Your submitted incident records.</Text>
         {profile ? (
           <Text style={styles.body}>
             Showing reports for {profile.name || "Reporter"} {profile.empId ? `(${profile.empId})` : ""}
           </Text>
         ) : (
-          <Text style={styles.body}>Submit one report first so the app can identify your records.</Text>
+          <Text style={styles.body}>Find earlier submissions using the mobile number entered in the incident report.</Text>
         )}
+      </View>
+
+      <View style={styles.messageCard}>
+        <Text style={styles.emptyTitle}>Find earlier submissions</Text>
+        <Text style={styles.body}>Enter the same mobile number you used when submitting the incident.</Text>
+        <TextInput
+          accessibilityLabel="Reporter mobile number"
+          placeholder="Mobile number used in the report"
+          keyboardType="phone-pad"
+          value={lookupMobile}
+          onChangeText={setLookupMobile}
+          style={styles.lookupInput}
+        />
+        <Pressable accessibilityRole="button" disabled={!lookupMobile.trim() || refreshing} style={[styles.lookupButton, (!lookupMobile.trim() || refreshing) && { opacity: 0.5 }]} onPress={() => loadReports(true, lookupMobile.trim())}>
+          <Text style={styles.lookupButtonText}>Find my incidents</Text>
+        </Pressable>
       </View>
 
       {error ? (
@@ -82,7 +134,7 @@ export default function MyReportsScreen() {
       {!profile ? (
         <View style={styles.messageCard}>
           <Text style={styles.emptyTitle}>No reporter profile found.</Text>
-          <Text style={styles.body}>Once you submit a report, your employee details will be reused here.</Text>
+          <Text style={styles.body}>Use the mobile-number lookup above to retrieve your earlier incidents.</Text>
         </View>
       ) : reports.length === 0 ? (
         <View style={styles.messageCard}>
@@ -185,6 +237,9 @@ function VictimRows({ report }) {
 }
 
 const styles = StyleSheet.create({
+  lookupInput: { borderWidth: 1, borderColor: "#d4c9b7", borderRadius: 10, padding: 12, color: "#25313d", backgroundColor: "#fff" },
+  lookupButton: { backgroundColor: "#1f6f5f", borderRadius: 10, padding: 14, alignItems: "center" },
+  lookupButtonText: { color: "#fff", fontWeight: "700" },
   container: {
     flex: 1,
     backgroundColor: "#f7f3ea",

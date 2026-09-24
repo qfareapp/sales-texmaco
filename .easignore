@@ -1,0 +1,14 @@
+# Only the mobile application belongs in the EAS build archive.
+/*
+!/incident-report-app
+/incident-report-app/node_modules
+/incident-report-app/.expo
+/incident-report-app/android
+/incident-report-app/ios
+/incident-report-app/dist*
+/incident-report-app/.env*
+/incident-report-app/*.apk
+/incident-report-app/*.aab
+/incident-report-app/credentials.json
+/incident-report-app/*.jks
+/incident-report-app/*.keystore

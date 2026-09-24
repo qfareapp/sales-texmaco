@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,8 +10,10 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useInspectorProfile } from "../storage/InspectorProfileContext";
 
 export default function HomeScreen({ navigation, onAdminLogin }) {
+  const { refreshProfile, profileState, inspectorSession } = useInspectorProfile();
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -33,6 +36,8 @@ export default function HomeScreen({ navigation, onAdminLogin }) {
       style={styles.scroll}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
+      alwaysBounceVertical
+      refreshControl={<RefreshControl refreshing={profileState.status === "loading"} onRefresh={refreshProfile} enabled={Boolean(inspectorSession?.signedIn)} tintColor="#276c65" colors={["#276c65"]} />}
     >
       {/* Hero Banner */}
       <View style={styles.hero}>

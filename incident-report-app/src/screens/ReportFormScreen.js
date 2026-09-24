@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,7 +25,9 @@ import {
   LOCATION_OPTIONS,
 } from "../constants/reportOptions";
 import { submitIncidentReport, invalidateReportsCache } from "../services/incidents";
-import { saveReporterProfile } from "../storage/reporterProfile";
+import { getReporterProfile, saveReporterProfile } from "../storage/reporterProfile";
+import { useInspectorProfile } from "../storage/InspectorProfileContext";
+import { REPORTER_FIELDS, inspectorReporterDefaults, applyReporterDefaults } from "../services/reporterPrefill";
 
 const initialState = {
   reportedByName: "",
@@ -137,9 +139,47 @@ function SelectListField({ label, value, options, placeholder, onSelect }) {
 export default function ReportFormScreen({ navigation, route }) {
   const { reportCategory, reportType } = route.params;
   const [form, setForm] = useState(initialState);
+  const { profileState, refreshProfile, inspectorSession } = useInspectorProfile();
+  const editedReporterFields = useRef(new Set());
+  const reporterAccount = useRef(null);
+  const [prefilled, setPrefilled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+
+  useEffect(() => { refreshProfile(); }, [refreshProfile]);
+
+  useEffect(() => {
+    let active = true;
+    if (profileState.status === "signed-out") {
+      if (reporterAccount.current) {
+        reporterAccount.current = null;
+        editedReporterFields.current.clear();
+        setForm((current) => applyReporterDefaults(current, {}, new Set()));
+        setPrefilled(false);
+      }
+      return;
+    }
+    if (profileState.status !== "ready" || !profileState.data?.username) return;
+    const profile = profileState.data;
+    const accountChanged = reporterAccount.current && reporterAccount.current !== profile.username;
+    if (accountChanged) {
+      editedReporterFields.current.clear();
+      setForm((current) => applyReporterDefaults(current, {}, new Set()));
+      setPrefilled(false);
+    }
+    reporterAccount.current = profile.username;
+    // Never use the device's generic last reporter for a logged-in account.
+    getReporterProfile(profile.username).catch(() => null).then((saved) => {
+      if (!active) return;
+      setForm((current) => {
+        const defaults = inspectorReporterDefaults(profile, saved, current.departmentContractor);
+        return applyReporterDefaults(current, defaults, editedReporterFields.current);
+      });
+      setPrefilled(Boolean(profile.name || saved));
+    });
+    return () => { active = false; };
+  }, [profileState, form.departmentContractor]);
 
   const isLearningEvent = useMemo(() => reportCategory === "Learning Event", [reportCategory]);
   const accentColor = CATEGORY_COLOR[reportCategory] ?? "#1f6f5f";
@@ -147,10 +187,12 @@ export default function ReportFormScreen({ navigation, route }) {
   const categoryIcon = CATEGORY_ICON[reportCategory] ?? "document-outline";
 
   function updateField(key, value) {
+    if (REPORTER_FIELDS.includes(key)) editedReporterFields.current.add(key);
     setForm((current) => ({ ...current, [key]: value }));
   }
 
   function handleReporterTypeChange(type) {
+    editedReporterFields.current.add("departmentContractor");
     setForm((current) => ({
       ...current,
       departmentContractor: type,
@@ -298,6 +340,8 @@ export default function ReportFormScreen({ navigation, route }) {
   }
 
   async function handleSubmit() {
+    // Login identity is available even if /auth/me is offline or not deployed.
+    const reportingUsername = inspectorSession?.signedIn ? inspectorSession.username : undefined;
     try {
       setSubmitting(true);
       const normalizedVictims = form.victims
@@ -317,14 +361,18 @@ export default function ReportFormScreen({ navigation, route }) {
       };
       const response = await submitIncidentReport(payload);
       invalidateReportsCache();
-      await saveReporterProfile({
-        name: form.reportedByName,
-        departmentContractor: form.departmentContractor,
-        empId: form.empId || undefined,
-        contractorName: form.contractorName || undefined,
-        mobileNumber: form.mobileNumber || undefined,
-        department: form.department || undefined,
-      });
+      try {
+        await saveReporterProfile({
+          name: form.reportedByName,
+          departmentContractor: form.departmentContractor,
+          empId: form.empId || undefined,
+          contractorName: form.contractorName || undefined,
+          mobileNumber: form.mobileNumber || undefined,
+          department: form.department || undefined,
+        }, reportingUsername);
+      } catch {
+        Alert.alert("Report submitted", "Your report was saved, but this device could not remember your reporter details. Use your submitted mobile number in Submitted Incidents to find it.");
+      }
       navigation.replace("Success", {
         reportCategory,
         reportType,
@@ -374,6 +422,9 @@ export default function ReportFormScreen({ navigation, route }) {
         {/* Reported By */}
         <View style={styles.section}>
           <SectionHeader icon="person-outline" title="Reported By" />
+          {profileState.status === "loading" && <Text style={styles.prefillNote}>Loading your inspector details...</Text>}
+          {profileState.status === "error" && <Text style={styles.prefillNote}>Your profile could not be loaded. Please enter your details below.</Text>}
+          {prefilled && <Text style={styles.prefillNote}>Your available details have been filled in. You can edit them below.</Text>}
 
           <FormField
             label="Full Name"
@@ -654,6 +705,7 @@ export default function ReportFormScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  prefillNote: { fontSize: 13, lineHeight: 19, color: "#527568", marginBottom: 12 },
   screen: {
     flex: 1,
     backgroundColor: "#f7f3ea",
